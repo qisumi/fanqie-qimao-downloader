@@ -1,0 +1,43 @@
+# 将所有文本文件的行结束符统一设置为LF
+* text=auto eol=lf
+
+# 明确将二进制文件标记为binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.rar binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Python文件
+*.py text diff=python
+
+# 配置文件
+*.json text
+*.yaml text
+*.yml text
+*.ini text
+*.toml text
+*.cfg text
+
+# 文档文件
+*.md text
+*.rst text
+*.txt text
+*.csv text
+
+# Shell脚本
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Windows批处理文件
+*.bat text eol=crlf
+*.cmd text eol=crlf
