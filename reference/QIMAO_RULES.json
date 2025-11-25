@@ -1,0 +1,50 @@
+[
+    {
+        "ruleSearch": {
+            "bookList": "data.books",
+            "name": "original_title",
+            "author": "original_author",
+            "kind": "{{$.score}}分,{{$.alias_title}},{{$.ptags}}",
+            "wordCount": "words_num",
+            "intro": "intro",
+            "coverUrl": "image_link",
+            "bookUrl": "{{source.bookSourceUrl}}&type=2&id={{$.id}}"
+        },
+        "ruleBookInfo": {
+            "init": "data.book",
+            "name": "title@put:{bid:id}",
+            "author": "author",
+            "kind": "来源：{{$.source}}@{{$.category_over_words}}@{{$.book_tag_list[*].title}}##@[^・]+・([^・]+)・[^・]+@##,$1,",
+            "wordCount": "words_num",
+            "lastChapter": "{{$.latest_chapter_title}} {{java.timeFormat(java.getString('$.update_time')*1000)}}",
+            "intro": "{{$.intro}}",
+            "coverUrl": "image_link##_\\d+x\\d+",
+            "tocUrl": "{{source.bookSourceUrl}}&type=3&id={{$.id}}"
+        },
+        "ruleToc": {
+            "chapterList": "data.chapter_lists",
+            "chapterName": "title",
+            "chapterUrl": "<js>\nid = java.get('bid');\nurl = '{{source.bookSourceUrl}}&type=4&id='+id+'&chapterid={{$.id}}';\n</js>",
+            "updateTime": "更新字数：{{$.words}} 字"
+        },
+        "ruleContent": {
+            "content": "<js>\nlet res = JSON.parse(result);\nresult = res.data.content\n</js>"
+        },
+        "ruleReview": {},
+        "ruleExplore": {
+            "name": "$.title",
+            "author": "$.author",
+            "kind": "{{$.score}}分,{{$.alias_title}},{{$.ptags}}",
+            "wordCount": "$.words_num",
+            "intro": "$.intro",
+            "coverUrl": "$.image_link",
+            "bookUrl": "{{source.bookSourceUrl}}&type=2&id={{$.id}}"
+        },
+        "bookSourceType": 0,
+        "bookSourceUrl": "https://v3.rain.ink/qimao/?apikey=YOUR_API_KEY_HERE",
+        "bookSourceName": "Rain API V3 - 七猫小说",
+        "bookSourceGroup": "Rain API V3",
+        "bookSourceComment": "基于七猫API的阅读书源（测试版）\n有任何问题请联系群主反馈！",
+        "searchUrl": "<js>\njava.put(\"key\", key)\n</js>\n{{source.bookSourceUrl}}&type=1&wd={{key}}&page={{(page-1 )*10 }}"
+    }
+]
