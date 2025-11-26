@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}书籍详情 - FanqieQimaoDownloader{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <div class="px-4 py-5 sm:p-6">
+            <div x-data="bookDetail()" x-init="loadBook()">
+                <!-- 书籍信息 -->
+                <div x-show="book" class="mb-6">
+                    <div class="flex items-start space-x-6">
+                        <div class="flex-shrink-0">
+                            <img x-show="book.cover_url" :src="book.cover_url"
+                                 class="w-32 h-44 object-cover rounded-lg shadow"
+                                 onerror="this.style.display='none'">
+                            <div x-show="!book.cover_url" class="w-32 h-44 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-book text-gray-400 text-2xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center mb-2">
+                                <h1 class="text-2xl font-bold text-gray-900 mr-3" x-text="book.title"></h1>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                      :class="book.platform === 'fanqie' ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800'">
+                                    <span x-text="book.platform === 'fanqie' ? '番茄小说' : '七猫小说'"></span>
+                                </span>
+                            </div>
+                            <p class="text-lg text-gray-600 mb-2">作者: <span x-text="book.author"></span></p>
+                            <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                                <div>总章节: <span x-text="book.total_chapters"></span></div>
+                                <div>已下载: <span x-text="book.downloaded_chapters"></span></div>
+                                <div>字数: <span x-text="book.word_count.toLocaleString()"></span></div>
+                                <div>状态: <span x-text="book.creation_status"></span></div>
+                            </div>
+                            <div class="mt-4 flex space-x-3">
+                                <button @click="downloadBook()"
+                                        :disabled="book.download_status === 'downloading'"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">
+                                    <i class="fas fa-download mr-2"></i>
+                                    <span x-text="book.download_status === 'completed' ? '重新下载' : '开始下载'"></span>
+                                </button>
+                                <button @click="updateBook()"
+                                        x-show="book.download_status === 'completed'"
+                                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                    <i class="fas fa-sync mr-2"></i>
+                                    检查更新
+                                </button>
+                                <button @click="deleteBook()"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                                    <i class="fas fa-trash mr-2"></i>
+                                    删除书籍
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 下载状态 -->
+                <div x-show="book && book.download_status === 'downloading'" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-spinner fa-spin text-blue-600 mr-3"></i>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-blue-800">下载进行中...</p>
+                            <p class="text-xs text-blue-600 mt-1">
+                                已下载 <span x-text="book.downloaded_chapters"></span>/<span x-text="book.total_chapters"></span> 章节
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 错误信息 -->
+                <div x-show="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle text-red-600 mr-3"></i>
+                        <p class="text-sm text-red-800" x-text="error"></p>
+                    </div>
+                </div>
+
+                <!-- 加载状态 -->
+                <div x-show="loading" class="text-center py-12">
+                    <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+                    <p class="mt-2 text-sm text-gray-600">加载中...</p>
+                </div>
+
+                <!-- 未找到 -->
+                <div x-show="!loading && !book && !error" class="text-center py-12">
+                    <i class="fas fa-book text-gray-400 text-4xl"></i>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">书籍未找到</h3>
+                    <p class="mt-1 text-sm text-gray-500">该书籍可能已被删除或不存在</p>
+                    <div class="mt-6">
+                        <a href="/books" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            返回书籍列表
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function bookDetail() {
+    return {
+        book: null,
+        loading: false,
+        error: null,
+
+        async loadBook() {
+            this.loading = true;
+            this.error = null;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const bookId = urlParams.get('id') || window.location.pathname.split('/').pop();
+
+            try {
+                const response = await fetch(`/api/books/${bookId}`);
+                if (response.ok) {
+                    this.book = await response.json();
+                } else if (response.status === 404) {
+                    this.book = null;
+                } else {
+                    throw new Error('加载书籍信息失败');
+                }
+            } catch (error) {
+                console.error('Failed to load book:', error);
+                this.error = error.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async downloadBook() {
+            if (!this.book) return;
+
+            try {
+                const response = await fetch(`/api/tasks/${this.book.id}/download`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('下载任务已启动！');
+                    this.loadBook(); // 刷新状态
+                } else {
+                    throw new Error('启动下载失败');
+                }
+            } catch (error) {
+                console.error('Download failed:', error);
+                alert('启动下载失败，请稍后重试');
+            }
+        },
+
+        async updateBook() {
+            if (!this.book) return;
+
+            try {
+                const response = await fetch(`/api/tasks/${this.book.id}/update`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('更新检查已启动！');
+                    this.loadBook(); // 刷新状态
+                } else {
+                    throw new Error('启动更新失败');
+                }
+            } catch (error) {
+                console.error('Update failed:', error);
+                alert('启动更新失败，请稍后重试');
+            }
+        },
+
+        async deleteBook() {
+            if (!this.book) return;
+
+            if (!confirm('确定要删除这本书吗？删除后将无法恢复。')) return;
+
+            try {
+                const response = await fetch(`/api/books/${this.book.id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('书籍已删除！');
+                    window.location.href = '/books';
+                } else {
+                    throw new Error('删除失败');
+                }
+            } catch (error) {
+                console.error('Delete failed:', error);
+                alert('删除书籍失败，请稍后重试');
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - FanqieQimaoDownloader{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-book text-3xl text-blue-600"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <h1 class="text-lg font-medium text-gray-900">欢迎使用番茄七猫小说下载器</h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        支持番茄小说和七猫小说的批量下载和EPUB导出
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <!-- 快速搜索 -->
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-search text-green-600"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">快速搜索</dt>
+                            <dd class="text-lg font-medium text-gray-900">开始搜索小说</dd>
+                        </dl>
+                    </div>
+                </div>
+                <div class="mt-5">
+                    <a href="/search" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                        开始搜索
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 书籍管理 -->
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-books text-blue-600"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">书籍管理</dt>
+                            <dd class="text-lg font-medium text-gray-900">查看已添加书籍</dd>
+                        </dl>
+                    </div>
+                </div>
+                <div class="mt-5">
+                    <a href="/books" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        查看书籍
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务监控 -->
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-tasks text-purple-600"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">任务监控</dt>
+                            <dd class="text-lg font-medium text-gray-900">查看下载进度</dd>
+                        </dl>
+                    </div>
+                </div>
+                <div class="mt-5">
+                    <a href="/tasks" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                        查看任务
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 系统状态 -->
+    <div class="mt-8">
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">系统状态</h3>
+                <div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3" x-data="stats()">
+                    <div class="bg-gray-50 overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-book text-blue-600"></i>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">总书籍数</dt>
+                                        <dd class="text-lg font-medium text-gray-900" x-text="totalBooks">0</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-file-alt text-green-600"></i>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">总章节数</dt>
+                                        <dd class="text-lg font-medium text-gray-900" x-text="totalChapters">0</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-clock text-yellow-600"></i>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">今日下载</dt>
+                                        <dd class="text-lg font-medium text-gray-900" x-text="dailyQuota">0/200</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function stats() {
+    return {
+        totalBooks: 0,
+        totalChapters: 0,
+        dailyQuota: '0/200',
+        init() {
+            this.loadStats();
+        },
+        async loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                this.totalBooks = data.total_books;
+                this.totalChapters = data.total_chapters;
+                this.dailyQuota = `${data.daily_quota_used}/${data.daily_quota_limit}`;
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

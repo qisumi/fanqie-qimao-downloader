@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}搜索 - FanqieQimaoDownloader{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">搜索小说</h3>
+
+            <!-- 搜索表单 -->
+            <div class="mb-6" x-data="searchForm()">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                    <div class="sm:col-span-2">
+                        <label for="keyword" class="block text-sm font-medium text-gray-700">关键词</label>
+                        <input type="text" id="keyword" x-model="keyword"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                               placeholder="输入小说名称或作者">
+                    </div>
+                    <div>
+                        <label for="platform" class="block text-sm font-medium text-gray-700">平台</label>
+                        <select id="platform" x-model="platform" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="fanqie">番茄小说</option>
+                            <option value="qimao">七猫小说</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button @click="search()" :disabled="!keyword.trim()"
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                            <i class="fas fa-search mr-2"></i>
+                            搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 搜索结果 -->
+            <div x-show="results.length > 0" x-transition>
+                <h4 class="text-md font-medium text-gray-900 mb-3">搜索结果</h4>
+                <div class="space-y-3">
+                    <template x-for="book in results" :key="book.book_id">
+                        <div class="border rounded-lg p-4 hover:bg-gray-50">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h5 class="text-lg font-medium text-gray-900" x-text="book.title"></h5>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        作者: <span x-text="book.author"></span> |
+                                        字数: <span x-text="book.word_count.toLocaleString()"></span> |
+                                        状态: <span x-text="book.creation_status"></span>
+                                    </p>
+                                </div>
+                                <button @click="addBook(book)"
+                                        class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                                    <i class="fas fa-plus mr-1"></i>
+                                    添加
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 加载状态 -->
+            <div x-show="loading" class="text-center py-8">
+                <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+                <p class="mt-2 text-sm text-gray-600">搜索中...</p>
+            </div>
+
+            <!-- 空状态 -->
+            <div x-show="!loading && results.length === 0 && hasSearched" class="text-center py-8">
+                <i class="fas fa-search text-gray-400 text-3xl"></i>
+                <p class="mt-2 text-sm text-gray-600">未找到相关书籍</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function searchForm() {
+    return {
+        keyword: '',
+        platform: 'fanqie',
+        results: [],
+        loading: false,
+        hasSearched: false,
+
+        async search() {
+            if (!this.keyword.trim()) return;
+
+            this.loading = true;
+            this.hasSearched = true;
+
+            try {
+                const response = await fetch(`/api/books/search?q=${encodeURIComponent(this.keyword)}&platform=${this.platform}`);
+                const data = await response.json();
+                this.results = data;
+            } catch (error) {
+                console.error('Search failed:', error);
+                alert('搜索失败，请稍后重试');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async addBook(book) {
+            try {
+                const response = await fetch(`/api/books/${book.platform}/${book.book_id}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('书籍添加成功！');
+                    // 可以选择跳转到书籍详情页
+                } else {
+                    throw new Error('添加失败');
+                }
+            } catch (error) {
+                console.error('Add book failed:', error);
+                alert('添加书籍失败，请稍后重试');
+            }
+        }
+    }
+}
+</script>
+{% endblock %}
