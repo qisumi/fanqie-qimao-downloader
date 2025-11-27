@@ -82,5 +82,17 @@ class Settings(BaseSettings):
 
 
 # 创建全局配置实例
-settings = Settings()
-settings.ensure_directories()
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
+    """获取配置实例 (单例模式)"""
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+        _settings.ensure_directories()
+    return _settings
+
+
+# 向后兼容: 保留settings变量
+settings = get_settings()
