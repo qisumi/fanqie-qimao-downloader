@@ -6,25 +6,150 @@ This is a novel downloader project for Chinese reading platforms **番茄小说 
 ### Current State
 - **Phase 1 完成**: 基础架构搭建 (数据库模型、配置管理、目录结构)
 - **Phase 2 完成**: API客户端实现 (FanqieAPI, QimaoAPI, RateLimiter)
-- **Phase 3 待开发**: 服务层实现 (BookService, DownloadService, EPUBService)
-- **Phase 4-7 待开发**: Web层、功能完善、测试优化、部署
+- **Phase 3 完成**: 服务层实现 (StorageService, BookService, DownloadService, EPUBService)
+- **Phase 4 待开发**: Web层实现 (FastAPI路由、页面模板)
+- **Phase 5-7 待开发**: 功能完善、测试优化、部署
 
 ### Project Architecture
 ```
 ┌─────────────────────────────────────┐
-│   Web Layer (FastAPI)              │  ← 用户界面、RESTful API
+│   Web Layer (FastAPI)              │  ← 用户界面、RESTful API (Phase 4)
 ├─────────────────────────────────────┤
-│   Service Layer (业务逻辑)          │  ← 下载管理、更新检测、EPUB生成
+│   Service Layer (业务逻辑)          │  ← 下载管理、更新检测、EPUB生成 ✅ 已实现
 ├─────────────────────────────────────┤
-│   Data Access Layer (SQLAlchemy)   │  ← ORM、数据库操作
+│   Data Access Layer (SQLAlchemy)   │  ← ORM、数据库操作 ✅ 已实现
 ├─────────────────────────────────────┤
 │   API Client Layer (Rain API)      │  ← 番茄/七猫API封装 ✅ 已实现
 ├─────────────────────────────────────┤
-│   Storage Layer (文件系统/数据库)    │  ← 章节内容、封面、EPUB存储
+│   Storage Layer (文件系统/数据库)    │  ← 章节内容、封面、EPUB存储 ✅ 已实现
 └─────────────────────────────────────┘
 ```
 
 ## Implemented Modules
+
+### Service Layer (`app/services/`) ✅ Phase 3
+
+**已实现的服务:**
+
+```python
+from app.services import (
+    StorageService,     # 文件存储服务
+    BookService,        # 书籍管理服务
+    DownloadService,    # 下载管理服务
+    EPUBService,        # EPUB生成服务
+    # 异常类
+    DownloadError,      # 下载错误基类
+    QuotaReachedError,  # 配额已用尽
+    TaskCancelledError, # 任务已取消
+)
+```
+
+**StorageService 使用示例:**
+```python
+storage = StorageService()
+
+# 保存章节内容
+path = storage.save_chapter_content(book_uuid, chapter_index, content)
+path = await storage.save_chapter_content_async(book_uuid, chapter_index, content)
+
+# 读取章节内容
+content = storage.get_chapter_content(content_path)
+content = storage.get_chapter_content_by_index(book_uuid, chapter_index)
+
+# 下载保存封面
+cover_path = await storage.download_and_save_cover(book_uuid, cover_url)
+
+# 删除书籍文件
+storage.delete_book_files(book_uuid)
+
+# 存储统计
+stats = storage.get_storage_stats()
+# {"books_count": 10, "total_chapters": 1500, "total_size_mb": 50.0, ...}
+```
+
+**BookService 使用示例:**
+```python
+book_service = BookService(db=session, storage=storage)
+
+# 搜索书籍 (调用API)
+result = await book_service.search_books("fanqie", "禁神之下", page=0)
+
+# 添加书籍 (获取详情+封面+章节列表)
+book = await book_service.add_book("fanqie", "7123456789")
+
+# 查询书籍
+books = book_service.list_books(platform="fanqie", status="completed", page=0)
+book = book_service.get_book(book_uuid)
+detail = book_service.get_book_with_chapters(book_uuid)
+
+# 检测和添加新章节
+new_chapters = await book_service.check_new_chapters(book_uuid)
+count = await book_service.add_new_chapters(book_uuid)
+
+# 删除书籍
+book_service.delete_book(book_uuid, delete_files=True)
+```
+
+**DownloadService 使用示例:**
+```python
+download_service = DownloadService(db=session, storage=storage)
+
+# 下载书籍 (创建任务+并发下载)
+task = await download_service.download_book(book_uuid, task_type="full_download")
+
+# 更新书籍 (下载新章节)
+task = await download_service.update_book(book_uuid)
+
+# 重试失败章节
+count = await download_service.retry_failed_chapters(book_uuid)
+
+# 任务管理
+task = download_service.get_task(task_id)
+tasks = download_service.list_tasks(book_uuid=book_uuid, status="running")
+download_service.cancel_task(task_id)
+
+# 配额查询
+usage = download_service.get_quota_usage("fanqie")
+all_usage = download_service.get_all_quota_usage()
+```
+
+**EPUBService 使用示例:**
+```python
+epub_service = EPUBService(db=session, storage=storage)
+
+# 生成EPUB
+epub_path = epub_service.generate_epub(book, chapters)
+
+# 验证EPUB
+is_valid = epub_service.validate_epub(epub_path)
+
+# 获取EPUB信息
+info = epub_service.get_epub_info(epub_path)
+# {"title": "...", "author": "...", "chapter_count": 125, "file_size_mb": 1.5}
+```
+
+### Service Layer Schemas (`app/schemas/service_schemas.py`)
+
+```python
+from app.schemas import (
+    # 书籍相关
+    BookCreate, BookUpdate, BookResponse, BookListResponse, BookDetailResponse, BookStatistics,
+    # 章节相关
+    ChapterResponse,
+    # 任务相关
+    TaskCreate, TaskResponse, TaskListResponse, DownloadProgress,
+    # 存储相关
+    StorageStats,
+    # 配额相关
+    QuotaResponse, AllQuotaResponse,
+    # 统计相关
+    SystemStats,
+    # 搜索相关
+    SearchRequest,
+    # 通用响应
+    SuccessResponse, ErrorResponseModel,
+)
+```
 
 ### API Client Layer (`app/api/`)
 
@@ -158,6 +283,7 @@ Base URL: `http://v3.rain.ink/fanqie/` 或 `http://v3.rain.ink/qimao/`
 - **ORM**: SQLAlchemy >=2.0.0
 - **数据库**: SQLite
 - **HTTP客户端**: httpx >=0.25.0 (异步)
+- **异步文件IO**: aiofiles >=23.0.0
 - **EPUB生成**: ebooklib >=0.18
 - **数据验证**: Pydantic >=2.0.0
 
@@ -170,16 +296,33 @@ app/
 │   └── qimao.py   # QimaoAPI
 ├── models/        # ✅ 数据模型 (已实现)
 ├── schemas/       # ✅ Pydantic模型 (已实现)
-├── services/      # 🔄 业务逻辑 (待实现)
-├── utils/         # ✅ 工具函数 (rate_limiter已实现)
+│   ├── api_responses.py    # API响应模型
+│   └── service_schemas.py  # 服务层模型
+├── services/      # ✅ 业务逻辑 (已实现)
+│   ├── storage_service.py  # 文件存储
+│   ├── book_service.py     # 书籍管理
+│   ├── download_service.py # 下载管理
+│   └── epub_service.py     # EPUB生成
+├── utils/         # ✅ 工具函数 (已实现)
+│   ├── database.py    # 数据库连接
+│   └── rate_limiter.py # 速率限制
 ├── web/           # 🔄 Web层 (待实现)
+│   ├── routes/    # API路由
+│   ├── templates/ # Jinja2模板
+│   └── static/    # 静态资源
 └── config.py      # ✅ 配置管理 (已实现)
 ```
 
 ### Testing
 ```bash
-# 运行API客户端测试 (30个测试用例)
+# 运行所有测试 (52个测试用例)
+pytest tests/ -v
+
+# 运行API客户端测试
 pytest tests/test_api/test_api_client.py -v
+
+# 运行服务层测试
+pytest tests/test_services/test_services.py -v
 ```
 
 ## Common Pitfalls
@@ -187,10 +330,12 @@ pytest tests/test_api/test_api_client.py -v
 - **七猫需要持久化book_id**: 获取章节内容时需同时传递
 - **配额限制**: 每天200章，使用RateLimiter检查
 - **封面URL转换**: 使用 `FanqieAPI.replace_cover_url()` 获取高质量封面
+- **EPUB内容编码**: 使用 `set_content(html.encode('utf-8'))` 设置章节内容
 
-## Next Steps (Phase 3)
-待实现的服务层:
-1. `StorageService` - 文件读写
-2. `BookService` - 书籍管理
-3. `DownloadService` - 下载逻辑
-4. `EPUBService` - EPUB生成
+## Next Steps (Phase 4)
+待实现的Web层:
+1. `app/web/routes/books.py` - 书籍API路由
+2. `app/web/routes/tasks.py` - 任务API路由
+3. `app/web/routes/stats.py` - 统计API路由
+4. `app/web/routes/pages.py` - 页面路由
+5. 前端模板和交互 (Alpine.js + TailwindCSS)
