@@ -311,6 +311,11 @@ class DownloadService:
             task = self.create_task(book_uuid, task_type)
         
         try:
+            # 对于完整下载，需要重置章节状态为pending
+            # 这样才能重新下载已完成的章节
+            if task_type == "full_download":
+                self._reset_chapters_for_full_download(book_uuid, start_chapter)
+            
             # 更新书籍和任务状态
             book.download_status = "downloading"
             task.status = "running"
@@ -388,6 +393,35 @@ class DownloadService:
             query = query.filter(Chapter.download_status == "pending")
         
         return query.order_by(Chapter.chapter_index).all()
+    
+    def _reset_chapters_for_full_download(
+        self,
+        book_uuid: str,
+        start_chapter: int = 0,
+    ):
+        """
+        重置章节状态为pending，用于完整下载重新开始
+        
+        当用户再次下载已完成的书籍时，需要重置章节状态
+        以支持重新下载
+        """
+        chapters = self.db.query(Chapter).filter(
+            Chapter.book_id == book_uuid,
+            Chapter.chapter_index >= start_chapter
+        ).all()
+        
+        for chapter in chapters:
+            if chapter.download_status in ("failed", "pending"):
+                # 失败和待下载状态保持不变
+                continue
+            elif chapter.download_status == "completed":
+                # 将已完成的章节重置为待下载
+                chapter.download_status = "pending"
+                chapter.content_path = None  # 清除路径，重新下载
+                logger.debug(f"Reset chapter for re-download: {chapter.title}")
+        
+        self.db.commit()
+        logger.info(f"Reset chapters for full download: book_id={book_uuid}, start_chapter={start_chapter}")
     
     async def _download_chapters_concurrent(
         self,

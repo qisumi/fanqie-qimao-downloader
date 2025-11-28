@@ -229,12 +229,16 @@ async def _run_download_task(
         logger.warning(f"Download quota reached: {e}")
     except TaskCancelledError:
         logger.info(f"Download task cancelled: {book_id}")
+    except asyncio.CancelledError:
+        logger.info(f"Download task was cancelled by user: {book_id}")
     except Exception as e:
-        logger.error(f"Download task error: {e}")
+        logger.error(f"Download task error: {e}", exc_info=True)
     finally:
         db.close()
         # 清理运行任务记录
+        # 注意：这里必须清理，即使任务失败也要从字典中移除
         _running_downloads.pop(book_id, None)
+        logger.debug(f"Cleaned up download task for book {book_id}")
 
 
 # ============ 开始下载 ============
@@ -265,12 +269,20 @@ async def start_download(
             raise HTTPException(status_code=404, detail="书籍不存在")
         
         # 检查是否已有正在运行的任务
+        # 注意：这里检查的是真正在运行的异步任务，而不是数据库记录
         if book_id in _running_downloads:
-            return {
-                "success": True,
-                "message": "该书籍已有下载任务正在进行中",
-                "book_id": book_id,
-            }
+            # 检查该任务是否真的还在运行
+            async_task = _running_downloads[book_id]
+            if not async_task.done():
+                return {
+                    "success": True,
+                    "message": "该书籍已有下载任务正在进行中",
+                    "book_id": book_id,
+                }
+            else:
+                # 任务已完成但未清理，清理之
+                _running_downloads.pop(book_id, None)
+                logger.warning(f"Cleaned up completed task for book {book_id}")
         
         # 检查配额
         usage = download_service.get_quota_usage(book.platform)
@@ -330,11 +342,18 @@ async def start_update(
         
         # 检查是否已有正在运行的任务
         if book_id in _running_downloads:
-            return {
-                "success": True,
-                "message": "该书籍已有下载任务正在进行中",
-                "book_id": book_id,
-            }
+            # 检查该任务是否真的还在运行
+            async_task = _running_downloads[book_id]
+            if not async_task.done():
+                return {
+                    "success": True,
+                    "message": "该书籍已有下载任务正在进行中",
+                    "book_id": book_id,
+                }
+            else:
+                # 任务已完成但未清理，清理之
+                _running_downloads.pop(book_id, None)
+                logger.warning(f"Cleaned up completed task for book {book_id}")
         
         # 先检查新章节数量
         new_chapters = await book_service.check_new_chapters(book_id)
@@ -451,11 +470,18 @@ async def retry_failed_chapters(
         
         # 检查是否已有正在运行的任务
         if book_id in _running_downloads:
-            return {
-                "success": False,
-                "message": "该书籍已有下载任务正在进行中，请等待完成后再重试",
-                "book_id": book_id,
-            }
+            # 检查该任务是否真的还在运行
+            async_task = _running_downloads[book_id]
+            if not async_task.done():
+                return {
+                    "success": False,
+                    "message": "该书籍已有下载任务正在进行中，请等待完成后再重试",
+                    "book_id": book_id,
+                }
+            else:
+                # 任务已完成但未清理，清理之
+                _running_downloads.pop(book_id, None)
+                logger.warning(f"Cleaned up completed task for book {book_id}")
         
         # 获取失败章节数量
         from app.models.chapter import Chapter
@@ -484,7 +510,7 @@ async def retry_failed_chapters(
         
         # 启动后台任务
         async_task = asyncio.create_task(
-            _run_download_task(book_id, "full_download")
+            _run_download_task(book_id, "full_download", task.id)
         )
         _running_downloads[book_id] = async_task
         
