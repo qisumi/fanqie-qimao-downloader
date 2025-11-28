@@ -1,5 +1,9 @@
 # FanqieQimaoDownloader
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.0.0)
+[![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
+
 基于 Rain API V3 的番茄小说和七猫小说下载工具，支持批量下载和EPUB导出。
 
 ## ✨ 功能特性
@@ -11,7 +15,7 @@
 - 🌐 **现代界面** - 响应式Web界面，支持移动端
 - ⚡ **高性能** - 异步架构，并发控制
 - 📊 **任务管理** - 实时进度跟踪
-- 🔒 **配额保护** - 自动速率限制（每日200章）
+- 🔒 **配额保护** - 自动速率限制（每日2000万字）
 
 ## 🖼️ 界面预览
 
@@ -171,10 +175,10 @@ pytest tests/ --cov=app --cov-report=html
 
 ## ⚙️ 配置选项
 
-在 `.env` 文件中可配置以下选项：
+在 `.env` 文件中可配置以下选项（详见 `.env.example`）：
 
 ```ini
-# API配置
+# API配置 (必填)
 RAIN_API_KEY=你的API密钥
 RAIN_API_BASE_URL=http://v3.rain.ink
 API_TIMEOUT=30
@@ -184,18 +188,22 @@ API_RETRY_TIMES=3
 DATABASE_URL=sqlite:///./data/database.db
 
 # 下载限制
-DAILY_CHAPTER_LIMIT=200
+DAILY_WORD_LIMIT=20000000  # 每日字数限制: 2000万字
 CONCURRENT_DOWNLOADS=3
 DOWNLOAD_DELAY=0.5
 
 # 服务配置
 HOST=0.0.0.0
 PORT=8000
-DEBUG=True
+DEBUG=false  # 生产环境设为 false
 LOG_LEVEL=INFO
 ```
 
+> 📖 完整部署指南请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)
+
 ## 📊 开发状态
+
+**当前版本: v1.0.0** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|
@@ -205,7 +213,9 @@ LOG_LEVEL=INFO
 | Phase 4 | ✅ 完成 | Web层实现 |
 | Phase 5 | ✅ 完成 | 功能完善 |
 | Phase 6 | ✅ 完成 | 测试与优化（85测试） |
-| Phase 7 | ⏳ 进行中 | 部署与发布 |
+| Phase 7 | ✅ 完成 | 部署与发布 |
+
+> 📋 查看完整变更日志: [CHANGELOG.md](CHANGELOG.md)
 
 ## 🛠️ 技术栈
 
@@ -223,10 +233,16 @@ LOG_LEVEL=INFO
 
 ## ⚠️ 注意事项
 
-1. **配额限制**: 免费版API每日限制下载200章节
+1. **配额限制**: API每日限制下载2000万字
 2. **合规使用**: 请遵守相关法律法规，仅用于个人学习研究
 3. **密钥安全**: API密钥请妥善保管，不要提交到版本控制系统
 4. **网络要求**: 确保能够正常访问 Rain API 服务
+
+## 📚 文档
+
+- [部署手册](DEPLOYMENT.md) - Windows/Linux 部署指南
+- [变更日志](CHANGELOG.md) - 版本更新记录
+- [API文档](http://localhost:8000/docs) - Swagger UI（启动后访问）
 
 ## 🤝 贡献
 
