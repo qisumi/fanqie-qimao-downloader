@@ -19,16 +19,16 @@
                 <div x-show="books.length > 0" class="space-y-4">
                     <template x-for="book in books" :key="book.id">
                         <div class="border rounded-lg p-4">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <div class="flex items-center">
-                                        <h4 class="text-lg font-medium text-gray-900 mr-3" x-text="book.title"></h4>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h4 class="text-base sm:text-lg font-medium text-gray-900 break-words" x-text="book.title"></h4>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
                                               :class="book.platform === 'fanqie' ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800'">
                                             <span x-text="book.platform === 'fanqie' ? '番茄' : '七猫'"></span>
                                         </span>
                                     </div>
-                                    <p class="text-sm text-gray-600 mt-1">
+                                    <p class="text-xs sm:text-sm text-gray-600 mt-1">
                                         作者: <span x-text="book.author"></span> |
                                         章节: <span x-text="book.downloaded_chapters"></span>/<span x-text="book.total_chapters"></span> |
                                         字数: <span x-text="book.word_count.toLocaleString()"></span>
@@ -40,13 +40,13 @@
                                         </span>
                                     </div>
                                 </div>
-                                <div class="flex space-x-2">
-                                    <a :href="'/book/' + book.id" class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                <div class="flex flex-wrap gap-2 sm:flex-nowrap sm:space-x-2">
+                                    <a :href="'/book/' + book.id" class="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 flex-1 sm:flex-initial">
                                         查看详情
                                     </a>
                                     <button @click="downloadBook(book.id)"
                                             :disabled="book.download_status === 'downloading'"
-                                            class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">
+                                            class="inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 flex-1 sm:flex-initial">
                                         <i class="fas fa-download mr-1"></i>
                                         下载
                                     </button>
