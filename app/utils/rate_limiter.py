@@ -6,7 +6,7 @@
 
 import logging
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import select
@@ -25,7 +25,7 @@ class RateLimiter:
     
     基于数据库 DailyQuota 表实现每日下载配额管理:
     - 每个平台 (fanqie/qimao) 每天有独立的配额
-    - 默认每日限制 200 章
+    - 默认每日限制 2000万字
     - 支持同步和异步两种使用方式
     
     使用示例:
@@ -33,14 +33,14 @@ class RateLimiter:
         limiter = RateLimiter(db_session)
         if limiter.can_download("fanqie"):
             # 执行下载
-            limiter.record_download("fanqie")
+            limiter.record_download("fanqie", word_count=5000)
         
         # 异步方式
         async with get_async_session() as session:
             limiter = RateLimiter(session)
             if await limiter.can_download_async("fanqie"):
                 # 执行下载
-                await limiter.record_download_async("fanqie")
+                await limiter.record_download_async("fanqie", word_count=5000)
     """
     
     def __init__(
@@ -53,11 +53,11 @@ class RateLimiter:
         
         Args:
             db_session: 数据库会话 (同步或异步)
-            limit: 每日下载限制，默认从配置读取
+            limit: 每日字数限制，默认从配置读取 (2000万字)
         """
         self.db = db_session
         settings = get_settings()
-        self.limit = limit or settings.daily_chapter_limit
+        self.limit = limit or settings.daily_word_limit
     
     def set_session(self, db_session: Session | AsyncSession):
         """设置数据库会话"""
@@ -73,7 +73,7 @@ class RateLimiter:
             platform: 平台名称 (fanqie/qimao)
             
         Returns:
-            True 如果今日配额未用尽
+            True 如果今日字数配额未用尽
         """
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
@@ -87,18 +87,18 @@ class RateLimiter:
         if quota is None:
             return True
         
-        return quota.chapters_downloaded < self.limit
+        return quota.words_downloaded < self.limit
     
-    def record_download(self, platform: str, count: int = 1) -> int:
+    def record_download(self, platform: str, word_count: int = 0) -> int:
         """
         记录下载 (同步)
         
         Args:
             platform: 平台名称
-            count: 下载章节数量
+            word_count: 下载的字数
             
         Returns:
-            今日已下载总数
+            今日已下载总字数
         """
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
@@ -114,17 +114,17 @@ class RateLimiter:
                 id=str(uuid.uuid4()),
                 date=today,
                 platform=platform,
-                chapters_downloaded=0,
+                words_downloaded=0,
                 limit=self.limit,
             )
             self.db.add(quota)
         
-        quota.chapters_downloaded += count
+        quota.words_downloaded += word_count
         self.db.commit()
         
-        logger.debug(f"记录下载: {platform} 今日已下载 {quota.chapters_downloaded}/{self.limit}")
+        logger.debug(f"记录下载: {platform} 今日已下载 {quota.words_downloaded}/{self.limit} 字")
         
-        return quota.chapters_downloaded
+        return quota.words_downloaded
     
     def get_remaining(self, platform: str) -> int:
         """
@@ -134,7 +134,7 @@ class RateLimiter:
             platform: 平台名称
             
         Returns:
-            剩余可下载章节数
+            剩余可下载字数
         """
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
@@ -148,7 +148,7 @@ class RateLimiter:
         if quota is None:
             return self.limit
         
-        return max(0, self.limit - quota.chapters_downloaded)
+        return max(0, self.limit - quota.words_downloaded)
     
     def get_usage(self, platform: str) -> dict:
         """
@@ -161,10 +161,10 @@ class RateLimiter:
             {
                 "date": "2024-01-15",
                 "platform": "fanqie",
-                "downloaded": 50,
-                "limit": 200,
-                "remaining": 150,
-                "percentage": 25.0
+                "downloaded": 500000,  # 已下载字数
+                "limit": 20000000,     # 每日限制字数
+                "remaining": 19500000, # 剩余字数
+                "percentage": 2.5
             }
         """
         if self.db is None:
@@ -176,7 +176,7 @@ class RateLimiter:
             DailyQuota.platform == platform,
         ).first()
         
-        downloaded = quota.chapters_downloaded if quota else 0
+        downloaded = quota.words_downloaded if quota else 0
         remaining = max(0, self.limit - downloaded)
         percentage = (downloaded / self.limit) * 100 if self.limit > 0 else 0
         
@@ -199,7 +199,7 @@ class RateLimiter:
             platform: 平台名称 (fanqie/qimao)
             
         Returns:
-            True 如果今日配额未用尽
+            True 如果今日字数配额未用尽
         """
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
@@ -217,18 +217,18 @@ class RateLimiter:
         if quota is None:
             return True
         
-        return quota.chapters_downloaded < self.limit
+        return quota.words_downloaded < self.limit
     
-    async def record_download_async(self, platform: str, count: int = 1) -> int:
+    async def record_download_async(self, platform: str, word_count: int = 0) -> int:
         """
         记录下载 (异步)
         
         Args:
             platform: 平台名称
-            count: 下载章节数量
+            word_count: 下载的字数
             
         Returns:
-            今日已下载总数
+            今日已下载总字数
         """
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
@@ -248,17 +248,17 @@ class RateLimiter:
                 id=str(uuid.uuid4()),
                 date=today,
                 platform=platform,
-                chapters_downloaded=0,
+                words_downloaded=0,
                 limit=self.limit,
             )
             self.db.add(quota)
         
-        quota.chapters_downloaded += count
+        quota.words_downloaded += word_count
         await self.db.commit()
         
-        logger.debug(f"记录下载: {platform} 今日已下载 {quota.chapters_downloaded}/{self.limit}")
+        logger.debug(f"记录下载: {platform} 今日已下载 {quota.words_downloaded}/{self.limit} 字")
         
-        return quota.chapters_downloaded
+        return quota.words_downloaded
     
     async def get_remaining_async(self, platform: str) -> int:
         """
@@ -268,7 +268,7 @@ class RateLimiter:
             platform: 平台名称
             
         Returns:
-            剩余可下载章节数
+            剩余可下载字数
         """
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
@@ -286,7 +286,7 @@ class RateLimiter:
         if quota is None:
             return self.limit
         
-        return max(0, self.limit - quota.chapters_downloaded)
+        return max(0, self.limit - quota.words_downloaded)
     
     async def get_usage_async(self, platform: str) -> dict:
         """
@@ -311,7 +311,7 @@ class RateLimiter:
         )
         quota = result.scalar_one_or_none()
         
-        downloaded = quota.chapters_downloaded if quota else 0
+        downloaded = quota.words_downloaded if quota else 0
         remaining = max(0, self.limit - downloaded)
         percentage = (downloaded / self.limit) * 100 if self.limit > 0 else 0
         
@@ -335,7 +335,7 @@ class RateLimiter:
             下次配额重置的 datetime
         """
         today = date.today()
-        tomorrow = date(today.year, today.month, today.day + 1) if today.day < 28 else today.replace(day=1, month=today.month + 1 if today.month < 12 else 1)
+        tomorrow = today + timedelta(days=1)
         return datetime.combine(tomorrow, datetime.min.time())
     
     @staticmethod

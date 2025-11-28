@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean, Float
 from sqlalchemy.dialects.sqlite import JSON
+from sqlalchemy.orm import relationship
 
 from app.utils.database import Base
 
@@ -19,6 +20,7 @@ class Book(Base):
     book_id = Column(String, nullable=False)  # 平台书籍ID
     title = Column(String, nullable=False)
     author = Column(String)
+    cover_url = Column(String)  # 原始封面URL
     cover_path = Column(String)  # 本地封面路径
     total_chapters = Column(Integer, default=0)
     downloaded_chapters = Column(Integer, default=0)
@@ -29,6 +31,15 @@ class Book(Base):
     download_status = Column(String, default="pending")  # pending, downloading, completed, failed
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系 - 延迟导入避免循环依赖
+    chapters = relationship(
+        "Chapter",
+        back_populates="book",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="Chapter.chapter_index"
+    )
 
     def __repr__(self):
         return f"<Book(id={self.id}, title={self.title}, platform={self.platform})>"

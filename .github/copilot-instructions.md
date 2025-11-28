@@ -7,13 +7,13 @@ This is a novel downloader project for Chinese reading platforms **番茄小说 
 - **Phase 1 完成**: 基础架构搭建 (数据库模型、配置管理、目录结构)
 - **Phase 2 完成**: API客户端实现 (FanqieAPI, QimaoAPI, RateLimiter)
 - **Phase 3 完成**: 服务层实现 (StorageService, BookService, DownloadService, EPUBService)
-- **Phase 4 待开发**: Web层实现 (FastAPI路由、页面模板)
+- **Phase 4 完成**: Web层实现 (FastAPI路由、页面模板、API端点)
 - **Phase 5-7 待开发**: 功能完善、测试优化、部署
 
 ### Project Architecture
 ```
 ┌─────────────────────────────────────┐
-│   Web Layer (FastAPI)              │  ← 用户界面、RESTful API (Phase 4)
+│   Web Layer (FastAPI)              │  ← 用户界面、RESTful API ✅ 已实现
 ├─────────────────────────────────────┤
 │   Service Layer (业务逻辑)          │  ← 下载管理、更新检测、EPUB生成 ✅ 已实现
 ├─────────────────────────────────────┤
@@ -128,6 +128,61 @@ info = epub_service.get_epub_info(epub_path)
 # {"title": "...", "author": "...", "chapter_count": 125, "file_size_mb": 1.5}
 ```
 
+### Web Layer (`app/web/`) ✅ Phase 4
+
+**FastAPI 应用入口 (`app/main.py`):**
+```python
+from fastapi import FastAPI
+from app.web.routes import pages, books, tasks, stats
+
+app = FastAPI(title="FanqieQimaoDownloader", version="1.0.0")
+app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
+
+# 路由注册
+app.include_router(pages.router, prefix="", tags=["pages"])
+app.include_router(books.router, prefix="/api/books", tags=["books"])
+app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
+app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+```
+
+**API端点概览:**
+
+| 路由 | 方法 | 功能 |
+|------|------|------|
+| `/api/books/search` | GET | 搜索书籍 |
+| `/api/books/{platform}/{book_id}` | POST | 添加书籍 |
+| `/api/books/` | GET | 获取书籍列表 |
+| `/api/books/{id}` | GET | 获取书籍详情 |
+| `/api/books/{id}` | DELETE | 删除书籍 |
+| `/api/books/{id}/epub` | POST | 生成EPUB |
+| `/api/books/{id}/epub` | GET | 下载EPUB |
+| `/api/tasks/` | GET | 获取任务列表 |
+| `/api/tasks/{id}` | GET | 获取任务详情 |
+| `/api/tasks/{book_id}/download` | POST | 启动下载任务 |
+| `/api/tasks/{book_id}/update` | POST | 启动更新任务 |
+| `/api/tasks/{id}/cancel` | POST | 取消任务 |
+| `/api/tasks/quota` | GET | 获取所有配额 |
+| `/api/tasks/quota/{platform}` | GET | 获取平台配额 |
+| `/api/stats/` | GET | 系统统计概览 |
+| `/api/stats/storage` | GET | 存储统计 |
+| `/api/stats/quota` | GET | 配额统计 |
+| `/api/stats/books/summary` | GET | 书籍摘要 |
+| `/health` | GET | 健康检查 |
+
+**页面路由:**
+| 路由 | 页面 | 模板 |
+|------|------|------|
+| `/` | 首页 | `index.html` |
+| `/search` | 搜索页面 | `search.html` |
+| `/books` | 书籍列表 | `books.html` |
+| `/book/{id}` | 书籍详情 | `book_detail.html` |
+| `/tasks` | 任务管理 | `tasks.html` |
+
+**前端技术栈:**
+- TailwindCSS (CDN) - 样式框架
+- Alpine.js (CDN) - 轻量级响应式框架
+- Font Awesome - 图标库
+
 ### Service Layer Schemas (`app/schemas/service_schemas.py`)
 
 ```python
@@ -163,7 +218,7 @@ from app.api import (
     QimaoAPI,           # 七猫小说客户端
     # 异常类
     APIError,           # API错误基类
-    QuotaExceededError, # 配额超限 (200章/天)
+    QuotaExceededError, # 配额超限 (2000万字/天)
     NetworkError,       # 网络错误
     BookNotFoundError,  # 书籍不存在
     ChapterNotFoundError, # 章节不存在
@@ -203,19 +258,19 @@ async with FanqieAPI() as api:
 from app.utils import RateLimiter
 
 # 同步使用
-limiter = RateLimiter(db_session=session, limit=200)
+limiter = RateLimiter(db_session=session, limit=20000000)  # 2000万字
 if limiter.can_download("fanqie"):
     # 执行下载
-    limiter.record_download("fanqie")
+    limiter.record_download("fanqie", word_count=5000)
 
 # 异步使用
 if await limiter.can_download_async("fanqie"):
-    await limiter.record_download_async("fanqie")
+    await limiter.record_download_async("fanqie", word_count=5000)
 
 # 获取配额信息
 remaining = limiter.get_remaining("fanqie")
 usage = limiter.get_usage("fanqie")
-# usage = {"date": "2024-01-15", "downloaded": 50, "limit": 200, "remaining": 150, "percentage": 25.0}
+# usage = {"date": "2024-01-15", "downloaded": 500000, "limit": 20000000, "remaining": 19500000, "percentage": 2.5}
 ```
 
 ### Response Models (`app/schemas/api_responses.py`)
@@ -247,7 +302,7 @@ from app.config import get_settings, settings
 # 主要配置项
 settings.rain_api_key       # API密钥
 settings.rain_api_base_url  # http://v3.rain.ink
-settings.daily_chapter_limit # 200
+settings.daily_word_limit   # 20000000 (2000万字)
 settings.api_timeout        # 30秒
 settings.api_retry_times    # 3次
 ```
@@ -305,17 +360,29 @@ app/
 │   └── epub_service.py     # EPUB生成
 ├── utils/         # ✅ 工具函数 (已实现)
 │   ├── database.py    # 数据库连接
+│   ├── logger.py      # 日志管理
 │   └── rate_limiter.py # 速率限制
-├── web/           # 🔄 Web层 (待实现)
+├── web/           # ✅ Web层 (已实现)
 │   ├── routes/    # API路由
+│   │   ├── books.py   # 书籍API (/api/books)
+│   │   ├── tasks.py   # 任务API (/api/tasks)
+│   │   ├── stats.py   # 统计API (/api/stats)
+│   │   └── pages.py   # 页面路由
 │   ├── templates/ # Jinja2模板
-│   └── static/    # 静态资源
+│   │   ├── base.html        # 基础模板
+│   │   ├── index.html       # 首页
+│   │   ├── search.html      # 搜索页面
+│   │   ├── books.html       # 书籍列表
+│   │   ├── book_detail.html # 书籍详情
+│   │   └── tasks.html       # 任务管理
+│   └── static/    # 静态资源 (TailwindCSS CDN)
+├── main.py        # ✅ FastAPI应用入口 (已实现)
 └── config.py      # ✅ 配置管理 (已实现)
 ```
 
 ### Testing
 ```bash
-# 运行所有测试 (52个测试用例)
+# 运行所有测试
 pytest tests/ -v
 
 # 运行API客户端测试
@@ -323,19 +390,30 @@ pytest tests/test_api/test_api_client.py -v
 
 # 运行服务层测试
 pytest tests/test_services/test_services.py -v
+
+# 运行Web层测试
+pytest tests/test_web/test_web_routes.py -v
 ```
 
 ## Common Pitfalls
 - **book_id vs item_id**: 前者用于书籍，后者用于章节
 - **七猫需要持久化book_id**: 获取章节内容时需同时传递
-- **配额限制**: 每天200章，使用RateLimiter检查
+- **配额限制**: 每天2000万字，使用RateLimiter检查
 - **封面URL转换**: 使用 `FanqieAPI.replace_cover_url()` 获取高质量封面
 - **EPUB内容编码**: 使用 `set_content(html.encode('utf-8'))` 设置章节内容
 
-## Next Steps (Phase 4)
-待实现的Web层:
-1. `app/web/routes/books.py` - 书籍API路由
-2. `app/web/routes/tasks.py` - 任务API路由
-3. `app/web/routes/stats.py` - 统计API路由
-4. `app/web/routes/pages.py` - 页面路由
-5. 前端模板和交互 (Alpine.js + TailwindCSS)
+## Next Steps (Phase 5-7)
+待完成的后续工作:
+1. **Phase 5**: 功能完善
+   - 批量操作支持
+   - 音频下载功能
+   - 下载进度WebSocket推送
+   - 前端交互优化
+2. **Phase 6**: 测试优化
+   - 集成测试完善
+   - 性能测试
+   - 错误处理增强
+3. **Phase 7**: 部署
+   - Docker容器化
+   - 生产环境配置
+   - 文档完善

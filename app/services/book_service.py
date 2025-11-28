@@ -141,12 +141,14 @@ class BookService:
             
             # 创建Book对象
             book_uuid = str(uuid.uuid4())
+            cover_url = detail.get("cover_url", "")
             book = Book(
                 id=book_uuid,
                 platform=platform,
                 book_id=book_id,
                 title=detail.get("book_name", ""),
                 author=detail.get("author", ""),
+                cover_url=cover_url,  # 保存原始封面URL
                 word_count=detail.get("word_count", 0),
                 creation_status=detail.get("creation_status", ""),
                 last_chapter_title=detail.get("last_chapter_title", ""),
@@ -157,13 +159,14 @@ class BookService:
             update_timestamp = detail.get("last_update_timestamp", 0)
             if update_timestamp:
                 try:
-                    book.last_update_time = datetime.fromtimestamp(update_timestamp)
-                except (ValueError, OSError):
+                    # API 可能返回字符串或整数，统一转换为整数
+                    ts = int(update_timestamp) if isinstance(update_timestamp, str) else update_timestamp
+                    book.last_update_time = datetime.fromtimestamp(ts)
+                except (ValueError, OSError, TypeError):
                     pass
             
             # 下载封面
             if download_cover:
-                cover_url = detail.get("cover_url", "")
                 if cover_url:
                     cover_path = await self.storage.download_and_save_cover(
                         book_uuid, cover_url
@@ -374,8 +377,10 @@ class BookService:
             update_timestamp = detail.get("last_update_timestamp", 0)
             if update_timestamp:
                 try:
-                    book.last_update_time = datetime.fromtimestamp(update_timestamp)
-                except (ValueError, OSError):
+                    # API 可能返回字符串或整数，统一转换为整数
+                    ts = int(update_timestamp) if isinstance(update_timestamp, str) else update_timestamp
+                    book.last_update_time = datetime.fromtimestamp(ts)
+                except (ValueError, OSError, TypeError):
                     pass
             
             self.db.commit()

@@ -6,31 +6,97 @@
     <title>{% block title %}FanqieQimaoDownloader{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.1/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 自定义加载动画 */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* 进度条动画 */
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        /* Toast动画 */
+        .toast-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        .toast-leave {
+            animation: slideOut 0.3s ease-in;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        /* 骨架屏 */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-gray-100">
+    <!-- Toast 通知容器 -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between h-16">
                 <div class="flex">
                     <div class="flex-shrink-0 flex items-center">
-                        <h1 class="text-xl font-bold text-gray-800">番茄七猫下载器</h1>
+                        <h1 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-book-reader text-blue-600 mr-2"></i>
+                            番茄七猫下载器
+                        </h1>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
                         <a href="/" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            首页
+                            <i class="fas fa-home mr-1"></i> 首页
                         </a>
                         <a href="/search" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            搜索
+                            <i class="fas fa-search mr-1"></i> 搜索
                         </a>
                         <a href="/books" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            书籍
+                            <i class="fas fa-book mr-1"></i> 书籍
                         </a>
                         <a href="/tasks" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            任务
+                            <i class="fas fa-tasks mr-1"></i> 任务
                         </a>
                     </div>
                 </div>
+                <!-- 移动端菜单按钮 -->
+                <div class="flex items-center sm:hidden">
+                    <button type="button" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')"
+                            class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- 移动端菜单 -->
+        <div id="mobile-menu" class="hidden sm:hidden">
+            <div class="pt-2 pb-3 space-y-1">
+                <a href="/" class="block pl-3 pr-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50">首页</a>
+                <a href="/search" class="block pl-3 pr-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50">搜索</a>
+                <a href="/books" class="block pl-3 pr-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50">书籍</a>
+                <a href="/tasks" class="block pl-3 pr-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50">任务</a>
             </div>
         </div>
     </nav>
@@ -40,6 +106,74 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
+    <script>
+        // Toast通知系统
+        const Toast = {
+            show(message, type = 'info', duration = 3000) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                
+                const colors = {
+                    success: 'bg-green-500',
+                    error: 'bg-red-500',
+                    warning: 'bg-yellow-500',
+                    info: 'bg-blue-500'
+                };
+                const icons = {
+                    success: 'fa-check-circle',
+                    error: 'fa-exclamation-circle',
+                    warning: 'fa-exclamation-triangle',
+                    info: 'fa-info-circle'
+                };
+                
+                toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-3 toast-enter min-w-[280px]`;
+                toast.innerHTML = `
+                    <i class="fas ${icons[type]}"></i>
+                    <span class="flex-1">${message}</span>
+                    <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.remove('toast-enter');
+                    toast.classList.add('toast-leave');
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            },
+            success(message) { this.show(message, 'success'); },
+            error(message) { this.show(message, 'error', 5000); },
+            warning(message) { this.show(message, 'warning', 4000); },
+            info(message) { this.show(message, 'info'); }
+        };
+
+        // API请求封装
+        const API = {
+            async request(url, options = {}) {
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'Content-Type': 'application/json', ...options.headers },
+                        ...options
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({ detail: '请求失败' }));
+                        throw new Error(error.detail || `HTTP ${response.status}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error('API Error:', error);
+                    throw error;
+                }
+            },
+            get(url) { return this.request(url); },
+            post(url, data) { return this.request(url, { method: 'POST', body: JSON.stringify(data) }); },
+            delete(url) { return this.request(url, { method: 'DELETE' }); }
+        };
+    </script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

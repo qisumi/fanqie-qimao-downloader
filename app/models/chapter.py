@@ -31,8 +31,3 @@ class Chapter(Base):
 
     def __repr__(self):
         return f"<Chapter(id={self.id}, title={self.title}, index={self.chapter_index})>"
-
-
-# 为Book模型添加反向关系
-from app.models.book import Book
-Book.chapters = relationship("Chapter", order_by=Chapter.chapter_index, back_populates="book")

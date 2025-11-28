@@ -9,7 +9,7 @@
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">下载任务</h3>
 
             <!-- 任务列表 -->
-            <div x-data="tasksList()" x-init="loadTasks()">
+            <div x-data="tasksList()" x-init="init()">
                 <div x-show="tasks.length > 0" class="space-y-4">
                     <template x-for="task in tasks" :key="task.id">
                         <div class="border rounded-lg p-4">
@@ -88,17 +88,32 @@ function tasksList() {
     return {
         tasks: [],
         loading: false,
+        refreshInterval: null,
 
         async loadTasks() {
             this.loading = true;
             try {
-                const response = await fetch('/api/tasks');
+                const response = await fetch('/api/tasks/');
                 const data = await response.json();
-                this.tasks = data;
+                this.tasks = data.tasks || [];
             } catch (error) {
                 console.error('Failed to load tasks:', error);
             } finally {
                 this.loading = false;
+            }
+        },
+
+        init() {
+            this.loadTasks();
+            // 每3秒刷新一次任务状态（对于运行中的任务更实时）
+            this.refreshInterval = setInterval(() => {
+                this.loadTasks();
+            }, 3000);
+        },
+
+        destroy() {
+            if (this.refreshInterval) {
+                clearInterval(this.refreshInterval);
             }
         },
 
@@ -145,13 +160,5 @@ function tasksList() {
         }
     }
 }
-
-// 定期刷新任务状态
-setInterval(() => {
-    const tasksList = document.querySelector('[x-data="tasksList()"]');
-    if (tasksList && tasksList._x_dataStack) {
-        tasksList._x_dataStack[0].loadTasks();
-    }
-}, 5000); // 每5秒刷新一次
 </script>
 {% endblock %}

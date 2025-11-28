@@ -15,8 +15,8 @@ class DailyQuota(Base):
     id = Column(String, primary_key=True)
     date = Column(Date, nullable=False, index=True)
     platform = Column(String, nullable=False, index=True)  # fanqie 或 qimao
-    chapters_downloaded = Column(Integer, default=0)
-    limit = Column(Integer, default=200)
+    words_downloaded = Column(Integer, default=0)  # 已下载字数
+    limit = Column(Integer, default=20000000)  # 每日限制: 2000万字
 
     def __repr__(self):
-        return f"<DailyQuota(date={self.date}, platform={self.platform}, downloaded={self.chapters_downloaded}/{self.limit})>"
+        return f"<DailyQuota(date={self.date}, platform={self.platform}, downloaded={self.words_downloaded}/{self.limit})>"

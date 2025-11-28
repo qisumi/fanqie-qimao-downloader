@@ -3,13 +3,13 @@
 {% block title %}搜索 - FanqieQimaoDownloader{% endblock %}
 
 {% block content %}
-<div class="px-4 py-6 sm:px-0">
+<div class="px-4 py-6 sm:px-0" x-data="searchForm()">
     <div class="bg-white shadow overflow-hidden sm:rounded-md">
         <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">搜索小说</h3>
 
             <!-- 搜索表单 -->
-            <div class="mb-6" x-data="searchForm()">
+            <div class="mb-6">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
                     <div class="sm:col-span-2">
                         <label for="keyword" class="block text-sm font-medium text-gray-700">关键词</label>
@@ -39,20 +39,25 @@
                 <h4 class="text-md font-medium text-gray-900 mb-3">搜索结果</h4>
                 <div class="space-y-3">
                     <template x-for="book in results" :key="book.book_id">
-                        <div class="border rounded-lg p-4 hover:bg-gray-50">
+                        <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                             <div class="flex justify-between items-start">
                                 <div class="flex-1">
-                                    <h5 class="text-lg font-medium text-gray-900" x-text="book.title"></h5>
+                                    <h5 class="text-lg font-medium text-gray-900" x-text="book.book_name || book.title"></h5>
                                     <p class="text-sm text-gray-600 mt-1">
                                         作者: <span x-text="book.author"></span> |
-                                        字数: <span x-text="book.word_count.toLocaleString()"></span> |
+                                        字数: <span x-text="(book.word_count || 0).toLocaleString()"></span> |
                                         状态: <span x-text="book.creation_status"></span>
                                     </p>
                                 </div>
                                 <button @click="addBook(book)"
-                                        class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                                    <i class="fas fa-plus mr-1"></i>
-                                    添加
+                                        :disabled="isAdding(book)"
+                                        class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                    <template x-if="isAdding(book)">
+                                        <span><i class="fas fa-spinner fa-spin mr-1"></i> 添加中...</span>
+                                    </template>
+                                    <template x-if="!isAdding(book)">
+                                        <span><i class="fas fa-plus mr-1"></i> 添加</span>
+                                    </template>
                                 </button>
                             </div>
                         </div>
@@ -83,6 +88,7 @@ function searchForm() {
         results: [],
         loading: false,
         hasSearched: false,
+        addingBooks: {},  // 跟踪正在添加的书籍
 
         async search() {
             if (!this.keyword.trim()) return;
@@ -92,32 +98,60 @@ function searchForm() {
 
             try {
                 const response = await fetch(`/api/books/search?q=${encodeURIComponent(this.keyword)}&platform=${this.platform}`);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '搜索失败');
+                }
                 const data = await response.json();
-                this.results = data;
+                this.results = data.books || data;
+                
+                if (this.results.length === 0) {
+                    Toast.info('未找到相关书籍');
+                } else {
+                    Toast.success(`找到 ${this.results.length} 本相关书籍`);
+                }
             } catch (error) {
                 console.error('Search failed:', error);
-                alert('搜索失败，请稍后重试');
+                Toast.error(error.message || '搜索失败，请稍后重试');
             } finally {
                 this.loading = false;
             }
         },
 
         async addBook(book) {
+            const bookKey = `${book.platform || this.platform}_${book.book_id}`;
+            if (this.addingBooks[bookKey]) return;
+            
+            this.addingBooks[bookKey] = true;
+
             try {
-                const response = await fetch(`/api/books/${book.platform}/${book.book_id}`, {
+                const platform = book.platform || this.platform;
+                const response = await fetch(`/api/books/${platform}/${book.book_id}`, {
                     method: 'POST'
                 });
 
                 if (response.ok) {
-                    alert('书籍添加成功！');
-                    // 可以选择跳转到书籍详情页
+                    const result = await response.json();
+                    Toast.success(`《${book.book_name || book.title}》添加成功！`);
+                    // 跳转到书籍详情页
+                    setTimeout(() => {
+                        window.location.href = `/book/${result.id}`;
+                    }, 1000);
                 } else {
-                    throw new Error('添加失败');
+                    const error = await response.json();
+                    throw new Error(error.detail || '添加失败');
                 }
             } catch (error) {
                 console.error('Add book failed:', error);
-                alert('添加书籍失败，请稍后重试');
+                Toast.error(error.message || '添加书籍失败，请稍后重试');
+            } finally {
+                this.addingBooks[bookKey] = false;
             }
+        },
+        
+        isAdding(book) {
+            const bookKey = `${book.platform || this.platform}_${book.book_id}`;
+            return this.addingBooks[bookKey];
         }
     }
 }

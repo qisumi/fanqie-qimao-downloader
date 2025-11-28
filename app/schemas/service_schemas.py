@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ============ 枚举类型 ============
@@ -70,6 +70,7 @@ class BookResponse(BaseModel):
     book_id: str = Field(..., description="平台书籍ID")
     title: str = Field(..., description="书名")
     author: str = Field(default="", description="作者")
+    cover_url: Optional[str] = Field(default=None, description="封面URL")
     cover_path: Optional[str] = Field(default=None, description="封面路径")
     total_chapters: int = Field(default=0, description="总章节数")
     downloaded_chapters: int = Field(default=0, description="已下载章节数")
@@ -81,8 +82,7 @@ class BookResponse(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookListResponse(BaseModel):
@@ -135,8 +135,7 @@ class ChapterResponse(BaseModel):
     downloaded_at: Optional[datetime] = Field(default=None, description="下载时间")
     created_at: datetime = Field(..., description="创建时间")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============ 任务相关 Schemas ============
@@ -165,8 +164,7 @@ class TaskResponse(BaseModel):
     completed_at: Optional[datetime] = Field(default=None, description="完成时间")
     created_at: datetime = Field(..., description="创建时间")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskListResponse(BaseModel):

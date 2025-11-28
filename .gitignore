@@ -170,3 +170,12 @@ Thumbs.db
 # 项目特定缓存
 .cache/
 cache/
+
+# 项目运行时数据
+data/database.db
+data/database.db-journal
+data/books/
+data/epubs/
+!data/.gitkeep
+!data/books/.gitkeep
+!data/epubs/.gitkeep

@@ -1,0 +1,116 @@
+# Changelog
+
+本文件记录项目的所有重要变更。
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [1.0.0] - 2025-11-29
+
+### 🎉 首个正式版本发布
+
+这是 FanqieQimaoDownloader 的首个正式版本，实现了从番茄小说和七猫小说平台下载小说并导出为 EPUB 格式的完整功能。
+
+### ✨ 新功能
+
+#### API 客户端层 (Phase 2)
+- 实现 `RainAPIClient` 基类，支持异步 HTTP 请求、自动重试、错误处理
+- 实现 `FanqieAPI` 番茄小说客户端
+  - 搜索书籍
+  - 获取书籍详情
+  - 获取章节列表
+  - 获取章节内容（支持文本和音频）
+  - 封面 URL 转换（高清封面）
+- 实现 `QimaoAPI` 七猫小说客户端
+- 实现 `RateLimiter` 速率限制器（每日 2000 万字配额）
+
+#### 服务层 (Phase 3)
+- 实现 `StorageService` 文件存储服务
+  - 章节内容存储与读取
+  - 封面图片下载与保存
+  - 异步文件 I/O 支持
+  - 存储统计功能
+- 实现 `BookService` 书籍管理服务
+  - 搜索书籍
+  - 添加/删除书籍
+  - 章节更新检测
+  - 书籍列表查询
+- 实现 `DownloadService` 下载管理服务
+  - 全量下载
+  - 增量更新
+  - 失败重试
+  - 并发控制
+  - 任务管理
+- 实现 `EPUBService` EPUB 生成服务
+  - 生成符合 EPUB 3.0 标准的电子书
+  - 支持封面图片
+  - 支持目录导航
+  - EPUB 验证功能
+
+#### Web 层 (Phase 4)
+- 实现 FastAPI RESTful API
+  - `/api/books` - 书籍管理 API
+  - `/api/tasks` - 任务管理 API
+  - `/api/stats` - 统计信息 API
+  - `/health` - 健康检查端点
+- 实现 Web 页面
+  - 首页仪表盘
+  - 书籍搜索页面
+  - 书籍列表页面
+  - 书籍详情页面
+  - 任务管理页面
+- 前端技术栈
+  - TailwindCSS (响应式设计)
+  - Alpine.js (交互逻辑)
+  - Font Awesome (图标)
+
+#### 基础设施 (Phase 1)
+- SQLAlchemy 2.0 ORM 模型
+  - Book (书籍)
+  - Chapter (章节)
+  - DownloadTask (下载任务)
+  - DailyQuota (每日配额)
+- Alembic 数据库迁移
+- Pydantic Settings 配置管理
+- structlog 结构化日志系统
+
+#### 测试 (Phase 5-6)
+- API 客户端单元测试
+- 服务层单元测试
+- Web 路由测试
+- 端到端集成测试
+- 85 个测试用例全部通过
+
+### 📦 依赖
+
+- Python 3.8+
+- FastAPI 0.104.0+
+- SQLAlchemy 2.0.0+
+- httpx 0.25.0+
+- ebooklib 0.18+
+- 完整依赖列表见 `requirements.txt`
+
+### 📝 文档
+
+- README.md - 项目说明
+- DEPLOYMENT.md - 部署手册
+- .env.example - 环境变量配置模板
+- .github/copilot-instructions.md - AI 编程助手指南
+
+### ⚠️ 已知限制
+
+- 每日下载配额限制为 2000 万字（Rain API 限制）
+- 仅支持文本内容下载，音频下载功能待完善
+- 不支持批量操作（计划在 v1.1 版本添加）
+
+---
+
+## [未发布]
+
+### 计划中的功能
+
+- [ ] 批量操作支持
+- [ ] 音频下载功能
+- [ ] WebSocket 实时进度推送
+- [ ] Docker 容器化部署
+- [ ] 更多平台支持

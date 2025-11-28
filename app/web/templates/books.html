@@ -90,7 +90,7 @@ function booksList() {
             try {
                 const response = await fetch('/api/books');
                 const data = await response.json();
-                this.books = data;
+                this.books = data.books || [];
             } catch (error) {
                 console.error('Failed to load books:', error);
             } finally {

@@ -436,7 +436,7 @@ class TestRateLimiter:
     @pytest.fixture
     def limiter(self, mock_session):
         """创建测试用的限制器"""
-        return RateLimiter(db_session=mock_session, limit=200)
+        return RateLimiter(db_session=mock_session, limit=20000000)  # 2000万字
     
     def test_can_download_no_quota_record(self, limiter, mock_session):
         """测试没有配额记录时可以下载"""
@@ -447,7 +447,7 @@ class TestRateLimiter:
     def test_can_download_under_limit(self, limiter, mock_session):
         """测试在限额内可以下载"""
         mock_quota = MagicMock()
-        mock_quota.chapters_downloaded = 100
+        mock_quota.words_downloaded = 10000000  # 1000万字
         mock_session.query.return_value.filter.return_value.first.return_value = mock_quota
         
         assert limiter.can_download("fanqie") is True
@@ -455,7 +455,7 @@ class TestRateLimiter:
     def test_can_download_at_limit(self, limiter, mock_session):
         """测试达到限额时不能下载"""
         mock_quota = MagicMock()
-        mock_quota.chapters_downloaded = 200
+        mock_quota.words_downloaded = 20000000  # 2000万字
         mock_session.query.return_value.filter.return_value.first.return_value = mock_quota
         
         assert limiter.can_download("fanqie") is False
@@ -464,7 +464,7 @@ class TestRateLimiter:
         """测试记录下载会创建配额记录"""
         mock_session.query.return_value.filter.return_value.first.return_value = None
         
-        limiter.record_download("fanqie")
+        limiter.record_download("fanqie", word_count=5000)
         
         # 验证调用了 add
         mock_session.add.assert_called_once()
@@ -473,44 +473,44 @@ class TestRateLimiter:
     def test_record_download_updates_quota(self, limiter, mock_session):
         """测试记录下载会更新配额"""
         mock_quota = MagicMock()
-        mock_quota.chapters_downloaded = 50
+        mock_quota.words_downloaded = 5000000  # 500万字
         mock_session.query.return_value.filter.return_value.first.return_value = mock_quota
         
-        result = limiter.record_download("fanqie", count=5)
+        result = limiter.record_download("fanqie", word_count=50000)
         
-        assert mock_quota.chapters_downloaded == 55
-        assert result == 55
+        assert mock_quota.words_downloaded == 5050000  # 500万 + 5万
+        assert result == 5050000
     
     def test_get_remaining_no_quota(self, limiter, mock_session):
         """测试没有记录时返回完整配额"""
         mock_session.query.return_value.filter.return_value.first.return_value = None
         
-        assert limiter.get_remaining("fanqie") == 200
+        assert limiter.get_remaining("fanqie") == 20000000  # 2000万字
     
     def test_get_remaining_with_usage(self, limiter, mock_session):
         """测试有使用记录时返回剩余配额"""
         mock_quota = MagicMock()
-        mock_quota.chapters_downloaded = 150
+        mock_quota.words_downloaded = 15000000  # 1500万字
         mock_session.query.return_value.filter.return_value.first.return_value = mock_quota
         
-        assert limiter.get_remaining("fanqie") == 50
+        assert limiter.get_remaining("fanqie") == 5000000  # 剩余500万字
     
     def test_get_usage(self, limiter, mock_session):
         """测试获取使用情况"""
         mock_quota = MagicMock()
-        mock_quota.chapters_downloaded = 100
+        mock_quota.words_downloaded = 10000000  # 1000万字
         mock_session.query.return_value.filter.return_value.first.return_value = mock_quota
         
         usage = limiter.get_usage("fanqie")
         
-        assert usage["downloaded"] == 100
-        assert usage["limit"] == 200
-        assert usage["remaining"] == 100
+        assert usage["downloaded"] == 10000000
+        assert usage["limit"] == 20000000
+        assert usage["remaining"] == 10000000
         assert usage["percentage"] == 50.0
     
     def test_no_session_raises_error(self):
         """测试没有设置会话时抛出错误"""
-        limiter = RateLimiter(limit=200)
+        limiter = RateLimiter(limit=20000000)
         
         with pytest.raises(RuntimeError) as exc_info:
             limiter.can_download("fanqie")

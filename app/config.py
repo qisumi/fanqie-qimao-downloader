@@ -7,11 +7,16 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """应用配置类"""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",  # 忽略额外的环境变量
+    )
 
     # API配置
     rain_api_key: str = "YOUR_API_KEY_HERE"
@@ -28,7 +33,7 @@ class Settings(BaseSettings):
     epubs_dir: str = "./data/epubs"
 
     # 下载限制
-    daily_chapter_limit: int = 200
+    daily_word_limit: int = 20000000  # 每日字数限制: 2000万字
     concurrent_downloads: int = 3
     download_delay: float = 0.5
 
@@ -41,16 +46,15 @@ class Settings(BaseSettings):
     # 日志配置
     log_level: str = "INFO"
     log_file: Optional[str] = "./logs/app.log"
+    log_max_size: int = 10 * 1024 * 1024  # 10MB 单个日志文件最大大小
+    log_backup_count: int = 5  # 保留的备份文件数量
+    log_format: Optional[str] = None  # 自定义日志格式，None使用默认格式
 
     # EPUB配置
     epub_language: str = "zh-CN"
     epub_publisher: str = "FanqieQimaoDownloader"
     epub_cover_width: int = 600
     epub_cover_height: int = 800
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"  # 忽略额外的环境变量
 
     @property
     def data_path(self) -> Path:

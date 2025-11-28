@@ -47,7 +47,7 @@ class QuotaReachedError(DownloadError):
     def __init__(self, platform: str, remaining: int = 0):
         self.platform = platform
         self.remaining = remaining
-        super().__init__(f"今日{platform}平台配额已用尽，剩余{remaining}章")
+        super().__init__(f"今日{platform}平台配额已用尽，剩余{remaining}字")
 
 
 class TaskCancelledError(DownloadError):
@@ -238,7 +238,7 @@ class DownloadService:
         downloaded: int = 0,
         failed: int = 0,
     ):
-        """更新任务进度"""
+        """更新任务进度和书籍下载章节数"""
         task.downloaded_chapters += downloaded
         task.failed_chapters += failed
         
@@ -246,6 +246,17 @@ class DownloadService:
         if total > 0:
             completed = task.downloaded_chapters + task.failed_chapters
             task.progress = round(completed / total * 100, 2)
+        
+        # 同时更新书籍的已下载章节数，以便前端能实时显示进度
+        if downloaded > 0:
+            book = self.db.query(Book).filter(Book.id == task.book_id).first()
+            if book:
+                # 统计实际已完成的章节数
+                completed_count = self.db.query(func.count(Chapter.id)).filter(
+                    Chapter.book_id == task.book_id,
+                    Chapter.download_status == "completed"
+                ).scalar() or 0
+                book.downloaded_chapters = completed_count
         
         self.db.commit()
         
@@ -273,6 +284,7 @@ class DownloadService:
         book_uuid: str,
         task_type: str = "full_download",
         start_chapter: int = 0,
+        task_id: Optional[str] = None,
     ) -> DownloadTask:
         """
         下载书籍
@@ -281,6 +293,7 @@ class DownloadService:
             book_uuid: 书籍UUID
             task_type: 任务类型
             start_chapter: 起始章节索引
+            task_id: 已有的任务ID，如果提供则复用该任务
         
         Returns:
             下载任务对象
@@ -289,8 +302,13 @@ class DownloadService:
         if not book:
             raise ValueError(f"Book not found: {book_uuid}")
         
-        # 创建任务
-        task = self.create_task(book_uuid, task_type)
+        # 复用已有任务或创建新任务
+        if task_id:
+            task = self.get_task(task_id)
+            if not task:
+                raise ValueError(f"Task not found: {task_id}")
+        else:
+            task = self.create_task(book_uuid, task_type)
         
         try:
             # 更新书籍和任务状态
@@ -398,11 +416,11 @@ class DownloadService:
                     logger.warning(f"Daily quota exceeded for {book.platform}")
                     return False
                 
-                # 下载章节
-                success = await self._download_single_chapter(book, chapter)
+                # 下载章节，返回字数 (-1 表示失败)
+                word_count = await self._download_single_chapter(book, chapter)
                 
-                if success:
-                    self.rate_limiter.record_download(book.platform)
+                if word_count >= 0:
+                    self.rate_limiter.record_download(book.platform, word_count=word_count)
                     self._update_task_progress(task, downloaded=1)
                 else:
                     self._update_task_progress(task, failed=1)
@@ -411,7 +429,7 @@ class DownloadService:
                 if self.download_delay > 0:
                     await asyncio.sleep(self.download_delay)
                 
-                return success
+                return word_count >= 0
         
         # 创建所有下载任务
         tasks = [download_with_limit(ch) for ch in chapters]
@@ -423,7 +441,7 @@ class DownloadService:
         self,
         book: Book,
         chapter: Chapter,
-    ) -> bool:
+    ) -> int:
         """
         下载单个章节
         
@@ -432,7 +450,7 @@ class DownloadService:
             chapter: 章节对象
         
         Returns:
-            是否成功
+            下载成功返回章节字数，失败返回 -1
         """
         try:
             async with self._get_api_client(book.platform) as api:
@@ -445,6 +463,7 @@ class DownloadService:
                 
                 if result.get("type") == "text":
                     content = result.get("content", "")
+                    word_count = len(content)
                     
                     # 保存到文件
                     content_path = await self.storage.save_chapter_content_async(
@@ -459,46 +478,51 @@ class DownloadService:
                     chapter.downloaded_at = datetime.utcnow()
                     self.db.commit()
                     
-                    logger.debug(f"Downloaded chapter: {chapter.title}")
-                    return True
+                    logger.debug(f"Downloaded chapter: {chapter.title} ({word_count} words)")
+                    return word_count
                 else:
                     # 音频内容暂不支持
                     logger.warning(f"Audio content not supported: {chapter.title}")
                     chapter.download_status = "failed"
                     self.db.commit()
-                    return False
+                    return -1
                     
         except ChapterNotFoundError:
             logger.error(f"Chapter not found: {chapter.item_id}")
             chapter.download_status = "failed"
             self.db.commit()
-            return False
+            return -1
             
         except NetworkError as e:
             logger.error(f"Network error downloading chapter {chapter.title}: {e}")
             chapter.download_status = "failed"
             self.db.commit()
-            return False
+            return -1
             
         except Exception as e:
             logger.error(f"Error downloading chapter {chapter.title}: {e}")
             chapter.download_status = "failed"
             self.db.commit()
-            return False
+            return -1
     
     # ============ 更新和重试 ============
     
-    async def update_book(self, book_uuid: str) -> DownloadTask:
+    async def update_book(
+        self,
+        book_uuid: str,
+        task_id: Optional[str] = None,
+    ) -> DownloadTask:
         """
         更新书籍（下载新章节）
         
         Args:
             book_uuid: 书籍UUID
+            task_id: 已有的任务ID，如果提供则复用该任务
         
         Returns:
             下载任务对象
         """
-        return await self.download_book(book_uuid, task_type="update")
+        return await self.download_book(book_uuid, task_type="update", task_id=task_id)
     
     async def retry_failed_chapters(self, book_uuid: str) -> int:
         """

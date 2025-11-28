@@ -152,17 +152,31 @@ function stats() {
     return {
         totalBooks: 0,
         totalChapters: 0,
-        dailyQuota: '0/200',
+        dailyQuota: '0/2000万',
         init() {
             this.loadStats();
         },
+        formatWords(count) {
+            // 将字数格式化为更易读的格式
+            if (count >= 10000) {
+                return (count / 10000).toFixed(1) + '万';
+            }
+            return count.toString();
+        },
         async loadStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await fetch('/api/stats/');
                 const data = await response.json();
-                this.totalBooks = data.total_books;
-                this.totalChapters = data.total_chapters;
-                this.dailyQuota = `${data.daily_quota_used}/${data.daily_quota_limit}`;
+                this.totalBooks = data.total_books || 0;
+                this.totalChapters = data.total_chapters || 0;
+                // 合并两个平台的配额使用情况
+                const fanqieUsed = data.quota?.fanqie?.downloaded || 0;
+                const qimaoUsed = data.quota?.qimao?.downloaded || 0;
+                const fanqieLimit = data.quota?.fanqie?.limit || 20000000;
+                const qimaoLimit = data.quota?.qimao?.limit || 20000000;
+                // 显示总使用量/单平台限制（两个平台共享同一配额限制）
+                const totalUsed = fanqieUsed + qimaoUsed;
+                this.dailyQuota = `${this.formatWords(totalUsed)}/${this.formatWords(fanqieLimit)}`;
             } catch (error) {
                 console.error('Failed to load stats:', error);
             }

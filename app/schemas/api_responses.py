@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ============ 枚举类型 ============
@@ -60,8 +60,7 @@ class BookSearchResult(BaseModel):
             return []
         return v or []
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 class SearchResponse(BaseModel):
@@ -72,8 +71,7 @@ class SearchResponse(BaseModel):
     page: int = Field(default=0, description="当前页码")
     audio_mode: str = Field(default="none", description="音频模式")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 # ============ 书籍详情模型 ============
@@ -109,8 +107,7 @@ class BookDetail(BaseModel):
             return []
         return v or []
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 # ============ 章节相关模型 ============
@@ -131,9 +128,7 @@ class ChapterInfo(BaseModel):
         """获取章节ID (兼容两个平台)"""
         return self.chapter_id or self.item_id
     
-    class Config:
-        extra = "ignore"
-        populate_by_name = True
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class VolumeInfo(BaseModel):
@@ -142,8 +137,7 @@ class VolumeInfo(BaseModel):
     name: str = Field(..., description="卷名")
     chapter_count: int = Field(default=0, description="章节数")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 class ChapterListResponse(BaseModel):
@@ -154,8 +148,7 @@ class ChapterListResponse(BaseModel):
     chapters: List[ChapterInfo] = Field(default=[], description="章节列表")
     volumes: List[VolumeInfo] = Field(default=[], description="卷列表")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 # ============ 章节内容模型 ============
@@ -167,8 +160,7 @@ class TextContent(BaseModel):
     content: str = Field(..., description="章节正文")
     chapter_id: str = Field(..., description="章节ID")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 class AudioContent(BaseModel):
@@ -180,8 +172,7 @@ class AudioContent(BaseModel):
     chapter_id: str = Field(..., description="章节ID")
     tone_changed: bool = Field(default=False, description="音色是否被自动切换")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 ChapterContent = Union[TextContent, AudioContent]
@@ -199,8 +190,7 @@ class QuotaUsage(BaseModel):
     remaining: int = Field(default=200, description="剩余配额")
     percentage: float = Field(default=0.0, description="使用百分比")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 # ============ 通用响应模型 ============
@@ -212,8 +202,7 @@ class APIResponse(BaseModel):
     message: str = Field(default="", description="消息")
     data: Optional[Dict[str, Any]] = Field(default=None, description="数据")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 class ErrorResponse(BaseModel):
@@ -224,5 +213,4 @@ class ErrorResponse(BaseModel):
     message: str = Field(..., description="错误消息")
     details: Optional[Dict[str, Any]] = Field(default=None, description="详细信息")
     
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
