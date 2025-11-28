@@ -190,7 +190,8 @@ function bookDetail() {
         async refreshBookStatus() {
             if (!this.book) return;
             try {
-                const response = await fetch(`/api/books/${this.book.id}`);
+                // 使用轻量级的状态接口，不返回章节列表
+                const response = await fetch(`/api/books/${this.book.id}/status`);
                 if (response.ok) {
                     const data = await response.json();
                     const newBook = data.book || null;

@@ -347,6 +347,69 @@ class BookService:
             "statistics": statistics,
         }
     
+    def get_book_statistics(self, book_uuid: str) -> Dict[str, Any]:
+        """
+        获取书籍统计信息（不包含章节列表）
+        
+        用于轻量级的状态查询，适合轮询下载进度等场景。
+        
+        Args:
+            book_uuid: 书籍UUID
+        
+        Returns:
+            {
+                "total_chapters": int,
+                "completed_chapters": int,
+                "failed_chapters": int,
+                "pending_chapters": int,
+                "progress": float,
+                "exists": bool,
+                "has_cover": bool,
+                "chapter_count": int,
+                "size_bytes": int,
+                "size_mb": float
+            }
+        """
+        # 使用聚合查询而不是加载所有章节
+        from sqlalchemy import func
+        
+        # 统计各状态的章节数
+        status_counts = self.db.query(
+            Chapter.download_status,
+            func.count(Chapter.id).label('count')
+        ).filter(
+            Chapter.book_id == book_uuid
+        ).group_by(Chapter.download_status).all()
+        
+        # 解析统计结果
+        completed_count = 0
+        failed_count = 0
+        pending_count = 0
+        total_count = 0
+        
+        for status, count in status_counts:
+            total_count += count
+            if status == "completed":
+                completed_count = count
+            elif status == "failed":
+                failed_count = count
+            elif status == "pending":
+                pending_count = count
+        
+        statistics = {
+            "total_chapters": total_count,
+            "completed_chapters": completed_count,
+            "failed_chapters": failed_count,
+            "pending_chapters": pending_count,
+            "progress": round(completed_count / total_count * 100, 2) if total_count > 0 else 0,
+        }
+        
+        # 获取存储统计
+        storage_stats = self.storage.get_book_stats(book_uuid)
+        statistics.update(storage_stats)
+        
+        return statistics
+
     # ============ 更新书籍 ============
     
     async def refresh_book_metadata(self, book_uuid: str) -> Optional[Book]:

@@ -39,6 +39,7 @@ from app.schemas.service_schemas import (
     BookResponse,
     BookListResponse,
     BookDetailResponse,
+    BookStatusResponse,
     BookStatistics,
     # 章节相关
     ChapterResponse,

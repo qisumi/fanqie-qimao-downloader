@@ -5,6 +5,36 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.0] - 2025-11-29
+
+### 🐛 Bug 修复
+
+- **修复取消下载任务后无法重新下载的问题**
+  - 取消任务时正确更新书籍状态（`partial` 或 `pending`）
+  - 修复 `download_book()` 中取消/失败后书籍状态未更新的问题
+  - 处理 `asyncio.CancelledError` 时同步更新书籍和任务状态
+
+### ✨ 新功能
+
+- **新增轻量级书籍状态 API**
+  - 添加 `GET /api/books/{book_id}/status` 端点
+  - 仅返回书籍信息和统计数据，不包含章节列表
+  - 优化前端轮询下载进度的性能
+
+### 🔧 优化
+
+- **API 客户端连接复用**
+  - 批量下载时复用单个 API 客户端连接
+  - 新增 `_download_single_chapter_with_api()` 方法支持连接复用
+  - 保留 `_download_single_chapter()` 用于单章节下载场景
+
+- **API 响应健壮性增强**
+  - 添加空响应检查，避免 JSON 解析失败
+  - 空响应和解析失败时支持自动重试
+
+- **前端优化**
+  - 书籍详情页面使用轻量级状态 API 进行进度轮询
+
 ## [1.0.0] - 2025-11-29
 
 ### 🎉 首个正式版本发布

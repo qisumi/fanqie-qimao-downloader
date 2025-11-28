@@ -252,6 +252,10 @@ class RainAPIClient(ABC):
                 
                 response.raise_for_status()
                 
+                # 检查空响应（可能是服务器临时问题）
+                if not response.text or not response.text.strip():
+                    raise InvalidResponseError("API返回空响应", "")
+                
                 # 解析响应
                 return self._parse_response(response.text, api_type)
                 
@@ -270,6 +274,11 @@ class RainAPIClient(ABC):
             except (QuotaExceededError, BookNotFoundError, ChapterNotFoundError):
                 # 这些错误不需要重试
                 raise
+            
+            except InvalidResponseError as e:
+                # 空响应或JSON解析失败，可以重试
+                last_error = e
+                logger.warning(f"无效响应 (尝试 {attempt + 1}): {e}")
                 
             except RateLimitError as e:
                 if e.retry_after:

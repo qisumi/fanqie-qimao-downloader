@@ -103,6 +103,13 @@ class BookDetailResponse(BaseModel):
     statistics: "BookStatistics" = Field(..., description="统计信息")
 
 
+class BookStatusResponse(BaseModel):
+    """书籍状态响应（轻量级，用于轮询进度）"""
+    
+    book: BookResponse = Field(..., description="书籍信息")
+    statistics: "BookStatistics" = Field(..., description="统计信息")
+
+
 class BookStatistics(BaseModel):
     """书籍统计信息"""
     

@@ -202,6 +202,8 @@ async def _run_download_task(
 ):
     """后台下载任务执行函数"""
     from app.utils.database import SessionLocal
+    from app.models.book import Book
+    from app.models.task import DownloadTask
     
     db = SessionLocal()
     try:
@@ -231,6 +233,22 @@ async def _run_download_task(
         logger.info(f"Download task cancelled: {book_id}")
     except asyncio.CancelledError:
         logger.info(f"Download task was cancelled by user: {book_id}")
+        # 当 asyncio 任务被取消时，确保更新书籍和任务状态
+        try:
+            book = db.query(Book).filter(Book.id == book_id).first()
+            task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+            if book and book.download_status == "downloading":
+                if book.downloaded_chapters > 0:
+                    book.download_status = "partial"
+                else:
+                    book.download_status = "pending"
+            if task and task.status == "running":
+                task.status = "cancelled"
+                from datetime import datetime
+                task.completed_at = datetime.utcnow()
+            db.commit()
+        except Exception as update_error:
+            logger.error(f"Failed to update status after cancel: {update_error}")
     except Exception as e:
         logger.error(f"Download task error: {e}", exc_info=True)
     finally:

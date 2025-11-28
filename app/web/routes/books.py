@@ -32,6 +32,7 @@ from app.schemas.service_schemas import (
     BookResponse,
     BookListResponse,
     BookDetailResponse,
+    BookStatusResponse,
     BookStatistics,
     ChapterResponse,
     TaskResponse,
@@ -309,6 +310,80 @@ async def get_book(
     except Exception as e:
         logger.error(f"Get book error: {e}")
         raise HTTPException(status_code=500, detail=f"获取书籍详情失败: {str(e)}")
+
+
+# ============ 获取书籍状态（轻量级） ============
+
+@router.get("/{book_id}/status", response_model=BookStatusResponse)
+async def get_book_status(
+    book_id: str,
+    db: Session = Depends(get_db),
+) -> BookStatusResponse:
+    """
+    获取书籍状态（轻量级）
+    
+    仅返回书籍基本信息和统计数据，不包含章节列表。
+    适用于前端轮询下载进度等场景。
+    
+    - **book_id**: 书籍UUID
+    """
+    try:
+        storage = StorageService()
+        book_service = BookService(db=db, storage=storage)
+        
+        # 只获取书籍和统计信息，不获取章节列表
+        book = book_service.get_book(book_id)
+        
+        if not book:
+            raise HTTPException(status_code=404, detail="书籍不存在")
+        
+        # 获取统计信息
+        stats = book_service.get_book_statistics(book_id)
+        
+        # 转换书籍
+        book_response = BookResponse(
+            id=book.id,
+            platform=book.platform,
+            book_id=book.book_id,
+            title=book.title,
+            author=book.author or "",
+            cover_url=book.cover_url,
+            cover_path=book.cover_path,
+            total_chapters=book.total_chapters or 0,
+            downloaded_chapters=book.downloaded_chapters or 0,
+            word_count=book.word_count,
+            creation_status=book.creation_status,
+            last_chapter_title=book.last_chapter_title,
+            last_update_time=book.last_update_time,
+            download_status=book.download_status or "pending",
+            created_at=book.created_at,
+            updated_at=book.updated_at,
+        )
+        
+        # 转换统计
+        statistics = BookStatistics(
+            total_chapters=stats.get("total_chapters", 0),
+            completed_chapters=stats.get("completed_chapters", 0),
+            failed_chapters=stats.get("failed_chapters", 0),
+            pending_chapters=stats.get("pending_chapters", 0),
+            progress=stats.get("progress", 0.0),
+            exists=stats.get("exists", False),
+            has_cover=stats.get("has_cover", False),
+            chapter_count=stats.get("chapter_count", 0),
+            size_bytes=stats.get("size_bytes", 0),
+            size_mb=stats.get("size_mb", 0.0),
+        )
+        
+        return BookStatusResponse(
+            book=book_response,
+            statistics=statistics,
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get book status error: {e}")
+        raise HTTPException(status_code=500, detail=f"获取书籍状态失败: {str(e)}")
 
 
 # ============ 删除书籍 ============

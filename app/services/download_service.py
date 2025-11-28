@@ -226,6 +226,20 @@ class DownloadService:
         
         self._cancelled_tasks.add(task_id)
         task.status = "cancelled"
+        task.completed_at = datetime.utcnow()
+        
+        # 同时更新书籍状态，使其可以重新下载
+        book = self.db.query(Book).filter(Book.id == task.book_id).first()
+        if book and book.download_status == "downloading":
+            # 根据已下载章节数决定书籍状态
+            if book.downloaded_chapters > 0:
+                # 有已下载章节，标记为部分完成
+                book.download_status = "partial"
+            else:
+                # 没有已下载章节，回退为待下载
+                book.download_status = "pending"
+            logger.info(f"Updated book status to '{book.download_status}' after task cancellation")
+        
         self.db.commit()
         
         logger.info(f"Cancelled task: {task_id}")
@@ -338,9 +352,15 @@ class DownloadService:
             if task.id in self._cancelled_tasks:
                 task.status = "cancelled"
                 self._cancelled_tasks.discard(task.id)
+                # 更新书籍状态，使其可以重新下载
+                if book.downloaded_chapters > 0:
+                    book.download_status = "partial"
+                else:
+                    book.download_status = "pending"
             elif task.failed_chapters > 0:
                 task.status = "failed"
                 task.error_message = f"{task.failed_chapters}个章节下载失败"
+                book.download_status = "failed"
             else:
                 task.status = "completed"
                 book.download_status = "completed"
@@ -432,6 +452,8 @@ class DownloadService:
         """
         并发下载多个章节
         
+        使用单个 API 客户端连接复用，提高下载效率。
+        
         Args:
             book: 书籍对象
             chapters: 章节列表
@@ -439,47 +461,55 @@ class DownloadService:
         """
         semaphore = asyncio.Semaphore(self.concurrent_downloads)
         
-        async def download_with_limit(chapter: Chapter):
-            async with semaphore:
-                # 检查取消标志
-                if task.id in self._cancelled_tasks:
-                    return False
-                
-                # 检查配额
-                if not self.rate_limiter.can_download(book.platform):
-                    logger.warning(f"Daily quota exceeded for {book.platform}")
-                    return False
-                
-                # 下载章节，返回字数 (-1 表示失败)
-                word_count = await self._download_single_chapter(book, chapter)
-                
-                if word_count >= 0:
-                    self.rate_limiter.record_download(book.platform, word_count=word_count)
-                    self._update_task_progress(task, downloaded=1)
-                else:
-                    self._update_task_progress(task, failed=1)
-                
-                # 添加延迟
-                if self.download_delay > 0:
-                    await asyncio.sleep(self.download_delay)
-                
-                return word_count >= 0
-        
-        # 创建所有下载任务
-        tasks = [download_with_limit(ch) for ch in chapters]
-        
-        # 并发执行
-        await asyncio.gather(*tasks, return_exceptions=True)
+        # 复用单个 API 客户端连接
+        async with self._get_api_client(book.platform) as api:
+            # 七猫需要设置当前书籍ID（只需设置一次）
+            if book.platform == "qimao":
+                api.set_current_book_id(book.book_id)
+            
+            async def download_with_limit(chapter: Chapter):
+                async with semaphore:
+                    # 检查取消标志
+                    if task.id in self._cancelled_tasks:
+                        return False
+                    
+                    # 检查配额
+                    if not self.rate_limiter.can_download(book.platform):
+                        logger.warning(f"Daily quota exceeded for {book.platform}")
+                        return False
+                    
+                    # 下载章节，返回字数 (-1 表示失败)
+                    word_count = await self._download_single_chapter_with_api(api, book, chapter)
+                    
+                    if word_count >= 0:
+                        self.rate_limiter.record_download(book.platform, word_count=word_count)
+                        self._update_task_progress(task, downloaded=1)
+                    else:
+                        self._update_task_progress(task, failed=1)
+                    
+                    # 添加延迟
+                    if self.download_delay > 0:
+                        await asyncio.sleep(self.download_delay)
+                    
+                    return word_count >= 0
+            
+            # 创建所有下载任务
+            tasks = [download_with_limit(ch) for ch in chapters]
+            
+            # 并发执行
+            await asyncio.gather(*tasks, return_exceptions=True)
     
-    async def _download_single_chapter(
+    async def _download_single_chapter_with_api(
         self,
+        api: Union[FanqieAPI, QimaoAPI],
         book: Book,
         chapter: Chapter,
     ) -> int:
         """
-        下载单个章节
+        使用指定的 API 客户端下载单个章节
         
         Args:
+            api: API 客户端实例
             book: 书籍对象
             chapter: 章节对象
         
@@ -487,40 +517,35 @@ class DownloadService:
             下载成功返回章节字数，失败返回 -1
         """
         try:
-            async with self._get_api_client(book.platform) as api:
-                # 七猫需要设置当前书籍ID
-                if book.platform == "qimao":
-                    api.set_book_id(book.book_id)
+            # 获取章节内容
+            result = await api.get_chapter_content(chapter.item_id)
+            
+            if result.get("type") == "text":
+                content = result.get("content", "")
+                word_count = len(content)
                 
-                # 获取章节内容
-                result = await api.get_chapter_content(chapter.item_id)
+                # 保存到文件
+                content_path = await self.storage.save_chapter_content_async(
+                    book.id,
+                    chapter.chapter_index,
+                    content
+                )
                 
-                if result.get("type") == "text":
-                    content = result.get("content", "")
-                    word_count = len(content)
-                    
-                    # 保存到文件
-                    content_path = await self.storage.save_chapter_content_async(
-                        book.id,
-                        chapter.chapter_index,
-                        content
-                    )
-                    
-                    # 更新章节状态
-                    chapter.content_path = content_path
-                    chapter.download_status = "completed"
-                    chapter.downloaded_at = datetime.utcnow()
-                    self.db.commit()
-                    
-                    logger.debug(f"Downloaded chapter: {chapter.title} ({word_count} words)")
-                    return word_count
-                else:
-                    # 音频内容暂不支持
-                    logger.warning(f"Audio content not supported: {chapter.title}")
-                    chapter.download_status = "failed"
-                    self.db.commit()
-                    return -1
-                    
+                # 更新章节状态
+                chapter.content_path = content_path
+                chapter.download_status = "completed"
+                chapter.downloaded_at = datetime.utcnow()
+                self.db.commit()
+                
+                logger.debug(f"Downloaded chapter: {chapter.title} ({word_count} words)")
+                return word_count
+            else:
+                # 音频内容暂不支持
+                logger.warning(f"Audio content not supported: {chapter.title}")
+                chapter.download_status = "failed"
+                self.db.commit()
+                return -1
+                
         except ChapterNotFoundError:
             logger.error(f"Chapter not found: {chapter.item_id}")
             chapter.download_status = "failed"
@@ -538,6 +563,31 @@ class DownloadService:
             chapter.download_status = "failed"
             self.db.commit()
             return -1
+    
+    async def _download_single_chapter(
+        self,
+        book: Book,
+        chapter: Chapter,
+    ) -> int:
+        """
+        下载单个章节（独立创建 API 连接）
+        
+        用于单章节下载或重试场景。对于批量下载，
+        推荐使用 _download_single_chapter_with_api 复用连接。
+        
+        Args:
+            book: 书籍对象
+            chapter: 章节对象
+        
+        Returns:
+            下载成功返回章节字数，失败返回 -1
+        """
+        async with self._get_api_client(book.platform) as api:
+            # 七猫需要设置当前书籍ID
+            if book.platform == "qimao":
+                api.set_current_book_id(book.book_id)
+            
+            return await self._download_single_chapter_with_api(api, book, chapter)
     
     # ============ 更新和重试 ============
     
