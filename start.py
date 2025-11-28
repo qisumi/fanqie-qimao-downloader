@@ -33,15 +33,19 @@ def init_database():
 
 def start_server():
     """启动Web服务器"""
+    # 从配置文件读取 HOST 和 PORT
+    from app.config import get_settings
+    settings = get_settings()
+    
     print("正在启动FanqieQimaoDownloader服务器...")
-    print("访问 http://localhost:8000 查看应用")
+    print(f"访问 http://{settings.host}:{settings.port} 查看应用")
     print("按 Ctrl+C 停止服务器")
     try:
         subprocess.run([
             sys.executable, "-m", "uvicorn",
             "app.main:app",
-            "--host", "0.0.0.0",
-            "--port", "8000",
+            "--host", str(settings.host),
+            "--port", str(settings.port),
             "--reload"
         ], check=True)
     except KeyboardInterrupt:
