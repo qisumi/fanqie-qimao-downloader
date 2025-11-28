@@ -4,79 +4,87 @@
 
 {% block content %}
 <div class="px-4 py-6 sm:px-0" x-data="searchForm()">
-    <!-- 搜索卡片 -->
-    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-xl overflow-hidden mb-8">
-        <div class="px-6 py-8 sm:px-10 sm:py-12">
-            <div class="text-center mb-8">
-                <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">
-                    <i class="fas fa-book-reader mr-3"></i>小说搜索
+    <!-- 搜索区域 -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+        <div class="px-6 py-10 sm:px-12 sm:py-14">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
+                    探索精彩小说
                 </h2>
-                <p class="text-blue-100 text-sm sm:text-base">搜索番茄小说、七猫小说平台的海量小说资源</p>
+                <p class="text-gray-500 text-base sm:text-lg max-w-2xl mx-auto">
+                    一站式搜索番茄小说与七猫小说，发现你的下一本挚爱
+                </p>
             </div>
 
             <!-- 搜索表单 -->
-            <div class="max-w-3xl mx-auto">
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <!-- 平台选择器 -->
-                    <div class="relative">
-                        <div class="flex bg-white/10 backdrop-blur rounded-xl p-1 border border-white/20">
-                            <button type="button" 
-                                    @click="platform = 'fanqie'"
-                                    :class="platform === 'fanqie' ? 'bg-white text-blue-600 shadow-lg' : 'text-white hover:bg-white/10'"
-                                    class="flex items-center px-4 py-2.5 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base">
-                                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+            <div class="max-w-2xl mx-auto">
+                <!-- 平台切换器 -->
+                <div class="flex justify-center mb-8">
+                    <div class="relative bg-gray-100 p-1.5 rounded-xl inline-flex w-full sm:w-auto min-w-[320px]">
+                        <!-- 滑块背景 -->
+                        <div class="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-6px)] bg-white rounded-lg shadow-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                             :class="platform === 'fanqie' ? 'translate-x-0' : 'translate-x-full'"></div>
+                        
+                        <!-- 番茄按钮 -->
+                        <button type="button" 
+                                @click="platform = 'fanqie'"
+                                class="relative z-10 w-1/2 flex items-center justify-center px-6 py-2.5 text-sm font-medium rounded-lg transition-colors duration-300 focus:outline-none"
+                                :class="platform === 'fanqie' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'">
+                            <span class="flex items-center">
+                                <svg class="w-4 h-4 mr-2" :class="platform === 'fanqie' ? 'text-red-500' : 'text-gray-400'" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                                 </svg>
                                 番茄小说
-                            </button>
-                            <button type="button"
-                                    @click="platform = 'qimao'"
-                                    :class="platform === 'qimao' ? 'bg-white text-indigo-600 shadow-lg' : 'text-white hover:bg-white/10'"
-                                    class="flex items-center px-4 py-2.5 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base">
-                                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                            </span>
+                        </button>
+
+                        <!-- 七猫按钮 -->
+                        <button type="button"
+                                @click="platform = 'qimao'"
+                                class="relative z-10 w-1/2 flex items-center justify-center px-6 py-2.5 text-sm font-medium rounded-lg transition-colors duration-300 focus:outline-none"
+                                :class="platform === 'qimao' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'">
+                            <span class="flex items-center">
+                                <svg class="w-4 h-4 mr-2" :class="platform === 'qimao' ? 'text-yellow-500' : 'text-gray-400'" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
                                 </svg>
                                 七猫小说
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 搜索输入框 -->
-                    <div class="flex-1 relative">
-                        <div class="relative flex items-center">
-                            <div class="absolute left-4 text-gray-400">
-                                <i class="fas fa-search text-lg"></i>
-                            </div>
-                            <input type="text" 
-                                   id="keyword" 
-                                   x-model="keyword"
-                                   @keyup.enter="search()"
-                                   class="w-full pl-12 pr-32 py-3.5 bg-white rounded-xl border-0 shadow-lg text-gray-800 placeholder-gray-400 focus:ring-4 focus:ring-white/30 focus:outline-none text-base"
-                                   placeholder="输入小说名称或作者名...">
-                            <button @click="search()" 
-                                    :disabled="!keyword.trim() || loading"
-                                    class="absolute right-2 inline-flex items-center px-5 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                <template x-if="loading">
-                                    <span class="flex items-center">
-                                        <i class="fas fa-spinner fa-spin mr-2"></i>搜索中
-                                    </span>
-                                </template>
-                                <template x-if="!loading">
-                                    <span class="flex items-center">
-                                        <i class="fas fa-search mr-2"></i>搜索
-                                    </span>
-                                </template>
-                            </button>
-                        </div>
+                            </span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- 搜索提示 -->
-                <div class="mt-4 flex flex-wrap gap-2 justify-center">
-                    <span class="text-blue-100 text-sm">热门搜索：</span>
-                    <template x-for="tag in ['斗罗大陆', '完美世界', '遮天', '凡人修仙传']" :key="tag">
+                <!-- 搜索输入框 -->
+                <div class="relative group mb-6">
+                    <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400 group-focus-within:text-blue-600 transition-colors duration-300 text-lg"></i>
+                    </div>
+                    <input type="text" 
+                           id="keyword" 
+                           x-model="keyword"
+                           @keyup.enter="search()"
+                           class="block w-full pl-14 pr-32 py-4 bg-gray-50 border-2 border-transparent text-gray-900 placeholder-gray-400 rounded-2xl focus:bg-white focus:border-blue-500 focus:ring-0 focus:shadow-lg transition-all duration-300 sm:text-lg"
+                           placeholder="输入书名或作者...">
+                    
+                    <div class="absolute inset-y-2 right-2">
+                        <button @click="search()" 
+                                :disabled="!keyword.trim() || loading"
+                                class="h-full px-6 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                            <template x-if="loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </template>
+                            <template x-if="!loading">
+                                <span>搜索</span>
+                            </template>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 热门搜索 -->
+                <div class="flex flex-wrap items-center justify-center gap-2">
+                    <span class="text-sm text-gray-400 mr-1">热门搜索:</span>
+                    <template x-for="tag in ['斗罗大陆', '完美世界', '遮天', '凡人修仙传', '诡秘之主']" :key="tag">
                         <button @click="keyword = tag; search()" 
-                                class="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-sm rounded-full transition-colors border border-white/20">
+                                class="px-3 py-1 text-sm text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-full transition-colors duration-200 border border-transparent hover:border-blue-100">
                             <span x-text="tag"></span>
                         </button>
                     </template>
@@ -86,71 +94,81 @@
     </div>
 
     <!-- 搜索结果区域 -->
-    <div class="bg-white shadow-lg rounded-xl overflow-hidden">
-        <div class="px-6 py-5 sm:px-8">
+    <div class="bg-white shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
+        <div class="px-6 py-8 sm:px-8">
             <!-- 结果标题 -->
-            <div x-show="results.length > 0" class="flex items-center justify-between mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <i class="fas fa-list-ul text-blue-500 mr-2"></i>
+            <div x-show="results.length > 0" class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
                     搜索结果
-                    <span class="ml-2 px-2.5 py-0.5 bg-blue-100 text-blue-700 text-sm rounded-full" x-text="`${results.length} 本`"></span>
+                    <span class="ml-3 px-2.5 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full" x-text="`${results.length} 本`"></span>
                 </h3>
-                <span class="text-sm text-gray-500">
-                    平台: <span class="font-medium" x-text="platform === 'fanqie' ? '番茄小说' : '七猫小说'"></span>
+                <span class="text-sm text-gray-500 flex items-center">
+                    <span class="w-2 h-2 rounded-full mr-2" :class="platform === 'fanqie' ? 'bg-red-500' : 'bg-yellow-500'"></span>
+                    <span x-text="platform === 'fanqie' ? '番茄小说' : '七猫小说'"></span>
                 </span>
             </div>
 
             <!-- 搜索结果列表 -->
-            <div x-show="results.length > 0" x-transition class="space-y-4">
+            <div x-show="results.length > 0" x-transition.opacity.duration.300ms class="grid grid-cols-1 gap-4">
                 <template x-for="book in results" :key="book.book_id">
-                    <div class="group border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-gray-50/50">
+                    <div class="group relative bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all duration-300">
                         <div class="flex gap-5">
                             <!-- 书籍封面占位 -->
-                            <div class="hidden sm:flex flex-shrink-0 w-16 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg items-center justify-center">
-                                <i class="fas fa-book text-blue-400 text-2xl"></i>
+                            <div class="hidden sm:flex flex-shrink-0 w-20 h-28 bg-gray-100 rounded-lg items-center justify-center group-hover:bg-blue-50 transition-colors duration-300">
+                                <i class="fas fa-book text-gray-300 text-3xl group-hover:text-blue-300 transition-colors duration-300"></i>
                             </div>
                             
                             <!-- 书籍信息 -->
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-start justify-between gap-4">
-                                    <div class="flex-1 min-w-0">
-                                        <h4 class="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors" 
-                                            x-text="book.book_name || book.title"></h4>
-                                        <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                                            <span class="flex items-center">
-                                                <i class="fas fa-user text-gray-400 mr-1.5"></i>
-                                                <span x-text="book.author"></span>
-                                            </span>
-                                            <span class="flex items-center">
-                                                <i class="fas fa-file-word text-gray-400 mr-1.5"></i>
-                                                <span x-text="((book.word_count || 0) / 10000).toFixed(1) + ' 万字'"></span>
-                                            </span>
-                                            <span class="flex items-center">
-                                                <i class="fas fa-circle text-xs mr-1.5" 
-                                                   :class="book.creation_status === '完结' ? 'text-green-500' : 'text-yellow-500'"></i>
+                            <div class="flex-1 min-w-0 py-1">
+                                <div class="flex flex-col h-full justify-between">
+                                    <div>
+                                        <div class="flex justify-between items-start gap-4">
+                                            <h4 class="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200" 
+                                                x-text="book.book_name || book.title"></h4>
+                                            
+                                            <!-- 状态标签 -->
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                                  :class="book.creation_status === '完结' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">
                                                 <span x-text="book.creation_status"></span>
                                             </span>
                                         </div>
+                                        
+                                        <div class="mt-2 flex items-center text-sm text-gray-500 space-x-4">
+                                            <span class="flex items-center">
+                                                <i class="fas fa-user-edit mr-1.5 text-gray-400"></i>
+                                                <span x-text="book.author"></span>
+                                            </span>
+                                            <span class="flex items-center">
+                                                <i class="fas fa-align-left mr-1.5 text-gray-400"></i>
+                                                <span x-text="((book.word_count || 0) / 10000).toFixed(1) + ' 万字'"></span>
+                                            </span>
+                                        </div>
+
                                         <!-- 简介 -->
-                                        <p class="mt-2 text-sm text-gray-500 line-clamp-2" 
+                                        <p class="mt-3 text-sm text-gray-600 line-clamp-2 leading-relaxed" 
                                            x-show="book.abstract || book.description"
                                            x-text="book.abstract || book.description"></p>
                                     </div>
                                     
-                                    <!-- 添加按钮 -->
-                                    <div class="flex-shrink-0">
+                                    <!-- 操作栏 -->
+                                    <div class="mt-4 flex items-center justify-end">
                                         <button @click="addBook(book)"
                                                 :disabled="isAdding(book)"
-                                                class="inline-flex items-center px-4 py-2.5 border-0 text-sm font-medium rounded-lg text-white transition-all duration-200 shadow-md hover:shadow-lg"
-                                                :class="isAdding(book) ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'">
+                                                class="inline-flex items-center px-5 py-2 border border-transparent text-sm font-medium rounded-lg text-white transition-all duration-200 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                                :class="isAdding(book) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'">
                                             <template x-if="isAdding(book)">
                                                 <span class="flex items-center">
-                                                    <i class="fas fa-spinner fa-spin mr-2"></i>添加中
+                                                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    添加中...
                                                 </span>
                                             </template>
                                             <template x-if="!isAdding(book)">
                                                 <span class="flex items-center">
-                                                    <i class="fas fa-plus-circle mr-2"></i>添加到书架
+                                                    <i class="fas fa-plus mr-2"></i>
+                                                    加入书架
                                                 </span>
                                             </template>
                                         </button>
@@ -163,29 +181,30 @@
             </div>
 
             <!-- 加载状态 -->
-            <div x-show="loading" class="text-center py-16">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                    <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+            <div x-show="loading" class="text-center py-20">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-6 animate-pulse">
+                    <i class="fas fa-search text-blue-500 text-2xl"></i>
                 </div>
-                <p class="text-gray-600">正在搜索中，请稍候...</p>
+                <h3 class="text-lg font-medium text-gray-900">正在搜索...</h3>
+                <p class="mt-1 text-gray-500">请稍候，正在从平台获取数据</p>
             </div>
 
             <!-- 空状态 - 未搜索 -->
-            <div x-show="!loading && results.length === 0 && !hasSearched" class="text-center py-16">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-4">
-                    <i class="fas fa-search text-gray-400 text-3xl"></i>
+            <div x-show="!loading && results.length === 0 && !hasSearched" class="text-center py-20">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-50 rounded-full mb-6">
+                    <i class="fas fa-book-open text-gray-300 text-4xl"></i>
                 </div>
-                <h4 class="text-lg font-medium text-gray-700 mb-2">开始搜索小说</h4>
-                <p class="text-gray-500 text-sm">在上方输入小说名称或作者名进行搜索</p>
+                <h3 class="text-lg font-medium text-gray-900">开始您的阅读之旅</h3>
+                <p class="mt-2 text-gray-500 max-w-sm mx-auto">在上方输入书名或作者，搜索您感兴趣的小说。支持番茄小说和七猫小说双平台。</p>
             </div>
 
             <!-- 空状态 - 无结果 -->
-            <div x-show="!loading && results.length === 0 && hasSearched" class="text-center py-16">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-orange-100 rounded-full mb-4">
-                    <i class="fas fa-book-dead text-orange-400 text-3xl"></i>
+            <div x-show="!loading && results.length === 0 && hasSearched" class="text-center py-20">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-50 rounded-full mb-6">
+                    <i class="far fa-frown text-gray-400 text-4xl"></i>
                 </div>
-                <h4 class="text-lg font-medium text-gray-700 mb-2">未找到相关书籍</h4>
-                <p class="text-gray-500 text-sm">换个关键词试试，或者切换到其他平台搜索</p>
+                <h3 class="text-lg font-medium text-gray-900">未找到相关书籍</h3>
+                <p class="mt-2 text-gray-500">换个关键词试试，或者切换平台搜索</p>
             </div>
         </div>
     </div>
