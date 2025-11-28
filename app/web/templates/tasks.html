@@ -13,28 +13,28 @@
                 <div x-show="tasks.length > 0" class="space-y-4">
                     <template x-for="task in tasks" :key="task.id">
                         <div class="border rounded-lg p-4">
-                            <div class="flex justify-between items-start mb-3">
-                                <div class="flex-1">
-                                    <div class="flex items-center">
-                                        <h4 class="text-lg font-medium text-gray-900 mr-3">
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h4 class="text-base sm:text-lg font-medium text-gray-900">
                                             书籍ID: <span x-text="task.book_id"></span>
                                         </h4>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                                               :class="task.task_type === 'full_download' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'">
                                             <span x-text="task.task_type === 'full_download' ? '完整下载' : '增量更新'"></span>
                                         </span>
-                                        <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                                               :class="getStatusClass(task.status)">
                                             <span x-text="getStatusText(task.status)"></span>
                                         </span>
                                     </div>
-                                    <p class="text-sm text-gray-600 mt-1">
+                                    <p class="text-xs sm:text-sm text-gray-600 mt-1">
                                         创建时间: <span x-text="new Date(task.created_at).toLocaleString()"></span>
                                     </p>
                                 </div>
                                 <button @click="cancelTask(task.id)"
                                         x-show="task.status === 'pending' || task.status === 'running'"
-                                        class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                                        class="inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 w-full sm:w-auto">
                                     <i class="fas fa-times mr-1"></i>
                                     取消
                                 </button>

@@ -9,7 +9,7 @@
             <div x-data="bookDetail()" x-init="loadBook()">
                 <!-- 书籍信息 -->
                 <div x-show="book" class="mb-6">
-                    <div class="flex items-start space-x-6">
+                    <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
                         <div class="flex-shrink-0">
                             <img x-show="book && book.cover_url" :src="book?.cover_url"
                                  class="w-32 h-44 object-cover rounded-lg shadow"
@@ -18,22 +18,22 @@
                                 <i class="fas fa-book text-gray-400 text-2xl"></i>
                             </div>
                         </div>
-                        <div class="flex-1">
-                            <div class="flex items-center mb-2">
-                                <h1 class="text-2xl font-bold text-gray-900 mr-3" x-text="book?.title"></h1>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        <div class="flex-1 text-center sm:text-left w-full">
+                            <div class="flex flex-col sm:flex-row items-center sm:items-center mb-2">
+                                <h1 class="text-xl sm:text-2xl font-bold text-gray-900 sm:mr-3" x-text="book?.title"></h1>
+                                <span class="mt-2 sm:mt-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                                       :class="book?.platform === 'fanqie' ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800'">
                                     <span x-text="book?.platform === 'fanqie' ? '番茄小说' : '七猫小说'"></span>
                                 </span>
                             </div>
-                            <p class="text-lg text-gray-600 mb-2">作者: <span x-text="book?.author"></span></p>
-                            <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                            <p class="text-base sm:text-lg text-gray-600 mb-2">作者: <span x-text="book?.author"></span></p>
+                            <div class="grid grid-cols-2 gap-2 sm:gap-4 text-sm text-gray-600">
                                 <div>总章节: <span x-text="book?.total_chapters"></span></div>
                                 <div>已下载: <span x-text="book?.downloaded_chapters"></span></div>
                                 <div>字数: <span x-text="(book?.word_count || 0).toLocaleString()"></span></div>
                                 <div>状态: <span x-text="book?.creation_status"></span></div>
                             </div>
-                            <div class="mt-4 flex flex-wrap gap-3">
+                            <div class="mt-4 flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-3">
                                 <button @click="downloadBook()"
                                         :disabled="book?.download_status === 'downloading' || actionLoading.download"
                                         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
