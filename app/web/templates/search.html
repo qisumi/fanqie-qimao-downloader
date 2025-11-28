@@ -113,9 +113,17 @@
                 <template x-for="book in results" :key="book.book_id">
                     <div class="group relative bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all duration-300">
                         <div class="flex gap-5">
-                            <!-- 书籍封面占位 -->
-                            <div class="hidden sm:flex flex-shrink-0 w-20 h-28 bg-gray-100 rounded-lg items-center justify-center group-hover:bg-blue-50 transition-colors duration-300">
-                                <i class="fas fa-book text-gray-300 text-3xl group-hover:text-blue-300 transition-colors duration-300"></i>
+                            <!-- 书籍封面 -->
+                            <div class="hidden sm:flex flex-shrink-0 w-20 h-28 bg-gray-100 rounded-lg items-center justify-center group-hover:bg-gray-200 transition-colors duration-300 overflow-hidden">
+                                <template x-if="book.cover_url">
+                                    <img :src="book.cover_url" 
+                                         :alt="book.book_name || book.title"
+                                         class="w-full h-full object-cover"
+                                         @error="handleImageError($event)">
+                                </template>
+                                <template x-if="!book.cover_url">
+                                    <i class="fas fa-book text-gray-300 text-3xl group-hover:text-gray-400 transition-colors duration-300"></i>
+                                </template>
                             </div>
                             
                             <!-- 书籍信息 -->
@@ -282,6 +290,17 @@ function searchForm() {
         isAdding(book) {
             const bookKey = `${book.platform || this.platform}_${book.book_id}`;
             return this.addingBooks[bookKey];
+        },
+
+        handleImageError(event) {
+            // 图片加载失败，替换为占位符
+            event.target.style.display = 'none';
+            const parent = event.target.parentElement;
+            if (parent && !parent.querySelector('.fa-book')) {
+                const placeholder = document.createElement('i');
+                placeholder.className = 'fas fa-book text-gray-300 text-3xl';
+                parent.appendChild(placeholder);
+            }
         }
     }
 }
