@@ -105,7 +105,7 @@ class TestBooksAPI:
     
     def test_add_book_invalid_platform(self, client):
         """测试无效平台添加书籍"""
-        response = client.post("/api/books/invalid/123456")
+        response = client.post("/api/books/add/invalid/123456")
         assert response.status_code == 400
 
 

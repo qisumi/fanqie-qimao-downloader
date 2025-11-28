@@ -81,7 +81,7 @@ async def search_books(
 
 # ============ 添加书籍 ============
 
-@router.post("/{platform}/{book_id}", response_model=Dict[str, Any])
+@router.post("/add/{platform}/{book_id}", response_model=Dict[str, Any])
 async def add_book(
     platform: str,
     book_id: str,

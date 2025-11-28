@@ -517,8 +517,8 @@ class TestE2EErrorHandling:
                 download_delay=0.01,
             )
             
-            # 继续下载应该只下载剩余3章
-            task = await download_service.download_book(book.id)
+            # 继续下载应该只下载剩余3章（使用update类型恢复下载）
+            task = await download_service.download_book(book.id, task_type="update")
             
             assert task.downloaded_chapters == 3  # 只下载了剩余3章
             

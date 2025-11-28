@@ -264,7 +264,7 @@ function searchForm() {
 
             try {
                 const platform = book.platform || this.platform;
-                const response = await fetch(`/api/books/${platform}/${book.book_id}`, {
+                const response = await fetch(`/api/books/add/${platform}/${book.book_id}`, {
                     method: 'POST'
                 });
 

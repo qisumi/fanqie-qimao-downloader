@@ -339,7 +339,7 @@ class TestQimaoAPI:
     
     @pytest.mark.asyncio
     async def test_search_page_conversion(self, api):
-        """测试页码转换 (page-1)*10"""
+        """测试页码转换 page*10 (page从0开始)"""
         mock_response = create_mock_response(200, MOCK_SEARCH_RESPONSE_QIMAO)
         
         with patch.object(httpx.AsyncClient, 'get', return_value=mock_response) as mock_get:
@@ -347,8 +347,8 @@ class TestQimaoAPI:
             
             call_args = mock_get.call_args
             params = call_args.kwargs.get('params', {})
-            # page=2 应该转换为 offset=10
-            assert params.get("page") == 10
+            # page=2 应该转换为 offset=20 (page从0开始，与番茄一致)
+            assert params.get("page") == 20
     
     @pytest.mark.asyncio
     async def test_get_book_detail_success(self, api):

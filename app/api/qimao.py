@@ -98,7 +98,7 @@ class QimaoAPI(RainAPIClient):
     async def search(
         self,
         keyword: str,
-        page: int = 1,
+        page: int = 0,
         audio_mode: AudioMode = AudioMode.NONE,
     ) -> Dict[str, Any]:
         """
@@ -106,7 +106,7 @@ class QimaoAPI(RainAPIClient):
         
         Args:
             keyword: 搜索关键词
-            page: 页码 (从1开始，与番茄不同)
+            page: 页码 (从0开始，与番茄保持一致)
             audio_mode: 音频模式 (七猫暂不支持，仅为接口兼容)
         
         Returns:
@@ -126,14 +126,14 @@ class QimaoAPI(RainAPIClient):
                     ...
                 ],
                 "total": 100,
-                "page": 1
+                "page": 0
             }
         
         Raises:
             APIError: API相关错误
         """
-        # 七猫的页码需要转换: page参数为 (page-1)*10
-        page_offset = (page - 1) * 10
+        # 七猫的页码需要转换: 传入page从0开始，API需要 page*10 的偏移量
+        page_offset = page * 10
         
         params = {
             "wd": keyword,
