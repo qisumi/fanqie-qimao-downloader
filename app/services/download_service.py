@@ -298,6 +298,7 @@ class DownloadService:
         book_uuid: str,
         task_type: str = "full_download",
         start_chapter: int = 0,
+        end_chapter: Optional[int] = None,
         task_id: Optional[str] = None,
     ) -> DownloadTask:
         """
@@ -307,6 +308,7 @@ class DownloadService:
             book_uuid: 书籍UUID
             task_type: 任务类型
             start_chapter: 起始章节索引
+            end_chapter: 结束章节索引（包含），None表示到最后一章
             task_id: 已有的任务ID，如果提供则复用该任务
         
         Returns:
@@ -328,7 +330,7 @@ class DownloadService:
             # 对于完整下载，需要重置章节状态为pending
             # 这样才能重新下载已完成的章节
             if task_type == "full_download":
-                self._reset_chapters_for_full_download(book_uuid, start_chapter)
+                self._reset_chapters_for_full_download(book_uuid, start_chapter, end_chapter)
             
             # 更新书籍和任务状态
             book.download_status = "downloading"
@@ -337,7 +339,7 @@ class DownloadService:
             self.db.commit()
             
             # 获取待下载章节
-            chapters = self._get_pending_chapters(book_uuid, task_type, start_chapter)
+            chapters = self._get_pending_chapters(book_uuid, task_type, start_chapter, end_chapter)
             
             if not chapters:
                 task.status = "completed"
@@ -398,12 +400,17 @@ class DownloadService:
         book_uuid: str,
         task_type: str,
         start_chapter: int = 0,
+        end_chapter: Optional[int] = None,
     ) -> List[Chapter]:
         """获取待下载的章节列表"""
         query = self.db.query(Chapter).filter(
             Chapter.book_id == book_uuid,
             Chapter.chapter_index >= start_chapter
         )
+        
+        # 如果指定了结束章节，限制范围
+        if end_chapter is not None:
+            query = query.filter(Chapter.chapter_index <= end_chapter)
         
         if task_type == "full_download":
             # 下载所有未完成的章节
@@ -418,17 +425,29 @@ class DownloadService:
         self,
         book_uuid: str,
         start_chapter: int = 0,
+        end_chapter: Optional[int] = None,
     ):
         """
         重置章节状态为pending，用于完整下载重新开始
         
         当用户再次下载已完成的书籍时，需要重置章节状态
         以支持重新下载
+        
+        Args:
+            book_uuid: 书籍UUID
+            start_chapter: 起始章节索引
+            end_chapter: 结束章节索引（包含），None表示到最后一章
         """
-        chapters = self.db.query(Chapter).filter(
+        query = self.db.query(Chapter).filter(
             Chapter.book_id == book_uuid,
             Chapter.chapter_index >= start_chapter
-        ).all()
+        )
+        
+        # 如果指定了结束章节，限制范围
+        if end_chapter is not None:
+            query = query.filter(Chapter.chapter_index <= end_chapter)
+        
+        chapters = query.all()
         
         for chapter in chapters:
             if chapter.download_status in ("failed", "pending"):
@@ -441,7 +460,7 @@ class DownloadService:
                 logger.debug(f"Reset chapter for re-download: {chapter.title}")
         
         self.db.commit()
-        logger.info(f"Reset chapters for full download: book_id={book_uuid}, start_chapter={start_chapter}")
+        logger.info(f"Reset chapters for full download: book_id={book_uuid}, start={start_chapter}, end={end_chapter}")
     
     async def _download_chapters_concurrent(
         self,

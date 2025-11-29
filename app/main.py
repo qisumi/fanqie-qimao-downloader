@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import settings
 from app.utils.logger import init_from_settings, get_logger
-from app.web.routes import pages, books, tasks, stats
+from app.web.routes import pages, books, tasks, stats, ws
 from app.web.middleware import AuthMiddleware
 
 # 初始化日志系统
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="FanqieQimaoDownloader",
     description="番茄小说和七猫小说下载器，支持EPUB导出",
-    version="1.1.1",
+    version="1.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
@@ -62,11 +62,12 @@ app.include_router(pages.router, prefix="", tags=["pages"])
 app.include_router(books.router, prefix="/api/books", tags=["books"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+app.include_router(ws.router, prefix="/ws", tags=["websocket"])
 
 @app.get("/health")
 async def health_check():
     """健康检查接口"""
-    return {"status": "healthy", "version": "1.1.1"}
+    return {"status": "healthy", "version": "1.2.0"}
 
 if __name__ == "__main__":
     import uvicorn

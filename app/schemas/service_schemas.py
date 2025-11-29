@@ -153,6 +153,7 @@ class TaskCreate(BaseModel):
     book_id: str = Field(..., description="书籍UUID")
     task_type: TaskType = Field(default=TaskType.FULL_DOWNLOAD, description="任务类型")
     start_chapter: int = Field(default=0, description="起始章节索引")
+    end_chapter: Optional[int] = Field(default=None, description="结束章节索引（包含），None表示到最后一章")
 
 
 class TaskResponse(BaseModel):
@@ -284,6 +285,85 @@ class ErrorResponseModel(BaseModel):
     error_code: str = Field(..., description="错误码")
     message: str = Field(..., description="错误消息")
     details: List[ErrorDetail] = Field(default=[], description="详细信息")
+
+
+# ============ 章节状态摘要 Schemas ============
+
+class ChapterSegmentStatus(BaseModel):
+    """章节分段状态（用于热力图展示）"""
+    
+    start_index: int = Field(..., description="分段起始章节索引")
+    end_index: int = Field(..., description="分段结束章节索引")
+    total: int = Field(..., description="本段章节总数")
+    completed: int = Field(default=0, description="已完成数量")
+    pending: int = Field(default=0, description="待下载数量")
+    failed: int = Field(default=0, description="失败数量")
+    completion_rate: float = Field(default=0.0, description="完成率 0-1")
+    first_chapter_title: Optional[str] = Field(default=None, description="第一章标题")
+    last_chapter_title: Optional[str] = Field(default=None, description="最后一章标题")
+
+
+class ChapterStatusSummary(BaseModel):
+    """章节状态摘要响应"""
+    
+    book_id: str = Field(..., description="书籍UUID")
+    total_chapters: int = Field(..., description="总章节数")
+    completed_chapters: int = Field(default=0, description="已完成章节数")
+    pending_chapters: int = Field(default=0, description="待下载章节数")
+    failed_chapters: int = Field(default=0, description="失败章节数")
+    segment_size: int = Field(default=50, description="每段章节数")
+    segments: List[ChapterSegmentStatus] = Field(default=[], description="分段状态列表")
+
+
+# ============ WebSocket 消息 Schemas ============
+
+class WebSocketMessageType(str, Enum):
+    """WebSocket 消息类型"""
+    PROGRESS = "progress"      # 进度更新
+    COMPLETED = "completed"    # 任务完成
+    ERROR = "error"            # 错误通知
+    PING = "ping"              # 心跳检测
+    PONG = "pong"              # 心跳响应
+
+
+class WSProgressData(BaseModel):
+    """WebSocket 进度更新数据"""
+    
+    task_id: str = Field(..., description="任务ID")
+    status: str = Field(..., description="任务状态")
+    total_chapters: int = Field(default=0, description="总章节数")
+    downloaded_chapters: int = Field(default=0, description="已下载章节数")
+    failed_chapters: int = Field(default=0, description="失败章节数")
+    progress: float = Field(default=0.0, description="进度百分比")
+    error_message: Optional[str] = Field(default=None, description="错误信息")
+    book_title: Optional[str] = Field(default=None, description="书籍标题")
+    timestamp: datetime = Field(default_factory=datetime.now, description="时间戳")
+
+
+class WSCompletedData(BaseModel):
+    """WebSocket 任务完成数据"""
+    
+    task_id: str = Field(..., description="任务ID")
+    success: bool = Field(..., description="是否成功")
+    message: str = Field(default="", description="完成消息")
+    book_title: Optional[str] = Field(default=None, description="书籍标题")
+    timestamp: datetime = Field(default_factory=datetime.now, description="时间戳")
+
+
+class WSErrorData(BaseModel):
+    """WebSocket 错误数据"""
+    
+    task_id: str = Field(..., description="任务ID")
+    error_code: str = Field(..., description="错误代码")
+    error_message: str = Field(..., description="错误消息")
+    timestamp: datetime = Field(default_factory=datetime.now, description="时间戳")
+
+
+class WebSocketMessage(BaseModel):
+    """WebSocket 消息"""
+    
+    type: WebSocketMessageType = Field(..., description="消息类型")
+    data: Union[WSProgressData, WSCompletedData, WSErrorData, Dict[str, Any]] = Field(..., description="消息数据")
 
 
 # 更新前向引用

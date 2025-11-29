@@ -89,6 +89,10 @@ function tasksList() {
         tasks: [],
         loading: false,
         refreshInterval: null,
+        websockets: {},  // task_id -> WebSocket
+        reconnectAttempts: {},  // task_id -> 重连次数
+        maxReconnectAttempts: 5,
+        fallbackPolling: false,  // 是否降级为轮询
 
         async loadTasks() {
             this.loading = true;
@@ -96,6 +100,13 @@ function tasksList() {
                 const response = await fetch('/api/tasks/');
                 const data = await response.json();
                 this.tasks = data.tasks || [];
+                
+                // 为运行中的任务建立 WebSocket 连接
+                this.tasks.forEach(task => {
+                    if ((task.status === 'pending' || task.status === 'running') && !this.websockets[task.id]) {
+                        this.connectWebSocket(task.id);
+                    }
+                });
             } catch (error) {
                 console.error('Failed to load tasks:', error);
             } finally {
@@ -105,16 +116,155 @@ function tasksList() {
 
         init() {
             this.loadTasks();
-            // 每3秒刷新一次任务状态（对于运行中的任务更实时）
+            // 降级轮询：每30秒检查一次任务列表（主要用于发现新任务）
             this.refreshInterval = setInterval(() => {
                 this.loadTasks();
-            }, 3000);
+            }, 30000);
         },
 
         destroy() {
             if (this.refreshInterval) {
                 clearInterval(this.refreshInterval);
             }
+            // 关闭所有 WebSocket 连接
+            Object.values(this.websockets).forEach(ws => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+            });
+            this.websockets = {};
+        },
+
+        getWebSocketUrl(taskId) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            return `${protocol}//${window.location.host}/ws/tasks/${taskId}`;
+        },
+
+        connectWebSocket(taskId) {
+            if (this.websockets[taskId]) {
+                return;  // 已有连接
+            }
+
+            const url = this.getWebSocketUrl(taskId);
+            console.log(`Connecting WebSocket for task ${taskId}...`);
+            
+            const ws = new WebSocket(url);
+            this.websockets[taskId] = ws;
+
+            ws.onopen = () => {
+                console.log(`WebSocket connected for task ${taskId}`);
+                this.reconnectAttempts[taskId] = 0;  // 重置重连计数
+                
+                // 开始心跳
+                this.startHeartbeat(taskId);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    this.handleWebSocketMessage(taskId, message);
+                } catch (error) {
+                    console.error('Failed to parse WebSocket message:', error);
+                }
+            };
+
+            ws.onclose = (event) => {
+                console.log(`WebSocket closed for task ${taskId}:`, event.code, event.reason);
+                delete this.websockets[taskId];
+                
+                // 检查任务是否还在运行
+                const task = this.tasks.find(t => t.id === taskId);
+                if (task && (task.status === 'pending' || task.status === 'running')) {
+                    this.attemptReconnect(taskId);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error(`WebSocket error for task ${taskId}:`, error);
+            };
+        },
+
+        handleWebSocketMessage(taskId, message) {
+            const task = this.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            switch (message.type) {
+                case 'progress':
+                    // 更新任务进度
+                    task.status = message.data.status;
+                    task.total_chapters = message.data.total_chapters;
+                    task.downloaded_chapters = message.data.downloaded_chapters;
+                    task.failed_chapters = message.data.failed_chapters;
+                    task.progress = message.data.progress;
+                    task.error_message = message.data.error_message;
+                    break;
+
+                case 'completed':
+                    // 任务完成
+                    task.status = message.data.success ? 'completed' : 'failed';
+                    task.progress = 100;
+                    // 关闭 WebSocket
+                    const ws = this.websockets[taskId];
+                    if (ws) {
+                        ws.close();
+                        delete this.websockets[taskId];
+                    }
+                    // 刷新列表获取最新状态
+                    setTimeout(() => this.loadTasks(), 1000);
+                    break;
+
+                case 'error':
+                    console.error(`Task ${taskId} error:`, message.data.error_message);
+                    task.error_message = message.data.error_message;
+                    break;
+
+                case 'pong':
+                    // 心跳响应
+                    break;
+            }
+        },
+
+        attemptReconnect(taskId) {
+            const attempts = this.reconnectAttempts[taskId] || 0;
+            
+            if (attempts >= this.maxReconnectAttempts) {
+                console.log(`Max reconnect attempts reached for task ${taskId}, falling back to polling`);
+                this.fallbackPolling = true;
+                // 切换到更频繁的轮询
+                if (this.refreshInterval) {
+                    clearInterval(this.refreshInterval);
+                }
+                this.refreshInterval = setInterval(() => {
+                    this.loadTasks();
+                }, 3000);
+                return;
+            }
+
+            // 指数退避重连
+            const delay = Math.min(1000 * Math.pow(2, attempts), 30000);
+            console.log(`Reconnecting WebSocket for task ${taskId} in ${delay}ms (attempt ${attempts + 1})`);
+            
+            this.reconnectAttempts[taskId] = attempts + 1;
+            
+            setTimeout(() => {
+                const task = this.tasks.find(t => t.id === taskId);
+                if (task && (task.status === 'pending' || task.status === 'running')) {
+                    this.connectWebSocket(taskId);
+                }
+            }, delay);
+        },
+
+        startHeartbeat(taskId) {
+            const ws = this.websockets[taskId];
+            if (!ws) return;
+
+            const heartbeat = setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'ping' }));
+                } else {
+                    clearInterval(heartbeat);
+                }
+            }, 30000);  // 每30秒发送一次心跳
         },
 
         getStatusClass(status) {
@@ -149,6 +299,12 @@ function tasksList() {
 
                 if (response.ok) {
                     alert('任务已取消！');
+                    // 关闭 WebSocket
+                    const ws = this.websockets[taskId];
+                    if (ws) {
+                        ws.close();
+                        delete this.websockets[taskId];
+                    }
                     this.loadTasks(); // 刷新列表
                 } else {
                     throw new Error('取消失败');

@@ -199,6 +199,7 @@ async def _run_download_task(
     task_type: str,
     task_id: str,
     start_chapter: int = 0,
+    end_chapter: Optional[int] = None,
 ):
     """后台下载任务执行函数"""
     from app.utils.database import SessionLocal
@@ -224,6 +225,7 @@ async def _run_download_task(
                 book_uuid=book_id,
                 task_type=task_type,
                 start_chapter=start_chapter,
+                end_chapter=end_chapter,
                 task_id=task_id,
             )
             
@@ -266,6 +268,7 @@ async def start_download(
     book_id: str,
     background_tasks: BackgroundTasks,
     start_chapter: int = Query(0, ge=0, description="起始章节索引"),
+    end_chapter: Optional[int] = Query(None, ge=0, description="结束章节索引（包含），留空表示到最后一章"),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -275,6 +278,7 @@ async def start_download(
     
     - **book_id**: 书籍UUID
     - **start_chapter**: 起始章节索引，默认从第0章开始
+    - **end_chapter**: 结束章节索引（包含），留空表示下载到最后一章
     """
     try:
         storage = StorageService()
@@ -315,13 +319,21 @@ async def start_download(
         
         # 启动后台任务，传递 task_id 以复用任务
         async_task = asyncio.create_task(
-            _run_download_task(book_id, "full_download", task.id, start_chapter)
+            _run_download_task(book_id, "full_download", task.id, start_chapter, end_chapter)
         )
         _running_downloads[book_id] = async_task
         
+        # 构建返回消息
+        if end_chapter is not None:
+            message = f"《{book.title}》第{start_chapter+1}-{end_chapter+1}章下载任务已启动"
+        elif start_chapter > 0:
+            message = f"《{book.title}》从第{start_chapter+1}章开始的下载任务已启动"
+        else:
+            message = f"《{book.title}》下载任务已启动"
+        
         return {
             "success": True,
-            "message": f"《{book.title}》下载任务已启动",
+            "message": message,
             "task_id": task.id,
             "book_id": book_id,
         }

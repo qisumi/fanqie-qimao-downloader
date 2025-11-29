@@ -6,13 +6,15 @@
 - books: 书籍API路由
 - tasks: 任务API路由
 - stats: 统计API路由
+- ws: WebSocket路由
 """
 
-from app.web.routes import pages, books, tasks, stats
+from app.web.routes import pages, books, tasks, stats, ws
 
 __all__ = [
     "pages",
     "books",
     "tasks",
     "stats",
+    "ws",
 ]

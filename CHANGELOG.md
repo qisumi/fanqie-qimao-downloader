@@ -5,6 +5,49 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2025-11-30
+
+### ✨ 新功能
+
+- **WebSocket 实时进度推送**
+  - 新增 `ConnectionManager` 连接管理器，支持多客户端订阅
+  - 任务进度实时推送 (`/ws/tasks/{task_id}`)
+  - 书籍下载进度实时推送 (`/ws/books/{book_id}`)
+  - 支持心跳检测 (30秒间隔)
+  - 完成/错误事件推送
+
+- **章节范围选择下载**
+  - 支持指定起始和结束章节进行下载
+  - 新增快捷选择：全选、前100章、前500章、最新100章
+  - API: `POST /api/tasks/{book_id}/download?start_chapter=0&end_chapter=99`
+
+- **章节状态热力图**
+  - 可视化展示各分段章节的下载状态
+  - 支持点击选择分段进行下载
+  - 颜色标识：绿色(完成)、黄色(部分)、灰色(未下载)、红色(有失败)
+
+### 🔧 优化
+
+- **前端 WebSocket 集成**
+  - 任务列表页面：自动为运行中任务建立 WebSocket 连接
+  - 书籍详情页面：下载时自动切换到 WebSocket 监听
+  - 指数退避重连（最多5次）
+  - 降级到 3 秒轮询（WebSocket 失败时）
+
+- **认证优化**
+  - WebSocket 路由独立处理 Cookie 认证
+  - 认证中间件排除 `/ws` 路径
+
+### 📝 文档
+
+- 更新 `.github/copilot-instructions.md`，添加 WebSocket 使用说明
+- 新增 `ROADMAP.md` 项目路线图
+
+### 🧪 测试
+
+- 新增 13 个 WebSocket 相关测试用例
+- 测试覆盖：连接管理、消息广播、Schema 验证
+
 ## [1.1.1] - 2025-11-29
 
 ### 🐛 Bug 修复
