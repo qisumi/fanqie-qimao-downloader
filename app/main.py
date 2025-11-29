@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="FanqieQimaoDownloader",
     description="番茄小说和七猫小说下载器，支持EPUB导出",
-    version="1.1.0",
+    version="1.1.1",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
@@ -60,7 +60,7 @@ app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 @app.get("/health")
 async def health_check():
     """健康检查接口"""
-    return {"status": "healthy", "version": "1.1.0"}
+    return {"status": "healthy", "version": "1.1.1"}
 
 if __name__ == "__main__":
     import uvicorn
