@@ -273,7 +273,7 @@ function searchForm() {
                     Toast.success(`《${book.book_name || book.title}》添加成功！`);
                     // 跳转到书籍详情页
                     setTimeout(() => {
-                        window.location.href = `/book/${result.id}`;
+                        window.location.href = `/book/${result.book.id}`;
                     }, 1000);
                 } else {
                     const error = await response.json();
