@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     debug: bool = True
     reload: bool = True
 
+    # 密码保护配置
+    app_password: Optional[str] = None  # 应用密码，为空则不启用密码保护
+    secret_key: str = "fanqie-qimao-downloader-secret-key-change-in-production"  # Cookie签名密钥
+    session_expire_hours: int = 168  # 登录有效期: 7天 (7*24=168小时)
+
     # 日志配置
     log_level: str = "INFO"
     log_file: Optional[str] = "./logs/app.log"

@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from app.config import settings
 from app.utils.logger import init_from_settings, get_logger
 from app.web.routes import pages, books, tasks, stats
+from app.web.middleware import AuthMiddleware
 
 # 初始化日志系统
 init_from_settings()
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"运行地址: http://{settings.host}:{settings.port}")
     logger.info(f"调试模式: {settings.debug}")
     logger.info(f"日志级别: {settings.log_level}")
+    logger.info(f"密码保护: {'已启用' if settings.app_password else '未启用'}")
     logger.info("=" * 50)
     
     yield
@@ -50,6 +52,10 @@ app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
 # 配置模板
 templates = Jinja2Templates(directory="app/web/templates")
+
+# 添加认证中间件（仅当配置了密码时启用）
+if settings.app_password:
+    app.add_middleware(AuthMiddleware)
 
 # 注册路由
 app.include_router(pages.router, prefix="", tags=["pages"])

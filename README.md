@@ -15,7 +15,8 @@
 - 🌐 **现代界面** - 响应式Web界面，支持移动端
 - ⚡ **高性能** - 异步架构，并发控制
 - 📊 **任务管理** - 实时进度跟踪
-- 🔒 **配额保护** - 自动速率限制（每日2000万字）
+- 🔒 **密码保护** - 可选的访问密码保护
+- 🔐 **配额保护** - 自动速率限制（每日2000万字）
 
 ## 🖼️ 界面预览
 
@@ -197,6 +198,11 @@ HOST=0.0.0.0
 PORT=8000
 DEBUG=false  # 生产环境设为 false
 LOG_LEVEL=INFO
+
+# 密码保护 (可选)
+APP_PASSWORD=your_password  # 留空则不启用
+SECRET_KEY=your-secret-key  # 生产环境建议修改
+SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 ```
 
 > 📖 完整部署指南请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)

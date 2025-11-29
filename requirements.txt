@@ -27,6 +27,12 @@ ebooklib>=0.18
 # 模板引擎
 jinja2>=3.1.0
 
+# Cookie签名
+itsdangerous>=2.1.0
+
+# 表单处理
+python-multipart>=0.0.5
+
 # 环境变量
 python-dotenv>=1.0.0
 

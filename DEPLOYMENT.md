@@ -385,6 +385,9 @@ sudo systemctl reload nginx
 | `RELOAD` | `true` | 热重载 |
 | `LOG_LEVEL` | `INFO` | 日志级别 |
 | `LOG_FILE` | `./logs/app.log` | 日志文件路径 |
+| `APP_PASSWORD` | (空) | 访问密码，留空不启用保护 |
+| `SECRET_KEY` | (默认值) | Cookie签名密钥 |
+| `SESSION_EXPIRE_HOURS` | `168` | 登录有效期(小时) |
 
 ---
 
@@ -417,6 +420,11 @@ HOST=127.0.0.1
 PORT=8000
 DEBUG=false
 RELOAD=false
+
+# 密码保护 - 生产环境强烈建议启用
+APP_PASSWORD=your_secure_password
+SECRET_KEY=change-this-to-a-random-string-in-production
+SESSION_EXPIRE_HOURS=168
 
 # 日志配置 - 生产环境
 LOG_LEVEL=INFO

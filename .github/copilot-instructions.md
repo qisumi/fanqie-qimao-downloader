@@ -173,6 +173,8 @@ app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 | 路由 | 页面 | 模板 |
 |------|------|------|
 | `/` | 首页 | `index.html` |
+| `/login` | 登录页面 | `login.html` |
+| `/logout` | 登出 | (重定向) |
 | `/search` | 搜索页面 | `search.html` |
 | `/books` | 书籍列表 | `books.html` |
 | `/book/{id}` | 书籍详情 | `book_detail.html` |
@@ -305,6 +307,11 @@ settings.rain_api_base_url  # http://v3.rain.ink
 settings.daily_word_limit   # 20000000 (2000万字)
 settings.api_timeout        # 30秒
 settings.api_retry_times    # 3次
+
+# 密码保护配置
+settings.app_password       # 应用密码，为空则不启用保护
+settings.secret_key         # Cookie签名密钥
+settings.session_expire_hours  # 登录有效期 (168小时=7天)
 ```
 
 ## Rain API V3 Endpoints
@@ -341,6 +348,8 @@ Base URL: `http://v3.rain.ink/fanqie/` 或 `http://v3.rain.ink/qimao/`
 - **异步文件IO**: aiofiles >=23.0.0
 - **EPUB生成**: ebooklib >=0.18
 - **数据验证**: Pydantic >=2.0.0
+- **Cookie签名**: itsdangerous >=2.1.0
+- **表单处理**: python-multipart >=0.0.5
 
 ### Directory Structure
 ```
@@ -367,10 +376,13 @@ app/
 │   │   ├── books.py   # 书籍API (/api/books)
 │   │   ├── tasks.py   # 任务API (/api/tasks)
 │   │   ├── stats.py   # 统计API (/api/stats)
-│   │   └── pages.py   # 页面路由
+│   │   └── pages.py   # 页面路由 (包含 /login, /logout)
+│   ├── middleware/ # 中间件
+│   │   └── auth.py    # 认证中间件 (AuthMiddleware)
 │   ├── templates/ # Jinja2模板
 │   │   ├── base.html        # 基础模板
 │   │   ├── index.html       # 首页
+│   │   ├── login.html       # 登录页面
 │   │   ├── search.html      # 搜索页面
 │   │   ├── books.html       # 书籍列表
 │   │   ├── book_detail.html # 书籍详情
@@ -401,19 +413,3 @@ pytest tests/test_web/test_web_routes.py -v
 - **配额限制**: 每天2000万字，使用RateLimiter检查
 - **封面URL转换**: 使用 `FanqieAPI.replace_cover_url()` 获取高质量封面
 - **EPUB内容编码**: 使用 `set_content(html.encode('utf-8'))` 设置章节内容
-
-## Next Steps (Phase 5-7)
-待完成的后续工作:
-1. **Phase 5**: 功能完善
-   - 批量操作支持
-   - 音频下载功能
-   - 下载进度WebSocket推送
-   - 前端交互优化
-2. **Phase 6**: 测试优化
-   - 集成测试完善
-   - 性能测试
-   - 错误处理增强
-3. **Phase 7**: 部署
-   - Docker容器化
-   - 生产环境配置
-   - 文档完善
