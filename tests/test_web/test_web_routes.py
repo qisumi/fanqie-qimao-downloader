@@ -12,6 +12,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.utils.database import Base, get_db
+from app.web.middleware.auth import AuthMiddleware
+from app.config import get_settings
 
 
 # 创建测试数据库
@@ -44,10 +46,31 @@ def test_db():
 
 @pytest.fixture(scope="function")
 def client(test_db):
-    """创建测试客户端"""
+    """创建测试客户端（已认证）"""
     app.dependency_overrides[get_db] = override_get_db
+    
+    # 创建测试客户端
+    with TestClient(app) as c:
+        # 模拟已认证状态：创建认证 Cookie
+        settings = get_settings()
+        if settings.app_password:  # 只有在启用密码保护时才需要
+            auth_middleware = AuthMiddleware(app=None, settings=settings)
+            auth_token = auth_middleware.create_auth_token()
+            c.cookies.set(AuthMiddleware.COOKIE_NAME, auth_token)
+        
+        yield c
+    
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def unauthenticated_client(test_db):
+    """创建未认证的测试客户端（用于测试认证中间件）"""
+    app.dependency_overrides[get_db] = override_get_db
+    
     with TestClient(app) as c:
         yield c
+    
     app.dependency_overrides.clear()
 
 
@@ -228,3 +251,41 @@ class TestPagesRoutes:
         response = client.get("/tasks")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
+
+
+# ============ 认证中间件测试 ============
+
+class TestAuthMiddleware:
+    """认证中间件测试"""
+    
+    def test_unauthenticated_api_redirect(self, unauthenticated_client):
+        """测试未认证访问 API 会重定向到登录页"""
+        settings = get_settings()
+        if not settings.app_password:
+            pytest.skip("密码保护未启用，跳过测试")
+        
+        response = unauthenticated_client.get("/api/books/", follow_redirects=False)
+        assert response.status_code == 302
+        assert response.headers["location"].startswith("/login")
+    
+    def test_authenticated_api_access(self, client):
+        """测试已认证访问 API 成功"""
+        response = client.get("/api/books/")
+        assert response.status_code == 200
+    
+    def test_health_check_no_auth_required(self, unauthenticated_client):
+        """测试健康检查不需要认证"""
+        response = unauthenticated_client.get("/health")
+        assert response.status_code == 200
+    
+    def test_static_files_no_auth_required(self, unauthenticated_client):
+        """测试静态文件不需要认证"""
+        # 注意：实际文件可能不存在，但不应该重定向到登录页
+        response = unauthenticated_client.get("/static/test.css", follow_redirects=False)
+        # 应该返回 404（文件不存在）而不是 302（重定向）
+        assert response.status_code == 404
+    
+    def test_login_page_no_auth_required(self, unauthenticated_client):
+        """测试登录页面不需要认证"""
+        response = unauthenticated_client.get("/login")
+        assert response.status_code == 200

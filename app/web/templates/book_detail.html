@@ -283,7 +283,7 @@ function bookDetail() {
         heartbeatInterval: null,
         
         // 章节状态摘要（热力图数据）
-        chapterSummary: null,
+        chapterSummary: { segments: [] },  // 初始化为空对象，避免 null 引用错误
         hoveredSegment: null,
         
         // 章节范围选择
@@ -337,9 +337,14 @@ function bookDetail() {
                 const response = await fetch(`/api/books/${this.book.id}/chapters/summary?segment_size=50`);
                 if (response.ok) {
                     this.chapterSummary = await response.json();
+                } else {
+                    // 初始化空对象防止 null 引用
+                    this.chapterSummary = { segments: [] };
                 }
             } catch (error) {
                 console.error('Failed to load chapter summary:', error);
+                // 初始化空对象防止 null 引用
+                this.chapterSummary = { segments: [] };
             }
         },
         

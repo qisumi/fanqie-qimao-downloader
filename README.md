@@ -1,6 +1,6 @@
 # FanqieQimaoDownloader
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.3.0)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
@@ -228,7 +228,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 ## 📊 开发状态
 
-**当前版本: v1.0.0** 🎉
+**当前版本: v1.3.0** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|
@@ -237,7 +237,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 | Phase 3 | ✅ 完成 | 服务层实现 |
 | Phase 4 | ✅ 完成 | Web层实现 |
 | Phase 5 | ✅ 完成 | 功能完善 |
-| Phase 6 | ✅ 完成 | 测试与优化（85测试） |
+| Phase 6 | ✅ 完成 | 测试与优化(114测试) |
 | Phase 7 | ✅ 完成 | 部署与发布 |
 
 > 📋 查看完整变更日志: [CHANGELOG.md](CHANGELOG.md)

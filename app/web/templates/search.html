@@ -136,7 +136,7 @@
                                             
                                             <!-- 状态标签 -->
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                                  :class="book.creation_status === '完结' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">
+                                                  :class="book.creation_status === '已完结' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">
                                                 <span x-text="book.creation_status"></span>
                                             </span>
                                         </div>
@@ -187,6 +187,31 @@
                     </div>
                 </template>
             </div>
+            
+            <!-- 分页控件 -->
+            <div x-show="results.length > 0 || currentPage > 0" 
+                 x-transition.opacity.duration.300ms 
+                 class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-100">
+                <div class="text-sm text-gray-600">
+                    <span>第 <span class="font-semibold text-gray-900" x-text="currentPage + 1"></span> 页</span>
+                    <span class="mx-2">·</span>
+                    <span>当前页 <span class="font-semibold text-gray-900" x-text="totalResults"></span> 本书籍</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @click="previousPage()"
+                            :disabled="currentPage === 0 || loading"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-all duration-200 shadow-sm hover:shadow">
+                        <i class="fas fa-chevron-left mr-2"></i>
+                        上一页
+                    </button>
+                    <button @click="nextPage()"
+                            :disabled="!hasNextPage || loading"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-all duration-200 shadow-sm hover:shadow">
+                        下一页
+                        <i class="fas fa-chevron-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
 
             <!-- 加载状态 -->
             <div x-show="loading" class="text-center py-20">
@@ -227,32 +252,86 @@ function searchForm() {
         loading: false,
         hasSearched: false,
         addingBooks: {},  // 跟踪正在添加的书籍
+        
+        // 分页相关
+        currentPage: 0,        // 当前页码（从 0 开始）
+        hasNextPage: false,    // 是否有下一页
+        totalResults: 0,       // 当前页结果数
 
-        async search() {
+        async search(page = 0) {
             if (!this.keyword.trim()) return;
+
+            // 分页时滚动到顶部（首次搜索时不滚动）
+            if (page > 0 || this.hasSearched) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
 
             this.loading = true;
             this.hasSearched = true;
+            this.currentPage = page;
 
             try {
-                const response = await fetch(`/api/books/search?q=${encodeURIComponent(this.keyword)}&platform=${this.platform}`);
+                // 搜索当前页
+                const response = await fetch(`/api/books/search?q=${encodeURIComponent(this.keyword)}&platform=${this.platform}&page=${page}`);
                 if (!response.ok) {
                     const error = await response.json();
                     throw new Error(error.detail || '搜索失败');
                 }
                 const data = await response.json();
                 this.results = data.books || data;
+                this.totalResults = this.results.length;
+                
+                // 预加载下一页判断是否还有更多结果
+                // 番茄和七猫都是从 page=0 开始，七猫内部转换为 page*10
+                if (this.results.length > 0) {
+                    // 只有当前页有结果时才预加载下一页
+                    this.checkNextPage(page + 1);
+                } else {
+                    this.hasNextPage = false;
+                }
                 
                 if (this.results.length === 0) {
                     Toast.info('未找到相关书籍');
                 } else {
-                    Toast.success(`找到 ${this.results.length} 本相关书籍`);
+                    Toast.success(`第 ${page + 1} 页：找到 ${this.results.length} 本相关书籍`);
                 }
             } catch (error) {
                 console.error('Search failed:', error);
                 Toast.error(error.message || '搜索失败，请稍后重试');
+                this.hasNextPage = false;
             } finally {
                 this.loading = false;
+            }
+        },
+        
+        // 预加载下一页判断是否还有更多结果
+        async checkNextPage(nextPage) {
+            try {
+                const response = await fetch(`/api/books/search?q=${encodeURIComponent(this.keyword)}&platform=${this.platform}&page=${nextPage}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const nextResults = data.books || data;
+                    this.hasNextPage = nextResults.length > 0;
+                } else {
+                    this.hasNextPage = false;
+                }
+            } catch (error) {
+                console.error('Check next page failed:', error);
+                this.hasNextPage = false;
+            }
+        },
+        
+        // 上一页
+        previousPage() {
+            if (this.currentPage > 0) {
+                this.search(this.currentPage - 1);
+            }
+        },
+        
+        // 下一页
+        nextPage() {
+            if (this.hasNextPage) {
+                this.search(this.currentPage + 1);
             }
         },
 

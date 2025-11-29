@@ -5,6 +5,37 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+## [1.3.0] - 2025-11-30
+
+### 🐛 修复
+
+- **修复 WebSocket 进度显示异常问题**
+  - 初始化 `chapterSummary` 为空对象而非 `null`，避免 `Cannot read properties of null (reading 'segments')` 错误
+  - 在 `loadChapterSummary()` 失败时正确初始化 `{ segments: [] }`
+
+- **修复完结/连载中状态显示相反问题**
+  - 修正 `search.html` 中状态判断逻辑：将 `'完结'` 改为 `'已完结'` 以匹配 API 返回值
+  - 确保番茄小说和七猫小说的状态标签正确显示
+
+- **实现搜索书籍分页支持**
+  - 新增分页状态：`currentPage`、`hasNextPage`、`totalResults`
+  - 修改 `search()` 方法支持 `page` 参数（从 0 开始）
+  - 实现预加载机制：通过 `checkNextPage()` 异步检测下一页是否有结果
+  - 新增分页 UI：上一页/下一页按钮，支持禁用状态
+  - 兼容番茄和七猫平台：番茄 `page=0`，七猫内部转换为 `page*10`
+  - 点击分页按钮后自动滚动到页面顶部（平滑滚动）
+
+### 🧪 测试
+
+- **修复测试中的认证问题**
+  - 修正 `client` fixture：自动为 TestClient 添加认证 Cookie
+  - 新增 `unauthenticated_client` fixture：用于测试认证中间件
+  - 新增 `TestAuthMiddleware` 测试类：验证认证中间件功能
+  - 修复 E2E 测试的认证问题：在 `tests/test_e2e/test_e2e.py` 中应用相同修复
+  - 所有测试现在能正常通过：114 个测试（Web 测试 40 个 + E2E 测试 11 个）
+
 ## [1.2.0] - 2025-11-30
 
 ### ✨ 新功能

@@ -34,6 +34,8 @@ from app.models.book import Book
 from app.models.chapter import Chapter
 from app.models.task import DownloadTask
 from app.services import StorageService, BookService, DownloadService, EPUBService
+from app.web.middleware.auth import AuthMiddleware
+from app.config import get_settings
 
 
 # ============ 测试数据库配置 ============
@@ -130,10 +132,19 @@ def db_session(test_db):
 
 @pytest.fixture(scope="function")
 def client(test_db):
-    """创建测试客户端"""
+    """创建测试客户端（已认证）"""
     app.dependency_overrides[get_db] = override_get_db
+    
     with TestClient(app) as c:
+        # 模拟已认证状态：创建认证 Cookie
+        settings = get_settings()
+        if settings.app_password:  # 只有在启用密码保护时才需要
+            auth_middleware = AuthMiddleware(app=None, settings=settings)
+            auth_token = auth_middleware.create_auth_token()
+            c.cookies.set(AuthMiddleware.COOKIE_NAME, auth_token)
+        
         yield c
+    
     app.dependency_overrides.clear()
 
 
