@@ -242,6 +242,36 @@ class TestDownloadService:
         service = DownloadService(db=mock_db_session, storage=storage_service)
         result = service.cancel_task("nonexistent-task-id")
         assert result is False
+    
+    def test_get_pending_chapters_skip_completed(self, mock_db_session, storage_service, sample_book, sample_chapters):
+        """测试获取待下载章节时跳过已完成章节"""
+        # 设置一些章节为已完成状态
+        sample_chapters[0].download_status = "completed"
+        sample_chapters[1].download_status = "completed"
+        sample_chapters[2].download_status = "pending"
+        sample_chapters[3].download_status = "failed"
+        
+        # Mock 查询
+        mock_query = MagicMock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.all.return_value = [sample_chapters[2], sample_chapters[3]]  # 只返回未完成的
+        mock_db_session.query.return_value = mock_query
+        
+        service = DownloadService(db=mock_db_session, storage=storage_service)
+        
+        # skip_completed=True（默认）应该只返回未完成的章节
+        chapters = service._get_pending_chapters(
+            sample_book.id,
+            task_type="full_download",
+            start_chapter=0,
+            end_chapter=None,
+            skip_completed=True
+        )
+        
+        # 验证只获取了未完成的章节
+        assert len(chapters) == 2
+        assert all(ch.download_status != "completed" for ch in chapters)
 
 
 # ============ EPUBService Tests ============

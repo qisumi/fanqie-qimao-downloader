@@ -204,8 +204,10 @@ class FanqieAPI(RainAPIClient):
                 update_time = ""
         
         # 解析连载状态
-        creation_status_code = self._safe_int(book_data.get("creation_status", 0))
-        creation_status = "已完结" if creation_status_code == 1 else "连载中"
+        # 注意：根据实际测试，API返回的值与文档相反！
+        # 0 = 完结，1 = 连载中
+        creation_status_code = self._safe_int(book_data.get("creation_status", 1))
+        creation_status = "连载中" if creation_status_code == 1 else "已完结"
         
         return {
             "book_id": str(book_data.get("book_id", book_id)),
@@ -495,8 +497,10 @@ class FanqieAPI(RainAPIClient):
             cover_url = self.replace_cover_url(book_data.get("thumb_url", ""))
             
             # 解析连载状态
-            creation_status_code = self._safe_int(book_data.get("creation_status", 0))
-            creation_status = "已完结" if creation_status_code == 1 else "连载中"
+            # 注意：根据实际测试，API返回的值与文档相反！
+            # 0 = 完结，1 = 连载中
+            creation_status_code = self._safe_int(book_data.get("creation_status", 1))
+            creation_status = "连载中" if creation_status_code == 1 else "已完结"
             
             book = {
                 "book_id": str(book_data.get("book_id", "")),

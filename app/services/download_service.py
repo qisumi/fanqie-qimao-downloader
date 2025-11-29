@@ -69,6 +69,11 @@ class DownloadService:
     - 支持任务取消
     """
     
+    # 类级别的回调字典，所有实例共享
+    # 这样不同实例可以访问同一个回调注册表
+    _shared_progress_callbacks: Dict[str, Callable] = {}
+    _shared_cancelled_tasks: set = set()
+    
     def __init__(
         self,
         db: Session,
@@ -93,11 +98,9 @@ class DownloadService:
         self.concurrent_downloads = concurrent_downloads or settings.concurrent_downloads
         self.download_delay = download_delay or settings.download_delay
         
-        # 任务取消标志
-        self._cancelled_tasks: set = set()
-        
-        # 进度回调
-        self._progress_callbacks: Dict[str, Callable] = {}
+        # 使用类级别的共享字典
+        self._cancelled_tasks = DownloadService._shared_cancelled_tasks
+        self._progress_callbacks = DownloadService._shared_progress_callbacks
     
     def _get_api_client(self, platform: str) -> Union[FanqieAPI, QimaoAPI]:
         """根据平台获取API客户端"""
@@ -277,7 +280,10 @@ class DownloadService:
         # 触发进度回调
         callback = self._progress_callbacks.get(task.id)
         if callback:
+            logger.debug(f"Triggering progress callback for task {task.id}: {task.downloaded_chapters}/{task.total_chapters} ({task.progress}%)")
             callback(task)
+        else:
+            logger.warning(f"No progress callback registered for task {task.id}")
     
     def register_progress_callback(
         self,
@@ -300,6 +306,7 @@ class DownloadService:
         start_chapter: int = 0,
         end_chapter: Optional[int] = None,
         task_id: Optional[str] = None,
+        skip_completed: bool = True,
     ) -> DownloadTask:
         """
         下载书籍
@@ -310,6 +317,7 @@ class DownloadService:
             start_chapter: 起始章节索引
             end_chapter: 结束章节索引（包含），None表示到最后一章
             task_id: 已有的任务ID，如果提供则复用该任务
+            skip_completed: 是否跳过已完成章节（True=只下载未完成，False=重新下载所有）
         
         Returns:
             下载任务对象
@@ -327,9 +335,9 @@ class DownloadService:
             task = self.create_task(book_uuid, task_type)
         
         try:
-            # 对于完整下载，需要重置章节状态为pending
-            # 这样才能重新下载已完成的章节
-            if task_type == "full_download":
+            # 对于完整下载，根据 skip_completed 参数决定是否重置章节状态
+            # skip_completed=False 时才重置已完成章节，用于强制重新下载
+            if task_type == "full_download" and not skip_completed:
                 self._reset_chapters_for_full_download(book_uuid, start_chapter, end_chapter)
             
             # 更新书籍和任务状态
@@ -339,7 +347,7 @@ class DownloadService:
             self.db.commit()
             
             # 获取待下载章节
-            chapters = self._get_pending_chapters(book_uuid, task_type, start_chapter, end_chapter)
+            chapters = self._get_pending_chapters(book_uuid, task_type, start_chapter, end_chapter, skip_completed)
             
             if not chapters:
                 task.status = "completed"
@@ -378,6 +386,12 @@ class DownloadService:
             
             self.db.commit()
             
+            # 触发最终进度回调，通知前端任务已完成
+            callback = self._progress_callbacks.get(task.id)
+            if callback:
+                logger.debug(f"Triggering final progress callback for task {task.id}, status={task.status}")
+                callback(task)
+            
             logger.info(
                 f"Download completed: book={book.title}, "
                 f"downloaded={task.downloaded_chapters}, failed={task.failed_chapters}"
@@ -392,6 +406,12 @@ class DownloadService:
             book.download_status = "failed"
             self.db.commit()
             
+            # 触发失败回调，通知前端任务失败
+            callback = self._progress_callbacks.get(task.id)
+            if callback:
+                logger.debug(f"Triggering failure callback for task {task.id}")
+                callback(task)
+            
             logger.error(f"Download failed: {e}")
             raise
     
@@ -401,8 +421,18 @@ class DownloadService:
         task_type: str,
         start_chapter: int = 0,
         end_chapter: Optional[int] = None,
+        skip_completed: bool = True,
     ) -> List[Chapter]:
-        """获取待下载的章节列表"""
+        """
+        获取待下载的章节列表
+        
+        Args:
+            book_uuid: 书籍UUID
+            task_type: 任务类型
+            start_chapter: 起始章节索引
+            end_chapter: 结束章节索引
+            skip_completed: 是否跳过已完成章节
+        """
         query = self.db.query(Chapter).filter(
             Chapter.book_id == book_uuid,
             Chapter.chapter_index >= start_chapter
@@ -413,10 +443,12 @@ class DownloadService:
             query = query.filter(Chapter.chapter_index <= end_chapter)
         
         if task_type == "full_download":
-            # 下载所有未完成的章节
-            query = query.filter(Chapter.download_status != "completed")
+            if skip_completed:
+                # 只下载未完成的章节（跳过已完成）
+                query = query.filter(Chapter.download_status != "completed")
+            # 否则下载所有章节（包括已完成的，因为它们已经被重置为pending）
         else:
-            # 只下载pending状态的章节
+            # 更新任务只下载pending状态的章节
             query = query.filter(Chapter.download_status == "pending")
         
         return query.order_by(Chapter.chapter_index).all()

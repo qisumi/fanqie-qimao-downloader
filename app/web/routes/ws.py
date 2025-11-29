@@ -5,6 +5,7 @@ WebSocket 路由
 """
 
 import asyncio
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, HTTPException
@@ -235,6 +236,7 @@ async def websocket_book_progress(
     
     # 接受连接
     await websocket.accept()
+    logger.info(f"WebSocket connected for book {book_id}")
     
     db = SessionLocal()
     current_task_id = None
@@ -243,6 +245,7 @@ async def websocket_book_progress(
         # 查找书籍
         book = db.query(Book).filter(Book.id == book_id).first()
         if not book:
+            logger.warning(f"Book not found: {book_id}")
             await websocket.send_json({
                 "type": "error",
                 "data": {
@@ -261,6 +264,7 @@ async def websocket_book_progress(
         
         if task:
             current_task_id = task.id
+            logger.info(f"Found running task {current_task_id} for book {book_id}")
             
             # 发送初始状态
             await websocket.send_json({
@@ -274,6 +278,7 @@ async def websocket_book_progress(
                     "progress": task.progress or 0.0,
                     "error_message": task.error_message,
                     "book_title": book.title,
+                    "timestamp": datetime.now().isoformat(),
                 }
             })
             
@@ -284,6 +289,8 @@ async def websocket_book_progress(
                 manager._connections[current_task_id].add(websocket)
                 manager._websocket_to_task[websocket] = current_task_id
             
+            logger.info(f"Registered WebSocket for task {current_task_id}, total connections: {len(manager._connections.get(current_task_id, []))}")
+            
             # 注册回调
             storage = StorageService()
             download_service = DownloadService(db=db, storage=storage)
@@ -291,6 +298,8 @@ async def websocket_book_progress(
             def sync_callback(updated_task: DownloadTask):
                 async def broadcast():
                     try:
+                        logger.debug(f"Task {updated_task.id} progress: {updated_task.status} - {updated_task.progress}%")
+                        
                         if updated_task.status in ("completed", "failed", "cancelled"):
                             await manager.broadcast_completed(
                                 task_id=updated_task.id,
@@ -314,12 +323,20 @@ async def websocket_book_progress(
                                 book_title=book.title,
                             )
                     except Exception as e:
-                        logger.warning(f"Book progress callback error: {e}")
+                        logger.error(f"Book progress callback error: {e}", exc_info=True)
                 asyncio.create_task(broadcast())
             
-            download_service.register_progress_callback(current_task_id, sync_callback)
+            # 检查是否已有回调
+            existing_callback = download_service._progress_callbacks.get(current_task_id)
+            if existing_callback:
+                logger.info(f"Task {current_task_id} already has a callback, reusing it")
+            else:
+                # 只在没有现有回调时注册新回调
+                download_service.register_progress_callback(current_task_id, sync_callback)
+                logger.info(f"Registered progress callback for task {current_task_id}")
         else:
             # 没有正在运行的任务，发送当前书籍状态
+            logger.info(f"No running task for book {book_id}, sending book status")
             await websocket.send_json({
                 "type": "status",
                 "data": {
@@ -338,10 +355,11 @@ async def websocket_book_progress(
                 data = await websocket.receive_json()
                 if data.get("type") == "ping":
                     await websocket.send_json({"type": "pong"})
+                    logger.debug(f"Heartbeat for book {book_id}")
         except WebSocketDisconnect:
             logger.info(f"WebSocket disconnected: book_id={book_id}")
         except Exception as e:
-            logger.warning(f"WebSocket error: {e}")
+            logger.error(f"WebSocket error for book {book_id}: {e}", exc_info=True)
             
     finally:
         db.close()
@@ -354,6 +372,7 @@ async def websocket_book_progress(
                 storage = StorageService()
                 download_service = DownloadService(db=db_cleanup, storage=storage)
                 download_service.unregister_progress_callback(current_task_id)
+                logger.info(f"Unregistered callback for task {current_task_id}")
                 db_cleanup.close()
             except Exception as e:
                 logger.warning(f"Failed to unregister callback: {e}")

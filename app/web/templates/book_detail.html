@@ -313,9 +313,10 @@ function bookDetail() {
                         await this.loadChapterSummary();
                     }
                     
-                    // 如果正在下载，启动 WebSocket 监听
+                    // 如果正在下载，延迟启动 WebSocket 监听
                     if (this.book && this.book.download_status === 'downloading') {
-                        this.connectWebSocket();
+                        console.log('📥 Detected ongoing download, connecting WebSocket...');
+                        setTimeout(() => this.connectWebSocket(), 200);
                     }
                 } else if (response.status === 404) {
                     this.book = null;
@@ -357,19 +358,29 @@ function bookDetail() {
         },
         
         connectWebSocket() {
-            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-                return;  // 已有连接
+            // 检查是否已经有连接
+            if (this.websocket) {
+                if (this.websocket.readyState === WebSocket.OPEN) {
+                    console.log('✅ WebSocket already connected');
+                    return;
+                } else if (this.websocket.readyState === WebSocket.CONNECTING) {
+                    console.log('⏳ WebSocket is connecting...');
+                    return;
+                }
             }
             
             const url = this.getWebSocketUrl();
-            if (!url) return;
+            if (!url) {
+                console.error('❌ Cannot get WebSocket URL');
+                return;
+            }
             
-            console.log('Connecting WebSocket for book progress...');
+            console.log('🔌 Connecting WebSocket for book progress:', url);
             
             this.websocket = new WebSocket(url);
             
             this.websocket.onopen = () => {
-                console.log('WebSocket connected for book progress');
+                console.log('✅ WebSocket connected for book progress');
                 this.reconnectAttempts = 0;
                 this.startHeartbeat();
             };
@@ -377,14 +388,18 @@ function bookDetail() {
             this.websocket.onmessage = (event) => {
                 try {
                     const message = JSON.parse(event.data);
+                    // 心跳响应不记录详细日志
+                    if (message.type !== 'pong') {
+                        console.log('📨 WebSocket message received:', message.type, message.data || '(no data)');
+                    }
                     this.handleWebSocketMessage(message);
                 } catch (error) {
-                    console.error('Failed to parse WebSocket message:', error);
+                    console.error('❌ Failed to parse WebSocket message:', error);
                 }
             };
             
             this.websocket.onclose = (event) => {
-                console.log('WebSocket closed:', event.code, event.reason);
+                console.log('🔌 WebSocket closed:', event.code, event.reason);
                 this.stopHeartbeat();
                 
                 // 如果书籍还在下载中，尝试重连
@@ -394,14 +409,14 @@ function bookDetail() {
             };
             
             this.websocket.onerror = (error) => {
-                console.error('WebSocket error:', error);
+                console.error('❌ WebSocket error:', error);
             };
         },
         
         handleWebSocketMessage(message) {
             switch (message.type) {
                 case 'progress':
-                    // 更新进度
+                    console.log(`📊 Progress update: ${message.data.downloaded_chapters}/${message.data.total_chapters} (${message.data.progress}%)`);
                     if (this.book) {
                         this.book.downloaded_chapters = message.data.downloaded_chapters;
                         this.currentTaskId = message.data.task_id;
@@ -411,7 +426,7 @@ function bookDetail() {
                     break;
                     
                 case 'completed':
-                    // 下载完成
+                    console.log('✅ Download completed:', message.data.success);
                     if (this.book) {
                         this.book.download_status = message.data.success ? 'completed' : 'failed';
                     }
@@ -428,18 +443,20 @@ function bookDetail() {
                     break;
                     
                 case 'status':
-                    // 书籍状态（没有正在运行的任务时）
-                    console.log('Book status:', message.data.message);
+                    console.log('ℹ️ Book status:', message.data.message);
                     break;
                     
                 case 'error':
-                    console.error('WebSocket error message:', message.data.error_message);
+                    console.error('❌ WebSocket error message:', message.data.error_message);
                     Toast.error(message.data.error_message);
                     break;
                     
                 case 'pong':
                     // 心跳响应
                     break;
+                    
+                default:
+                    console.warn('Unknown message type:', message.type);
             }
         },
         
@@ -584,8 +601,8 @@ function bookDetail() {
                     Toast.success('下载任务已启动！');
                     this.book.download_status = 'downloading';
                     this.currentTaskId = result.task_id;
-                    // 使用 WebSocket 监听进度
-                    this.connectWebSocket();
+                    // 延迟连接 WebSocket，给服务器时间注册回调
+                    setTimeout(() => this.connectWebSocket(), 100);
                 } else {
                     const error = await response.json();
                     throw new Error(error.detail || '启动下载失败');
@@ -617,8 +634,8 @@ function bookDetail() {
                     Toast.success(result.message || '下载任务已启动！');
                     this.book.download_status = 'downloading';
                     this.currentTaskId = result.task_id;
-                    // 使用 WebSocket 监听进度
-                    this.connectWebSocket();
+                    // 延迟连接 WebSocket，给服务器时间注册回调
+                    setTimeout(() => this.connectWebSocket(), 100);
                 } else {
                     const error = await response.json();
                     throw new Error(error.detail || '启动下载失败');
@@ -642,11 +659,11 @@ function bookDetail() {
 
                 if (response.ok) {
                     const result = await response.json();
-                    Toast.success('更新检查已启动！');
+                    Toast.success(result.message || '更新检查已启动！');
                     this.book.download_status = 'downloading';
                     this.currentTaskId = result.task_id;
-                    // 使用 WebSocket 监听进度
-                    this.connectWebSocket();
+                    // 延迟连接 WebSocket，给服务器时间注册回调
+                    setTimeout(() => this.connectWebSocket(), 100);
                 } else {
                     const error = await response.json();
                     throw new Error(error.detail || '启动更新失败');
@@ -711,7 +728,16 @@ function bookDetail() {
         async deleteBook() {
             if (!this.book || this.actionLoading.delete) return;
 
-            if (!confirm('确定要删除这本书吗？删除后将无法恢复。')) return;
+            const confirmed = await Confirm.danger(
+                '删除后将无法恢复，所有已下载的章节和数据都将被永久删除。',
+                {
+                    title: '确认删除书籍？',
+                    confirmText: '删除',
+                    cancelText: '取消'
+                }
+            );
+            
+            if (!confirmed) return;
             
             this.actionLoading.delete = true;
 

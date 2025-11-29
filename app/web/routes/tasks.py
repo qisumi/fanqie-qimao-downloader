@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends
 from sqlalchemy.orm import Session
 
 from app.utils.database import get_db
+from app.models.task import DownloadTask
 from app.services import (
     StorageService,
     BookService,
@@ -221,12 +222,14 @@ async def _run_download_task(
             await download_service.update_book(book_id, task_id=task_id)
         else:
             # 完整下载，复用已创建的任务
+            # skip_completed=True 确保只下载未完成的章节，不会重新下载已完成的
             await download_service.download_book(
                 book_uuid=book_id,
                 task_type=task_type,
                 start_chapter=start_chapter,
                 end_chapter=end_chapter,
                 task_id=task_id,
+                skip_completed=True,  # 跳过已完成章节，只下载未完成的
             )
             
     except QuotaReachedError as e:
@@ -317,6 +320,48 @@ async def start_download(
         # 创建任务记录
         task = download_service.create_task(book_id, "full_download")
         
+        # 先注册 WebSocket 回调(使用全局连接管理器)
+        from app.web.websocket import get_connection_manager
+        from datetime import datetime
+        manager = get_connection_manager()
+        
+        def sync_ws_callback(updated_task: DownloadTask):
+            """WebSocket 进度回调"""
+            async def broadcast():
+                try:
+                    logger.debug(f"Task {updated_task.id} progress callback: {updated_task.status} - {updated_task.progress}%")
+                    
+                    if updated_task.status in ("completed", "failed", "cancelled"):
+                        await manager.broadcast_completed(
+                            task_id=updated_task.id,
+                            success=updated_task.status == "completed",
+                            message=updated_task.error_message or (
+                                "下载完成" if updated_task.status == "completed"
+                                else "任务已取消" if updated_task.status == "cancelled"
+                                else "下载失败"
+                            ),
+                            book_title=book.title,
+                        )
+                    else:
+                        await manager.broadcast_progress(
+                            task_id=updated_task.id,
+                            status=updated_task.status,
+                            total_chapters=updated_task.total_chapters or 0,
+                            downloaded_chapters=updated_task.downloaded_chapters or 0,
+                            failed_chapters=updated_task.failed_chapters or 0,
+                            progress=updated_task.progress or 0.0,
+                            error_message=updated_task.error_message,
+                            book_title=book.title,
+                        )
+                except Exception as e:
+                    logger.warning(f"WebSocket callback error: {e}")
+            
+            asyncio.create_task(broadcast())
+        
+        # 提前注册回调
+        download_service.register_progress_callback(task.id, sync_ws_callback)
+        logger.info(f"Registered WebSocket callback for task {task.id}")
+        
         # 启动后台任务，传递 task_id 以复用任务
         async_task = asyncio.create_task(
             _run_download_task(book_id, "full_download", task.id, start_chapter, end_chapter)
@@ -397,6 +442,48 @@ async def start_update(
         
         # 创建任务记录
         task = download_service.create_task(book_id, "update")
+        
+        # 先注册 WebSocket 回调(使用全局连接管理器)
+        from app.web.websocket import get_connection_manager
+        from datetime import datetime
+        manager = get_connection_manager()
+        
+        def sync_ws_callback(updated_task: DownloadTask):
+            """WebSocket 进度回调"""
+            async def broadcast():
+                try:
+                    logger.debug(f"Task {updated_task.id} progress callback: {updated_task.status} - {updated_task.progress}%")
+                    
+                    if updated_task.status in ("completed", "failed", "cancelled"):
+                        await manager.broadcast_completed(
+                            task_id=updated_task.id,
+                            success=updated_task.status == "completed",
+                            message=updated_task.error_message or (
+                                "更新完成" if updated_task.status == "completed"
+                                else "任务已取消" if updated_task.status == "cancelled"
+                                else "更新失败"
+                            ),
+                            book_title=book.title,
+                        )
+                    else:
+                        await manager.broadcast_progress(
+                            task_id=updated_task.id,
+                            status=updated_task.status,
+                            total_chapters=updated_task.total_chapters or 0,
+                            downloaded_chapters=updated_task.downloaded_chapters or 0,
+                            failed_chapters=updated_task.failed_chapters or 0,
+                            progress=updated_task.progress or 0.0,
+                            error_message=updated_task.error_message,
+                            book_title=book.title,
+                        )
+                except Exception as e:
+                    logger.warning(f"WebSocket callback error: {e}")
+            
+            asyncio.create_task(broadcast())
+        
+        # 提前注册回调
+        download_service.register_progress_callback(task.id, sync_ws_callback)
+        logger.info(f"Registered WebSocket callback for task {task.id}")
         
         # 启动后台任务，传递 task_id 以复用任务
         async_task = asyncio.create_task(

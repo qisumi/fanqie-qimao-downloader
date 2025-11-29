@@ -39,6 +39,35 @@
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
         }
+        /* 对话框动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes modalSlideIn {
+            from {
+                transform: scale(0.95) translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes modalSlideOut {
+            from {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: scale(0.95) translateY(-20px);
+                opacity: 0;
+            }
+        }
         /* 骨架屏 */
         .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -154,6 +183,101 @@
             error(message) { this.show(message, 'error', 5000); },
             warning(message) { this.show(message, 'warning', 4000); },
             info(message) { this.show(message, 'info'); }
+        };
+
+        // 确认对话框系统
+        const Confirm = {
+            show(message, options = {}) {
+                return new Promise((resolve) => {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                    overlay.style.animation = 'fadeIn 0.2s ease-out';
+                    
+                    const dialog = document.createElement('div');
+                    dialog.className = 'bg-white rounded-lg shadow-xl max-w-md w-full mx-4';
+                    dialog.style.animation = 'slideIn 0.2s ease-out';
+                    
+                    const title = options.title || '确认操作';
+                    const confirmText = options.confirmText || '确定';
+                    const cancelText = options.cancelText || '取消';
+                    const type = options.type || 'warning'; // warning, danger, info
+                    
+                    const colors = {
+                        warning: 'text-yellow-600',
+                        danger: 'text-red-600',
+                        info: 'text-blue-600'
+                    };
+                    const icons = {
+                        warning: 'fa-exclamation-triangle',
+                        danger: 'fa-exclamation-circle',
+                        info: 'fa-info-circle'
+                    };
+                    const buttonColors = {
+                        warning: 'bg-yellow-600 hover:bg-yellow-700',
+                        danger: 'bg-red-600 hover:bg-red-700',
+                        info: 'bg-blue-600 hover:bg-blue-700'
+                    };
+                    
+                    dialog.innerHTML = `
+                        <div class="p-6">
+                            <div class="flex items-start space-x-4">
+                                <div class="flex-shrink-0">
+                                    <i class="fas ${icons[type]} ${colors[type]} text-2xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">${title}</h3>
+                                    <p class="text-sm text-gray-600">${message}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3 rounded-b-lg">
+                            <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500" data-action="cancel">
+                                ${cancelText}
+                            </button>
+                            <button class="px-4 py-2 text-sm font-medium text-white ${buttonColors[type]} rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2" data-action="confirm">
+                                ${confirmText}
+                            </button>
+                        </div>
+                    `;
+                    
+                    overlay.appendChild(dialog);
+                    document.body.appendChild(overlay);
+                    
+                    const close = (result) => {
+                        overlay.style.animation = 'fadeOut 0.2s ease-out';
+                        dialog.style.animation = 'slideOut 0.2s ease-out';
+                        setTimeout(() => {
+                            overlay.remove();
+                            resolve(result);
+                        }, 200);
+                    };
+                    
+                    overlay.addEventListener('click', (e) => {
+                        if (e.target === overlay) close(false);
+                    });
+                    
+                    dialog.querySelector('[data-action="cancel"]').addEventListener('click', () => close(false));
+                    dialog.querySelector('[data-action="confirm"]').addEventListener('click', () => close(true));
+                    
+                    // ESC 键关闭
+                    const escHandler = (e) => {
+                        if (e.key === 'Escape') {
+                            close(false);
+                            document.removeEventListener('keydown', escHandler);
+                        }
+                    };
+                    document.addEventListener('keydown', escHandler);
+                });
+            },
+            danger(message, options = {}) {
+                return this.show(message, { ...options, type: 'danger' });
+            },
+            warning(message, options = {}) {
+                return this.show(message, { ...options, type: 'warning' });
+            },
+            info(message, options = {}) {
+                return this.show(message, { ...options, type: 'info' });
+            }
         };
 
         // API请求封装

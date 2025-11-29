@@ -127,7 +127,9 @@ let bookDetails = {
     wordCount: bookInfo.word_number,
     lastChapter: bookInfo.last_chapter_title,
     updateTime: new Date(bookInfo.last_chapter_update_time * 1000).toLocaleString(),
-    status: bookInfo.creation_status === 0 ? "连载中" : "已完结"
+    // 注意：根据实际测试，API返回的 creation_status 值与预期相反！
+    // 实际规则：0 = 完结，1 = 连载中（而非文档中的 0=连载，1=完结）
+    status: bookInfo.creation_status === 1 ? "连载中" : "已完结"
 };
 ```
 
