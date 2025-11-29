@@ -5,6 +5,7 @@
 ## 目录
 
 - [环境要求](#环境要求)
+- [Docker 部署（推荐）](#docker-部署推荐)
 - [快速部署](#快速部署)
 - [详细部署步骤](#详细部署步骤)
   - [Windows 部署](#windows-部署)
@@ -22,9 +23,104 @@
 | 项目 | 最低要求 | 推荐配置 |
 |------|----------|----------|
 | Python | 3.8+ | 3.10+ |
+| Docker | 20.10+ | 最新版 |
 | 内存 | 512MB | 1GB+ |
 | 磁盘空间 | 1GB | 10GB+ (取决于下载量) |
 | 网络 | 可访问 Rain API | 稳定的网络连接 |
+
+---
+
+## Docker 部署（推荐）
+
+使用 Docker 是最简单的部署方式，无需配置 Python 环境。
+
+### 前置要求
+
+- 安装 [Docker](https://docs.docker.com/get-docker/)
+- 安装 [Docker Compose](https://docs.docker.com/compose/install/)
+
+### 快速启动
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/qisumi/fanqie-qimao-downloader.git
+cd fanqie-qimao-downloader
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件，填入您的 Rain API 密钥和其他配置
+
+# 3. 启动服务
+docker-compose up -d
+
+# 4. 查看日志
+docker-compose logs -f
+```
+
+服务启动后访问 http://localhost:8000 即可使用。
+
+### Docker Compose 配置
+
+创建 `.env` 文件配置环境变量：
+
+```ini
+# 必填配置
+RAIN_API_KEY=你的API密钥
+
+# 可选: 密码保护
+APP_PASSWORD=your_password
+SECRET_KEY=your-random-secret-key
+
+# 可选: 端口配置
+PORT=8000
+
+# 可选: 日志级别
+LOG_LEVEL=INFO
+```
+
+### 常用命令
+
+```bash
+# 启动服务 (后台运行)
+docker-compose up -d
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+
+# 查看日志
+docker-compose logs -f
+
+# 查看容器状态
+docker-compose ps
+
+# 重新构建镜像
+docker-compose build --no-cache
+
+# 进入容器
+docker-compose exec app bash
+```
+
+### 数据持久化
+
+Docker 部署会自动将以下目录挂载到宿主机：
+
+| 容器路径 | 宿主机路径 | 说明 |
+|----------|------------|------|
+| `/app/data` | `./data` | 数据库、章节内容、EPUB 文件 |
+| `/app/logs` | `./logs` | 应用日志 |
+
+### 更新应用
+
+```bash
+# 拉取最新代码
+git pull
+
+# 重新构建并启动
+docker-compose up -d --build
+```
 
 ---
 
@@ -531,9 +627,9 @@ chmod -R 755 ./data
 2. 检查端口是否被占用：
    ```bash
    # Linux
-   netstat -tlnp | grep 8000
+   netstat -tlnp | grep 4568
    # Windows
-   netstat -an | findstr 8000
+   netstat -an | findstr 4568
    ```
 3. 检查防火墙设置
 4. 如果使用 Nginx，检查反向代理配置

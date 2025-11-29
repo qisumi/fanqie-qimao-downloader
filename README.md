@@ -27,12 +27,31 @@
 
 ## 🚀 快速开始
 
-### 1. 环境要求
+### 方式一：Docker 部署（推荐）
+
+```bash
+# 克隆项目
+git clone https://github.com/qisumi/fanqie-qimao-downloader.git
+cd fanqie-qimao-downloader
+
+# 配置环境变量
+cp .env.example .env
+# 编辑 .env，填入 RAIN_API_KEY
+
+# 启动服务
+docker-compose up -d
+```
+
+访问 http://localhost:8000 开始使用。
+
+### 方式二：手动部署
+
+#### 1. 环境要求
 
 - Python 3.8+
 - pip
 
-### 2. 安装依赖
+#### 2. 安装依赖
 
 ```bash
 git clone https://github.com/qisumi/fanqie-qimao-downloader.git
@@ -40,7 +59,7 @@ cd fanqie-qimao-downloader
 pip install -r requirements.txt
 ```
 
-### 3. 配置API密钥
+#### 3. 配置API密钥
 
 复制环境变量模板并填入你的API密钥：
 
@@ -54,13 +73,13 @@ cp .env.example .env
 RAIN_API_KEY=你的API密钥
 ```
 
-### 4. 初始化数据库
+#### 4. 初始化数据库
 
 ```bash
 python init_db.py
 ```
 
-### 5. 启动应用
+#### 5. 启动应用
 
 ```bash
 python start.py

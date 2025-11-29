@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache
+*.egg-info
+.eggs
+
+# 虚拟环境
+venv
+.venv
+env
+.env.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# 测试
+tests
+.coverage
+htmlcov
+.tox
+
+# 文档
+docs
+*.md
+!README.md
+
+# 数据文件 (使用卷挂载)
+data/books/*
+data/epubs/*
+data/*.db
+logs/*
+
+# 其他
+*.log
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
