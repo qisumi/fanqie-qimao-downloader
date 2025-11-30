@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 
     # Web服务配置
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 4568
     debug: bool = True
     reload: bool = True
 

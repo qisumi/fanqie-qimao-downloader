@@ -120,6 +120,7 @@ settings.rain_api_key        # API密钥
 settings.rain_api_base_url   # http://v3.rain.ink
 settings.daily_word_limit    # 20000000 (2000万字/天)
 settings.app_password        # 应用密码 (可选)
+```
 
 # PWA 文件位置（已添加）
 - `app/web/static/manifest.json` — Web 应用清单（manifest）

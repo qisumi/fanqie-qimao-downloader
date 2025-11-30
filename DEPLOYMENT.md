@@ -57,7 +57,7 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-服务启动后访问 http://localhost:8000 即可使用。
+服务启动后访问 http://localhost:4568 即可使用。
 
 ### Docker Compose 配置
 
@@ -72,7 +72,7 @@ APP_PASSWORD=your_password
 SECRET_KEY=your-random-secret-key
 
 # 可选: 端口配置
-PORT=8000
+PORT=4568
 
 # 可选: 日志级别
 LOG_LEVEL=INFO
@@ -154,7 +154,7 @@ python init_db.py
 python start.py
 ```
 
-服务启动后访问 http://localhost:8000 即可使用。
+服务启动后访问 http://localhost:4568 即可使用。
 
 ---
 
@@ -240,7 +240,7 @@ python init_db.py
 python start.py
 
 # 或直接使用 uvicorn
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --host 0.0.0.0 --port 4568
 ```
 
 #### 8. 设置开机自启动（可选）
@@ -417,7 +417,7 @@ server {
     error_log /var/log/nginx/fanqie-downloader.error.log;
 
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:4568;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -476,7 +476,7 @@ sudo systemctl reload nginx
 | `CONCURRENT_DOWNLOADS` | `3` | 并发下载数 |
 | `DOWNLOAD_DELAY` | `0.5` | 下载间隔 (秒) |
 | `HOST` | `0.0.0.0` | 监听地址 |
-| `PORT` | `8000` | 监听端口 |
+| `PORT` | `4568` | 监听端口 |
 | `DEBUG` | `true` | 调试模式 |
 | `RELOAD` | `true` | 热重载 |
 | `LOG_LEVEL` | `INFO` | 日志级别 |
@@ -513,7 +513,7 @@ DOWNLOAD_DELAY=0.5
 
 # 服务配置 - 生产环境
 HOST=127.0.0.1
-PORT=8000
+PORT=4568
 DEBUG=false
 RELOAD=false
 

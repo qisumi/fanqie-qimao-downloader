@@ -43,7 +43,7 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-访问 http://localhost:8000 开始使用。
+访问 http://localhost:4568 开始使用。
 
 ### 方式二：手动部署
 
@@ -106,10 +106,10 @@ python start.py
 或者使用uvicorn：
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 4568 --reload
 ```
 
-访问 http://localhost:8000 开始使用。
+访问 http://localhost:4568 开始使用。
 
 ## 📁 项目结构
 
@@ -157,8 +157,8 @@ FanqieQimaoDownloader/
 ## 📖 API文档
 
 启动应用后访问：
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:4568/docs
+- ReDoc: http://localhost:4568/redoc
 
 ### 主要API端点
 
@@ -180,17 +180,17 @@ FanqieQimaoDownloader/
 
 **搜索书籍:**
 ```bash
-curl "http://localhost:8000/api/books/search?q=斗罗大陆&platform=fanqie"
+curl "http://localhost:4568/api/books/search?q=斗罗大陆&platform=fanqie"
 ```
 
 **添加书籍:**
 ```bash
-curl -X POST "http://localhost:8000/api/books/fanqie/7123456789"
+curl -X POST "http://localhost:4568/api/books/fanqie/7123456789"
 ```
 
 **开始下载:**
 ```bash
-curl -X POST "http://localhost:8000/api/tasks/{book_uuid}/download"
+curl -X POST "http://localhost:4568/api/tasks/{book_uuid}/download"
 ```
 
 ## 🧪 测试
@@ -232,7 +232,7 @@ DOWNLOAD_DELAY=0.5
 
 # 服务配置
 HOST=0.0.0.0
-PORT=8000
+PORT=4568
 DEBUG=false  # 生产环境设为 false
 LOG_LEVEL=INFO
 
@@ -295,7 +295,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 - [部署手册](DEPLOYMENT.md) - Windows/Linux 部署指南
 - [变更日志](CHANGELOG.md) - 版本更新记录
-- [API文档](http://localhost:8000/docs) - Swagger UI（启动后访问）
+- [API文档](http://localhost:4568/docs) - Swagger UI（启动后访问）
 
 ## 🤝 贡献
 

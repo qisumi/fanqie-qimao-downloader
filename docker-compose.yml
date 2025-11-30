@@ -11,7 +11,7 @@ services:
     container_name: fanqie-downloader
     restart: unless-stopped
     ports:
-      - "${PORT:-8000}:8000"
+      - "${PORT:-4568}:4568"
     volumes:
       # 数据持久化
       - ./data:/app/data
@@ -41,7 +41,7 @@ services:
       
       # 服务配置
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=4568
       - DEBUG=${DEBUG:-false}
       - RELOAD=false
       
@@ -60,7 +60,7 @@ services:
       - EPUB_LANGUAGE=${EPUB_LANGUAGE:-zh-CN}
       - EPUB_PUBLISHER=${EPUB_PUBLISHER:-FanqieQimaoDownloader}
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:4568/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3

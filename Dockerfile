@@ -33,14 +33,14 @@ RUN mkdir -p /app/data/books /app/data/epubs /app/logs
 RUN python init_db.py
 
 # 暴露端口
-EXPOSE 8000
+EXPOSE 4568
 
 # 设置数据卷
 VOLUME ["/app/data", "/app/logs"]
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=5)" || exit 1
+    CMD python -c "import httpx; httpx.get('http://localhost:4568/health', timeout=5)" || exit 1
 
 # 启动命令
 CMD ["python", "start.py"]
