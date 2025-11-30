@@ -16,6 +16,8 @@ export default defineConfig({
         globPatterns: [
           '**/*.{js,css,html,png,svg,ico,woff,woff2}'
         ],
+        // 排除 offline.html，因为我们在 sw.js 中手动添加
+        globIgnores: ['offline.html'],
         // 排除过大的文件
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
       },

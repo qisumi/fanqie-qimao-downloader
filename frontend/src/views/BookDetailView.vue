@@ -54,10 +54,11 @@ async function loadChapterSummary() {
 const { wsConnected } = useBookWebSocket({
   book,
   onProgress: (data) => {
+    // 只更新章节进度，不更新 download_status
+    // 任务状态(running/pending)不应该覆盖书籍的下载状态(downloading)
     bookStore.updateCurrentBookProgress({
       downloaded_chapters: data.downloaded_chapters,
-      total_chapters: data.total_chapters,
-      status: data.status
+      total_chapters: data.total_chapters
     })
   },
   onCompleted: (data) => {

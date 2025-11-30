@@ -153,6 +153,7 @@ export const useBookStore = defineStore('book', () => {
   
   /**
    * 更新当前书籍的下载进度
+   * 注意：只更新明确传入的字段，不要将任务状态(status)映射到书籍下载状态(download_status)
    */
   function updateCurrentBookProgress(progress) {
     if (currentBook.value) {
@@ -165,9 +166,8 @@ export const useBookStore = defineStore('book', () => {
       if (progress.download_status !== undefined) {
         currentBook.value.download_status = progress.download_status
       }
-      if (progress.status !== undefined) {
-        currentBook.value.download_status = progress.status
-      }
+      // 注意：不再将 progress.status 映射到 download_status
+      // 任务状态(running/pending/completed)与书籍下载状态(downloading/completed/failed)是不同的概念
     }
   }
   
