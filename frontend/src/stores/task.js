@@ -96,7 +96,14 @@ export const useTaskStore = defineStore('task', () => {
   function updateTaskProgress(taskId, progress) {
     const task = tasks.value.find(t => t.id === taskId)
     if (task) {
-      Object.assign(task, progress)
+      // 更新进度相关字段
+      if (progress.status !== undefined) task.status = progress.status
+      if (progress.total_chapters !== undefined) task.total_chapters = progress.total_chapters
+      if (progress.downloaded_chapters !== undefined) task.downloaded_chapters = progress.downloaded_chapters
+      if (progress.failed_chapters !== undefined) task.failed_chapters = progress.failed_chapters
+      if (progress.progress !== undefined) task.progress = progress.progress
+      if (progress.error_message !== undefined) task.error_message = progress.error_message
+      if (progress.book_title !== undefined) task.book_title = progress.book_title
     }
   }
   
@@ -120,8 +127,22 @@ export const useTaskStore = defineStore('task', () => {
    */
   async function startDownload(bookId, startChapter, endChapter) {
     const response = await taskApi.startDownload(bookId, startChapter, endChapter)
-    const task = response.data || {}
-    const taskId = task.task_id || task.id
+    const data = response.data || {}
+    const taskId = data.task_id || data.id
+    
+    // 创建完整的任务对象，API返回的是简略信息
+    const task = {
+      id: taskId,
+      book_id: data.book_id || bookId,
+      task_type: 'download',
+      status: 'pending',
+      total_chapters: 0,
+      downloaded_chapters: 0,
+      failed_chapters: 0,
+      progress: 0,
+      created_at: new Date().toISOString(),
+    }
+    
     tasks.value.unshift(task)
     if (taskId) {
       connectWebSocket(taskId)

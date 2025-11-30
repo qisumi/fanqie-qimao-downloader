@@ -120,6 +120,17 @@ export function useBookWebSocket(options) {
 
       case 'status':
         console.log('ℹ️ Book status:', msg.data)
+        // 如果书籍正在下载但没有找到任务，说明任务还在创建中
+        // 延迟后重新连接以获取任务进度
+        if (book.value?.download_status === 'downloading') {
+          console.log('🔄 Book is downloading but no task found, will reconnect...')
+          setTimeout(() => {
+            if (book.value?.download_status === 'downloading') {
+              disconnect()
+              connect()
+            }
+          }, 1000)
+        }
         break
 
       case 'error':
