@@ -1,0 +1,125 @@
+/**
+ * PWA相关样式
+ * 包含安装提示、更新通知、离线状态、骨架屏等样式
+ */
+
+/* ===== 安装横幅样式 ===== */
+#pwa-install-banner {
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+#pwa-install-banner .container {
+    max-width: 1200px;
+}
+
+#pwa-install-btn {
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+}
+
+#pwa-install-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+/* ===== 更新通知样式 ===== */
+#pwa-update-banner {
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#pwa-update-modal {
+    backdrop-filter: blur(8px);
+}
+
+#pwa-update-modal .bg-white {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== 离线指示器样式 ===== */
+#offline-indicator {
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+#offline-features-modal {
+    backdrop-filter: blur(8px);
+}
+
+#offline-features-modal .bg-white {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== 页面切换动画 ===== */
+#page-transition {
+    backdrop-filter: blur(10px);
+}
+
+/* ===== 骨架屏样式 ===== */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* 书籍列表骨架屏 */
+.book-skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.book-skeleton-cover {
+    background: linear-gradient(90deg, #e9ecef 25%, #dee2e6 50%, #e9ecef 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* 搜索结果骨架屏 */
+.search-skeleton {
+    border-radius: 0.75rem;
+    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* 任务列表骨架屏 */
+.task-skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* 统计数据骨架屏 */
+.stats-skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* 章节列表骨架屏 */
+.chapter-skeleton {
+    border-radius: 0.25rem;
+    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* 通用占位符 */
+.skeleton-placeholder {
+    width: 100%;
+}

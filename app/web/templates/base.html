@@ -10,6 +10,7 @@
     <link rel="icon" type="image/png" sizes="64x64" href="/static/images/icon-64.png">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.1/css/all.min.css" rel="stylesheet">
+    <link href="/static/assets/main.css" rel="stylesheet">
     <style>
         /* 自定义加载动画 */
         .loading-spinner {
@@ -309,20 +310,157 @@
             delete(url) { return this.request(url, { method: 'DELETE' }); }
         };
     </script>
+    <!-- PWA Bundle -->
+    <script type="module" src="/static/main.js"></script>
+    
     <script>
+        // Service Worker注册
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/static/sw.js')
-                    .then(reg => console.log('ServiceWorker registered:', reg))
+                    .then(reg => {
+                        console.log('ServiceWorker registered:', reg);
+                        
+                        // 检查更新
+                        if (reg.active) {
+                            reg.active.postMessage({
+                                type: 'check-updates',
+                                version: '1.4.0'
+                            });
+                        }
+                        
+                        // 监听Service Worker更新
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // 有新版本可用
+                                    console.log('New version available');
+                                }
+                            });
+                        });
+                    })
                     .catch(err => console.warn('ServiceWorker registration failed:', err));
             });
         }
 
-        // 捕获 PWA 安装意图（可用于展示自定义安装按钮）
+        // 捕获 PWA 安装意图（用于展示自定义安装按钮）
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
-            window.deferredInstallPrompt = e; // 可以在页面上触发 prompt()
+            window.deferredInstallPrompt = e;
             console.log('beforeinstallprompt captured');
+            
+            // 触发PWA安装模块的事件
+            if (window.pwaInstall) {
+                window.pwaInstall.deferredInstallPrompt = e;
+                window.pwaInstall.isInstallable = true;
+            }
+        });
+
+        // 监听应用安装完成
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA installed successfully');
+            
+            // 更新安装状态
+            localStorage.setItem('pwa_installed', 'true');
+            localStorage.setItem('pwa_install_date', new Date().toISOString());
+            
+            // 显示安装成功提示
+            if (typeof Toast !== 'undefined') {
+                Toast.success('应用安装成功！现在可以从主屏幕快速访问了。');
+            }
+        });
+
+        // 监听网络状态变化
+        window.addEventListener('online', () => {
+            console.log('Network connection restored');
+            if (typeof Toast !== 'undefined') {
+                Toast.success('网络连接已恢复');
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Network connection lost');
+            if (typeof Toast !== 'undefined') {
+                Toast.warning('网络连接已断开，部分功能可能不可用');
+            }
+        });
+
+        // PWA性能监控
+        if ('performance' in window) {
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const perfData = performance.getEntriesByType('navigation')[0];
+                    if (perfData) {
+                        console.log('Page load performance:', {
+                            domContentLoaded: perfData.domContentLoadedEventEnd - perfData.domContentLoadedEventStart,
+                            loadComplete: perfData.loadEventEnd - perfData.loadEventStart,
+                            totalTime: perfData.loadEventEnd - perfData.fetchStart
+                        });
+                    }
+                }, 0);
+            });
+        }
+
+        // 监听页面可见性变化，优化资源使用
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // 页面隐藏时暂停不必要的操作
+                console.log('Page hidden, pausing operations');
+                if (window.pwaUpdate) {
+                    // 暂停更新检查
+                }
+            } else {
+                // 页面显示时恢复操作
+                console.log('Page visible, resuming operations');
+                if (window.pwaUpdate) {
+                    // 恢复更新检查
+                    window.pwaUpdate.checkForUpdates();
+                }
+                if (window.pwaOffline) {
+                    // 检查网络状态
+                    window.pwaOffline.checkNetworkStatus();
+                }
+            }
+        });
+
+        // 监听存储变化，实现多标签页同步
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'pwa_installed' && e.newValue === 'true') {
+                // 其他标签页安装了PWA
+                console.log('PWA installed in another tab');
+                if (window.pwaInstall) {
+                    window.pwaInstall.isInstalled = true;
+                }
+            }
+        });
+
+        // 监听自定义事件
+        window.addEventListener('pwa-installed', (e) => {
+            console.log('PWA installation event:', e.detail);
+        });
+
+        window.addEventListener('network-online', (e) => {
+            console.log('Network online event:', e.detail);
+            // 刷新页面数据
+            if (typeof refreshPageData === 'function') {
+                refreshPageData();
+            }
+        });
+
+        window.addEventListener('network-offline', (e) => {
+            console.log('Network offline event:', e.detail);
+        });
+
+        window.addEventListener('refresh-data', (e) => {
+            console.log('Refresh data event:', e.detail);
+            // 根据当前页面刷新相应数据
+            const currentPath = window.location.pathname;
+            
+            // 这里可以添加页面特定的数据刷新逻辑
+            if (currentPath === '/' && typeof loadStats === 'function') {
+                loadStats();
+            }
         });
     </script>
     {% block extra_scripts %}{% endblock %}

@@ -179,3 +179,8 @@ data/epubs/
 !data/.gitkeep
 !data/books/.gitkeep
 !data/epubs/.gitkeep
+
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

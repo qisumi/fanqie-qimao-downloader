@@ -17,7 +17,7 @@
 - 📊 **任务管理** - 实时进度跟踪
 - 🔒 **密码保护** - 可选的访问密码保护
 - 🔐 **配额保护** - 自动速率限制（每日2000万字）
-- 🌐 **PWA 支持** - 添加 `manifest.json` 和 `service worker`，支持离线缓存与安装（基础实现）
+- 🌐 **PWA 支持** - 完整的PWA功能，包括安装提示、自动更新、离线支持和骨架屏加载效果
 
 ## 🖼️ 界面预览
 
@@ -60,7 +60,22 @@ cd fanqie-qimao-downloader
 pip install -r requirements.txt
 ```
 
-#### 2.1 可选：生成 PWA 图标
+#### 2.1 前端构建（可选）
+
+本项目前端资源已预构建。如果您需要修改前端代码（位于 `frontend/` 目录），请按以下步骤重新构建：
+
+1. 安装 Node.js (v16+)
+2. 安装依赖并构建：
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+构建产物将自动输出到 `app/web/static/` 目录。
+
+#### 2.2 可选：生成 PWA 图标
 
 项目包含一个图标生成脚本 `scripts/generate_icons.py`，用于从 SVG 或已有 PNG 生成常用的 PWA 图标（64x64、192x192、512x512）。
 
@@ -244,13 +259,9 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 ## PWA (Progressive Web App)
 
-基础 PWA 支持已添加：
-- `app/web/static/manifest.json` — Web 应用清单
-- `app/web/static/sw.js` — 基础 service worker（缓存应用 shell）
-- 图标：`app/web/static/images/`（包含 `icon-64.png`, `icon-192.png`, `icon-512.png`, `icon.svg`）
+项目包含对 PWA 的完整支持（manifest、service worker、离线回退、安装与更新提示等）。
 
-要获取更好的 PWA 得分（Lighthouse），建议提供高质量 PNG 图标、HTTPS 部署，并根据需要改进 `sw.js` 缓存策略。
-
+详细实现、调试与设计要点见：`docs/PWA_FEATURES.md`。
 
 > 📖 完整部署指南请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)
 
