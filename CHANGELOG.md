@@ -7,6 +7,22 @@
 
 ## [Unreleased]
 
+## [1.3.2] - 2025-11-30
+
+### ✨ 新增
+
+- **PWA 支持（基础）**
+  - 添加 `manifest.json` 与 `sw.js`，支持离线缓存与安装
+  - 添加 `scripts/generate_icons.py` 脚本，用于生成常用 PNG 图标（64/192/512）
+  - 在模板中注册 Service Worker，添加 favicon 链接
+
+- **WebSocket 集成测试**
+  - 新增 `tests/test_websocket_integration.py`，覆盖任务订阅、初始状态和进度广播
+
+### 🐛 修复
+
+- 修复测试断言与 `FanqieAPI` 状态映射相关的不一致（调整测试以匹配实现）
+
 ## [1.3.1] - 2025-11-30
 
 ### 🐛 修复

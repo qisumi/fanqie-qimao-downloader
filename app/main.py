@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="FanqieQimaoDownloader",
     description="番茄小说和七猫小说下载器，支持EPUB导出",
-    version="1.2.0",
+    version="1.3.2",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
