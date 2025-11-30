@@ -24,8 +24,19 @@ export const useTaskStore = defineStore('task', () => {
     loading.value = true
     try {
       const response = await taskApi.listTasks()
-      // 后端返回 { tasks: [...], total, page, limit }
-      tasks.value = response.data.tasks || []
+      const serverTasks = response.data.tasks || []
+      
+      // 合并服务器任务和本地新创建的任务
+      // 本地任务可能还没同步到服务器（刚创建），需要保留
+      const serverTaskIds = new Set(serverTasks.map(t => t.id))
+      const localOnlyTasks = tasks.value.filter(t => 
+        !serverTaskIds.has(t.id) && 
+        (t.status === 'pending' || t.status === 'running')
+      )
+      
+      // 服务器任务优先，再加上本地独有的活跃任务
+      tasks.value = [...serverTasks, ...localOnlyTasks]
+      
       // 为活跃任务建立 WebSocket 连接
       activeTasks.value.forEach(t => connectWebSocket(t.id))
     } catch (error) {

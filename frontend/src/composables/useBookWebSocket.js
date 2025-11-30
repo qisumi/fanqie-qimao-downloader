@@ -255,17 +255,22 @@ export function useBookWebSocket(options) {
     () => book.value?.download_status,
     (newStatus, oldStatus) => {
       console.log(`📡 Download status changed: ${oldStatus} -> ${newStatus}`)
-      if (newStatus === 'downloading' && oldStatus !== 'downloading') {
+      if (newStatus === 'downloading') {
+        // 当状态变为 downloading 或初始加载时已是 downloading，尝试连接
+        // oldStatus 为 undefined 表示是初始加载（页面刷新或重新进入）
         setTimeout(() => {
-          if (!wsConnected.value) {
+          if (!wsConnected.value && book.value?.download_status === 'downloading') {
+            console.log('🔌 Initiating WebSocket connection for downloading book...')
             connect()
           }
         }, 100)
-      } else if (newStatus !== 'downloading') {
+      } else if (oldStatus === 'downloading' && newStatus !== 'downloading') {
+        // 只有从 downloading 变为其他状态时才断开
         disconnect()
         stopPolling()
       }
-    }
+    },
+    { immediate: true } // 立即执行一次，处理页面刷新或重新进入时书籍已在下载中的情况
   )
 
   // 组件卸载时清理
