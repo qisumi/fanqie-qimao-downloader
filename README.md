@@ -17,6 +17,7 @@
 - 📊 **任务管理** - 实时进度跟踪
 - 🔒 **密码保护** - 可选的访问密码保护
 - 🔐 **配额保护** - 自动速率限制（每日2000万字）
+- 🌐 **PWA 支持** - 添加 `manifest.json` 和 `service worker`，支持离线缓存与安装（基础实现）
 
 ## 🖼️ 界面预览
 
@@ -58,6 +59,23 @@ git clone https://github.com/qisumi/fanqie-qimao-downloader.git
 cd fanqie-qimao-downloader
 pip install -r requirements.txt
 ```
+
+#### 2.1 可选：生成 PWA 图标
+
+项目包含一个图标生成脚本 `scripts/generate_icons.py`，用于从 SVG 或已有 PNG 生成常用的 PWA 图标（64x64、192x192、512x512）。
+
+依赖（可选，Windows 上需先安装 Cairo 运行时）：
+```powershell
+pip install cairosvg
+```
+
+运行脚本：
+```powershell
+python scripts\generate_icons.py
+```
+
+生成的图标会保存在 `app/web/static/images/`，`manifest.json` 已配置为引用这些图标。
+
 
 #### 3. 配置API密钥
 
@@ -223,6 +241,16 @@ APP_PASSWORD=your_password  # 留空则不启用
 SECRET_KEY=your-secret-key  # 生产环境建议修改
 SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 ```
+
+## PWA (Progressive Web App)
+
+基础 PWA 支持已添加：
+- `app/web/static/manifest.json` — Web 应用清单
+- `app/web/static/sw.js` — 基础 service worker（缓存应用 shell）
+- 图标：`app/web/static/images/`（包含 `icon-64.png`, `icon-192.png`, `icon-512.png`, `icon.svg`）
+
+要获取更好的 PWA 得分（Lighthouse），建议提供高质量 PNG 图标、HTTPS 部署，并根据需要改进 `sw.js` 缓存策略。
+
 
 > 📖 完整部署指南请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)
 

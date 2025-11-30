@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FanqieQimaoDownloader{% endblock %}</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="/static/images/icon.svg">
+    <link rel="icon" type="image/png" sizes="64x64" href="/static/images/icon-64.png">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.1/css/all.min.css" rel="stylesheet">
     <style>
@@ -304,6 +308,22 @@
             post(url, data) { return this.request(url, { method: 'POST', body: JSON.stringify(data) }); },
             delete(url) { return this.request(url, { method: 'DELETE' }); }
         };
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(reg => console.log('ServiceWorker registered:', reg))
+                    .catch(err => console.warn('ServiceWorker registration failed:', err));
+            });
+        }
+
+        // 捕获 PWA 安装意图（可用于展示自定义安装按钮）
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredInstallPrompt = e; // 可以在页面上触发 prompt()
+            console.log('beforeinstallprompt captured');
+        });
     </script>
     {% block extra_scripts %}{% endblock %}
 </body>

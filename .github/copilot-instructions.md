@@ -120,6 +120,12 @@ settings.rain_api_key        # API密钥
 settings.rain_api_base_url   # http://v3.rain.ink
 settings.daily_word_limit    # 20000000 (2000万字/天)
 settings.app_password        # 应用密码 (可选)
+
+# PWA 文件位置（已添加）
+- `app/web/static/manifest.json` — Web 应用清单（manifest）
+- `app/web/static/sw.js` — 基础 service worker（缓存策略在 `sw.js`）
+- 图标目录：`app/web/static/images/`（包含 `icon-64.png`, `icon-192.png`, `icon-512.png`, `icon.svg`）
+- 图标生成脚本：`scripts/generate_icons.py`（使用 `cairosvg` 或 Pillow）
 ```
 
 ## API Endpoints
