@@ -5,13 +5,15 @@ FastAPI Web应用入口
 
 from contextlib import asynccontextmanager
 
+import os
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.utils.logger import init_from_settings, get_logger
-from app.web.routes import pages, books, tasks, stats, ws
+from app.web.routes import books, tasks, stats, ws, auth
 from app.web.middleware import AuthMiddleware
 
 # 初始化日志系统
@@ -41,27 +43,32 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="FanqieQimaoDownloader",
     description="番茄小说和七猫小说下载器，支持EPUB导出",
-    version="1.3.3",
+    version="1.4.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
 )
 
-# 挂载静态文件
-app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
+# 前端静态文件目录
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "../frontend/dist")
 
-# 配置模板
-templates = Jinja2Templates(directory="app/web/templates")
+# 挂载旧静态文件目录（保留图标等资源）
+if os.path.exists("app/web/static"):
+    app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
+
+# 生产模式: 挂载前端构建产物
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
 
 # 添加认证中间件（仅当配置了密码时启用）
 if settings.app_password:
     app.add_middleware(AuthMiddleware)
 
 # 注册路由
-app.include_router(pages.router, prefix="", tags=["pages"])
 app.include_router(books.router, prefix="/api/books", tags=["books"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(ws.router, prefix="/ws", tags=["websocket"])
 
 @app.get("/health")
@@ -70,6 +77,18 @@ async def health_check():
     """健康检查接口"""
     # 使用应用声明的版本，避免硬编码不一致
     return {"status": "healthy", "version": app.version}
+
+
+# SPA Catch-all: 所有未匹配路由返回 index.html
+if os.path.exists(FRONTEND_DIR):
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """SPA 前端路由，未匹配的路径返回 index.html"""
+        file_path = os.path.join(FRONTEND_DIR, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -30,6 +30,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/redoc",
         "/openapi.json",
         "/ws",  # WebSocket 路由使用单独的认证机制
+        "/api/auth",  # 认证 API 不需要预先认证
     ]
     
     COOKIE_NAME = "auth_token"

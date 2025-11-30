@@ -7,6 +7,66 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-11-30
+
+### 🚀 重大更新
+
+- **前端框架迁移至 Vue 3 + Naive UI**
+  - 完成从 Jinja2 + Alpine.js 到 Vue 3 SPA 的完整迁移
+  - 使用 Naive UI 组件库重构所有页面
+  - 使用 Pinia 进行状态管理
+  - 使用 Vue Router 实现前端路由
+  - 使用 Axios 封装 API 请求
+  - 支持 Vite 开发服务器热更新
+
+### ✨ 新增
+
+- **Vue 3 单页应用**
+  - `HomeView.vue` - 首页仪表盘
+  - `SearchView.vue` - 书籍搜索
+  - `BooksView.vue` - 书库管理
+  - `BookDetailView.vue` - 书籍详情
+  - `TasksView.vue` - 任务管理
+  - `LoginView.vue` - 登录页面
+
+- **Pinia 状态管理**
+  - `userStore` - 用户认证状态
+  - `taskStore` - 下载任务状态
+  - `bookStore` - 书籍数据状态
+
+- **API 封装**
+  - 统一的 Axios 实例配置
+  - 自动携带认证 Cookie
+  - 401 响应自动跳转登录
+
+- **PWA 支持**
+  - 使用 vite-plugin-pwa 集成
+  - 自动生成 Service Worker
+  - 支持离线缓存和应用安装
+
+### ♻️ 重构
+
+- **后端适配 SPA 模式**
+  - 移除 Jinja2 模板和 pages 路由
+  - 添加 SPA catch-all 路由
+  - 静态资源从 `frontend/dist` 提供服务
+
+### 🗑️ 移除
+
+- 移除 `app/web/templates/` 目录（Jinja2 模板）
+- 移除 `app/web/static/main.js`（Alpine.js 逻辑）
+- 移除 `app/web/static/manifest.json`（旧 PWA 清单）
+- 移除 `app/web/static/sw.js`（旧 Service Worker）
+- 移除 `app/web/static/assets/`（旧静态资源）
+- 移除 `app/web/routes/pages.py`（页面路由）
+
+### 📝 文档
+
+- 更新 `README.md` 技术栈和项目结构
+- 更新 `ROADMAP.md` 标记 Vue 3 迁移完成
+- 更新 `.github/copilot-instructions.md` 开发指南
+- 更新 `FRONTEND_MIGRATION.md` 迁移状态
+
 ## [1.3.3] - 2025-11-30
 
 ### ♻️ 重构

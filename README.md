@@ -1,7 +1,8 @@
 # FanqieQimaoDownloader
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.3.0)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.4.0)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
+[![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
 基于 Rain API V3 的番茄小说和七猫小说下载工具，支持批量下载和EPUB导出。
@@ -12,7 +13,7 @@
 - 📥 **智能下载** - 异步并发下载，自动重试
 - 📖 **EPUB导出** - 自动生成标准EPUB电子书
 - 🔄 **增量更新** - 检测并下载新章节
-- 🌐 **现代界面** - 响应式Web界面，支持移动端
+- 🌐 **现代界面** - Vue 3 + Naive UI 单页应用，响应式设计
 - ⚡ **高性能** - 异步架构，并发控制
 - 📊 **任务管理** - 实时进度跟踪
 - 🔒 **密码保护** - 可选的访问密码保护
@@ -62,9 +63,9 @@ pip install -r requirements.txt
 
 #### 2.1 前端构建（可选）
 
-本项目前端资源已预构建。如果您需要修改前端代码（位于 `frontend/` 目录），请按以下步骤重新构建：
+本项目使用 Vue 3 + Naive UI 构建前端。前端资源已预构建。如果您需要修改前端代码，请按以下步骤重新构建：
 
-1. 安装 Node.js (v16+)
+1. 安装 Node.js (v18+)
 2. 安装依赖并构建：
 
 ```bash
@@ -73,7 +74,16 @@ npm install
 npm run build
 ```
 
-构建产物将自动输出到 `app/web/static/` 目录。
+构建产物将输出到 `frontend/dist/` 目录，后端会自动服务这些静态文件。
+
+开发模式下，可以启动 Vite 开发服务器：
+
+```bash
+cd frontend
+npm run dev
+```
+
+访问 `http://localhost:3000`，Vite 会自动代理 API 请求到后端。
 
 #### 2.2 可选：生成 PWA 图标
 
@@ -130,7 +140,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 4568 --reload
 
 ```
 FanqieQimaoDownloader/
-├── app/                          # 应用主目录
+├── app/                          # 后端应用主目录
 │   ├── api/                      # Rain API客户端封装
 │   │   ├── base.py               # 基类和异常定义
 │   │   ├── fanqie.py             # 番茄小说API
@@ -147,18 +157,27 @@ FanqieQimaoDownloader/
 │   │   └── storage_service.py    # 文件存储
 │   ├── web/                      # Web层
 │   │   ├── routes/               # API路由
-│   │   └── templates/            # Jinja2模板
+│   │   └── static/               # 静态资源（图标等））
 │   ├── utils/                    # 工具模块
 │   │   ├── database.py           # 数据库连接
 │   │   ├── rate_limiter.py       # 速率限制
 │   │   └── logger.py             # 日志管理
 │   ├── main.py                   # FastAPI入口
 │   └── config.py                 # 配置管理
+├── frontend/                     # Vue 3 前端项目
+│   ├── src/                      # 源代码
+│   │   ├── views/                # 页面组件
+│   │   ├── components/           # 通用组件
+│   │   ├── stores/               # Pinia 状态管理
+│   │   ├── api/                  # API 封装
+│   │   └── router/               # 路由配置
+│   ├── dist/                     # 构建产物
+│   └── package.json              # 前端依赖
 ├── data/                         # 数据存储
 │   ├── books/                    # 书籍章节内容
 │   ├── epubs/                    # EPUB文件
 │   └── database.db               # SQLite数据库
-├── tests/                        # 测试套件 (85个测试)
+├── tests/                        # 测试套件
 │   ├── test_api/                 # API客户端测试
 │   ├── test_services/            # 服务层测试
 │   ├── test_web/                 # Web层测试
@@ -267,7 +286,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 ## 📊 开发状态
 
-**当前版本: v1.3.2** 🎉
+**当前版本: v1.4.0** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|
@@ -276,12 +295,15 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 | Phase 3 | ✅ 完成 | 服务层实现 |
 | Phase 4 | ✅ 完成 | Web层实现 |
 | Phase 5 | ✅ 完成 | 功能完善 |
-| Phase 6 | ✅ 完成 | 测试与优化(114测试) |
+| Phase 6 | ✅ 完成 | 测试与优化 |
 | Phase 7 | ✅ 完成 | 部署与发布 |
+| Phase 8 | ✅ 完成 | Vue 3 前端迁移 |
 
 > 📋 查看完整变更日志: [CHANGELOG.md](CHANGELOG.md)
 
 ## 🛠️ 技术栈
+
+### 后端
 
 | 组件 | 技术 | 版本 |
 |------|------|------|
@@ -292,8 +314,17 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 | EPUB生成 | ebooklib | ≥0.18 |
 | 图片处理 | Pillow | ≥10.0.0 |
 | 数据验证 | Pydantic | ≥2.0.0 |
-| 前端框架 | Alpine.js | 3.x |
-| CSS框架 | TailwindCSS | 2.x |
+
+### 前端
+
+| 组件 | 技术 | 版本 |
+|------|------|------|
+| 框架 | Vue 3 | ^3.4 |
+| 构建工具 | Vite | ^5.0 |
+| 路由 | Vue Router | ^4.2 |
+| 状态管理 | Pinia | ^2.1 |
+| UI组件库 | Naive UI | ^2.38 |
+| HTTP客户端 | Axios | ^1.6 |
 
 ## ⚠️ 注意事项
 

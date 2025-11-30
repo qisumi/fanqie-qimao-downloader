@@ -4,15 +4,17 @@
 
 基于 Rain API V3 的番茄小说和七猫小说下载工具，支持批量下载和 EPUB 导出。
 
-- **技术栈**: Python + FastAPI + SQLAlchemy + SQLite + WebSocket
-- **版本**: v1.2.0 (WebSocket 实时进度推送)
+- **技术栈**: Python + FastAPI + SQLAlchemy + SQLite + Vue 3 + Naive UI
+- **版本**: v1.4.0 (Vue 3 前端迁移完成)
 - **测试**: 98 个测试用例
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────┐
-│   Web Layer (FastAPI)              │  ← 用户界面、RESTful API
+│   Frontend (Vue 3 + Naive UI)      │  ← SPA 单页应用、Pinia 状态管理
+├─────────────────────────────────────┤
+│   Web Layer (FastAPI)              │  ← RESTful API、WebSocket
 ├─────────────────────────────────────┤
 │   Service Layer (业务逻辑)          │  ← 下载管理、更新检测、EPUB生成
 ├─────────────────────────────────────┤
@@ -27,41 +29,59 @@
 ## Directory Structure
 
 ```
-app/
-├── api/           # API客户端
-│   ├── base.py    # RainAPIClient基类、异常定义
-│   ├── fanqie.py  # FanqieAPI
-│   └── qimao.py   # QimaoAPI
-├── models/        # 数据模型 (SQLAlchemy ORM)
-│   ├── book.py    # Book
-│   ├── chapter.py # Chapter
-│   ├── task.py    # DownloadTask
-│   └── quota.py   # DailyQuota
-├── schemas/       # Pydantic模型
+app/                    # 后端应用
+├── api/                # API客户端
+│   ├── base.py         # RainAPIClient基类、异常定义
+│   ├── fanqie.py       # FanqieAPI
+│   └── qimao.py        # QimaoAPI
+├── models/             # 数据模型 (SQLAlchemy ORM)
+│   ├── book.py         # Book
+│   ├── chapter.py      # Chapter
+│   ├── task.py         # DownloadTask
+│   └── quota.py        # DailyQuota
+├── schemas/            # Pydantic模型
 │   ├── api_responses.py    # API响应模型
 │   └── service_schemas.py  # 服务层模型
-├── services/      # 业务逻辑
+├── services/           # 业务逻辑
 │   ├── storage_service.py  # 文件存储
 │   ├── book_service.py     # 书籍管理
 │   ├── download_service.py # 下载管理
 │   └── epub_service.py     # EPUB生成
-├── utils/         # 工具函数
-│   ├── database.py    # 数据库连接
-│   ├── logger.py      # 日志管理
+├── utils/              # 工具函数
+│   ├── database.py     # 数据库连接
+│   ├── logger.py       # 日志管理
 │   └── rate_limiter.py # 速率限制
-├── web/           # Web层
-│   ├── routes/    # API路由
-│   │   ├── books.py   # /api/books
-│   │   ├── tasks.py   # /api/tasks
-│   │   ├── stats.py   # /api/stats
-│   │   ├── pages.py   # 页面路由
-│   │   └── ws.py      # WebSocket路由
+├── web/                # Web层
+│   ├── routes/         # API路由
+│   │   ├── books.py    # /api/books
+│   │   ├── tasks.py    # /api/tasks
+│   │   ├── stats.py    # /api/stats
+│   │   ├── auth.py     # /api/auth
+│   │   └── ws.py       # WebSocket路由
 │   ├── middleware/
-│   │   └── auth.py    # 认证中间件
-│   ├── websocket.py   # WebSocket连接管理器
-│   └── templates/ # Jinja2模板
-├── main.py        # FastAPI应用入口
-└── config.py      # 配置管理
+│   │   └── auth.py     # 认证中间件
+│   ├── websocket.py    # WebSocket连接管理器
+│   └── static/         # 静态资源（图标等）
+├── main.py             # FastAPI应用入口
+└── config.py           # 配置管理
+
+frontend/               # Vue 3 前端项目
+├── src/
+│   ├── views/          # 页面组件
+│   │   ├── HomeView.vue
+│   │   ├── SearchView.vue
+│   │   ├── BooksView.vue
+│   │   ├── BookDetailView.vue
+│   │   ├── TasksView.vue
+│   │   └── LoginView.vue
+│   ├── components/     # 通用组件
+│   ├── stores/         # Pinia 状态管理
+│   ├── api/            # API 封装 (Axios)
+│   ├── router/         # Vue Router 配置
+│   └── App.vue         # 根组件
+├── dist/               # 构建产物
+├── package.json
+└── vite.config.js
 ```
 
 ## Key Modules
@@ -122,11 +142,11 @@ settings.daily_word_limit    # 20000000 (2000万字/天)
 settings.app_password        # 应用密码 (可选)
 ```
 
-# PWA 文件位置（已添加）
-- `app/web/static/manifest.json` — Web 应用清单（manifest）
-- `app/web/static/sw.js` — 基础 service worker（缓存策略在 `sw.js`）
+# PWA 文件位置
+- `frontend/public/manifest.json` — Web 应用清单（manifest）
+- `frontend/src/sw.js` — Service Worker
+- `frontend/src/pwa/` — PWA 相关组件和逻辑
 - 图标目录：`app/web/static/images/`（包含 `icon-64.png`, `icon-192.png`, `icon-512.png`, `icon.svg`）
-- 图标生成脚本：`scripts/generate_icons.py`（使用 `cairosvg` 或 Pillow）
 ```
 
 ## API Endpoints
@@ -159,12 +179,20 @@ Base URL: `http://v3.rain.ink/fanqie/` 或 `http://v3.rain.ink/qimao/`
 
 ## Tech Stack
 
+### 后端
 - **FastAPI** ≥0.104.0 - Web框架
 - **SQLAlchemy** ≥2.0.0 - ORM
 - **httpx** ≥0.25.0 - 异步HTTP客户端
 - **ebooklib** ≥0.18 - EPUB生成
 - **Pydantic** ≥2.0.0 - 数据验证
-- **Alpine.js** + **TailwindCSS** - 前端
+
+### 前端
+- **Vue 3** ^3.4 - 组合式 API
+- **Vite** ^5.0 - 构建工具
+- **Vue Router** ^4.2 - 路由管理
+- **Pinia** ^2.1 - 状态管理
+- **Naive UI** ^2.38 - UI 组件库
+- **Axios** ^1.6 - HTTP 客户端
 
 ## Testing
 

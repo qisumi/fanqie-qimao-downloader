@@ -1,43 +1,49 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
-import { VitePWA } from 'vite-plugin-pwa';
+import { defineConfig } from 'vite'
+import { resolve } from 'path'
+import vue from '@vitejs/plugin-vue'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  build: {
-    outDir: '../app/web/static',
-    emptyOutDir: false,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'src/main.js'),
-      },
-      output: {
-        entryFileNames: '[name].js',
-        assetFileNames: 'assets/[name].[ext]',
-        chunkFileNames: 'chunks/[name].[hash].js'
-      }
-    }
-  },
   plugins: [
+    vue(),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      outDir: '../app/web/static',
+      outDir: 'dist',
       injectManifest: {
-        globDirectory: '../app/web/static',
+        globDirectory: 'dist',
         globPatterns: [
-          'main.js',
-          'assets/*.css',
-          'images/*.{png,svg}',
-          'manifest.json'
+          '**/*.{js,css,html,png,svg,ico}'
         ],
-        // We can refine globPatterns to only include what we want to precache
       },
-      manifest: false, // We manage manifest.json manually in public/
-      injectRegister: null, // We register SW manually in base.html
+      manifest: false,
+      injectRegister: null,
       devOptions: {
         enabled: true
       }
     })
-  ]
-});
+  ],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:4568',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://127.0.0.1:4568',
+        ws: true,
+      },
+    },
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
+})
