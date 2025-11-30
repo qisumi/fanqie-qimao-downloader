@@ -3,12 +3,24 @@ import { computed, ref, provide, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { 
   NConfigProvider, NMessageProvider, NDialogProvider, NNotificationProvider,
-  NLayout, NLayoutSider, NLayoutContent, NDrawer, NDrawerContent, zhCN, dateZhCN 
+  NLayout, NLayoutSider, NLayoutContent, NDrawer, NDrawerContent, zhCN, dateZhCN,
+  darkTheme
 } from 'naive-ui'
 import AppHeader from '@/components/AppHeader.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
+import PWAManager from '@/components/PWAManager.vue'
+import { useThemeStore } from '@/stores/theme'
 
 const route = useRoute()
+const themeStore = useThemeStore()
+
+// 初始化主题
+onMounted(() => {
+  themeStore.init()
+})
+
+// Naive UI 主题
+const naiveTheme = computed(() => themeStore.isDark ? darkTheme : null)
 
 // 登录页不显示侧边栏
 const showSidebar = computed(() => route.name !== 'login')
@@ -53,10 +65,13 @@ provide('closeDrawer', closeDrawer)
 </script>
 
 <template>
-  <n-config-provider :locale="zhCN" :date-locale="dateZhCN">
+  <n-config-provider :locale="zhCN" :date-locale="dateZhCN" :theme="naiveTheme">
     <n-message-provider>
       <n-dialog-provider>
         <n-notification-provider>
+          <!-- PWA 管理组件 -->
+          <PWAManager />
+          
           <!-- 登录页面独立布局 -->
           <template v-if="!showSidebar">
             <router-view />
@@ -170,5 +185,10 @@ html, body, #app {
 /* Naive UI 抽屉样式覆盖 */
 .n-drawer .n-drawer-body-content-wrapper {
   background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+}
+
+/* 深色模式抽屉样式 */
+:root.dark .n-drawer .n-drawer-body-content-wrapper {
+  background: linear-gradient(180deg, #18181c 0%, #101014 100%);
 }
 </style>

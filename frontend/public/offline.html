@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#18a058">
+  <title>离线状态 - 番茄七猫小说下载器</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --primary-color: #18a058;
+      --bg-color: #f5f7f9;
+      --card-bg: #ffffff;
+      --text-primary: #333639;
+      --text-secondary: #666666;
+      --border-color: #e0e0e6;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary-color: #36ad6a;
+        --bg-color: #101014;
+        --card-bg: #18181c;
+        --text-primary: #ffffffd9;
+        --text-secondary: #ffffff99;
+        --border-color: #ffffff1a;
+      }
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    
+    .offline-container {
+      text-align: center;
+      max-width: 400px;
+    }
+    
+    .offline-icon {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 24px;
+      opacity: 0.8;
+    }
+    
+    .offline-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+    
+    p {
+      font-size: 16px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    
+    .features {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border-color);
+      text-align: left;
+    }
+    
+    .features h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 12px;
+    }
+    
+    .features ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .features li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      padding: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .features li::before {
+      content: '✓';
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+    
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    
+    .retry-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    
+    .retry-btn:active {
+      transform: translateY(0);
+    }
+    
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 16px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d03050;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-dot.online {
+      background: var(--primary-color);
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.58 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/>
+      </svg>
+    </div>
+    
+    <h1>您当前处于离线状态</h1>
+    <p>无法连接到服务器，请检查您的网络连接后重试。</p>
+    
+    <div class="features">
+      <h3>离线状态下可用功能</h3>
+      <ul>
+        <li>查看已缓存的书籍列表</li>
+        <li>阅读已下载的章节内容</li>
+        <li>浏览应用界面和设置</li>
+      </ul>
+    </div>
+    
+    <button class="retry-btn" onclick="retryConnection()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+      </svg>
+      重新连接
+    </button>
+    
+    <div class="status-indicator">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">检测网络状态...</span>
+    </div>
+  </div>
+  
+  <script>
+    function updateStatus() {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      
+      if (navigator.onLine) {
+        dot.classList.add('online');
+        text.textContent = '网络已连接';
+        // 自动重定向到首页
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+      } else {
+        dot.classList.remove('online');
+        text.textContent = '网络未连接';
+      }
+    }
+    
+    function retryConnection() {
+      updateStatus();
+      if (!navigator.onLine) {
+        // 尝试 fetch 一个资源来验证网络
+        fetch('/', { method: 'HEAD', cache: 'no-store' })
+          .then(() => {
+            window.location.reload();
+          })
+          .catch(() => {
+            document.getElementById('statusText').textContent = '连接失败，请稍后重试';
+          });
+      }
+    }
+    
+    // 监听网络状态变化
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    
+    // 初始化状态
+    updateStatus();
+  </script>
+</body>
+</html>

@@ -158,7 +158,7 @@ async function handleLogin() {
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--card-bg, rgba(255, 255, 255, 0.95));
   backdrop-filter: blur(20px);
   border-radius: 24px;
   padding: 48px 40px;
@@ -166,6 +166,7 @@ async function handleLogin() {
   animation: slideUp 0.5s ease-out;
   position: relative;
   z-index: 1;
+  transition: background-color 0.3s ease;
 }
 
 @keyframes slideUp {
@@ -212,7 +213,7 @@ async function handleLogin() {
 
 .login-subtitle {
   font-size: 14px;
-  color: #999;
+  color: var(--text-color-tertiary, #999);
   margin: 0;
 }
 
@@ -259,7 +260,7 @@ async function handleLogin() {
 
 .footer-text {
   font-size: 12px;
-  color: #bbb;
+  color: var(--text-color-disabled, #bbb);
 }
 
 /* 移动端适配 */

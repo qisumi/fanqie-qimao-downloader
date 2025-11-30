@@ -4,64 +4,209 @@
 
 ## 概述
 
-项目包含一套完整的 PWA 支持：manifest、Service Worker、多层缓存策略、离线回退、安装提示、更新流程以及骨架屏/性能优化。
+项目包含一套完整的 PWA 支持：manifest、Service Worker（基于 Workbox）、多层缓存策略、离线回退、安装提示、更新流程以及深色模式支持。
 
 ## 核心功能
 
-- 智能安装提示（`beforeinstallprompt` 事件捕获与自定义安装横幅）
-- 自动更新系统（Service Worker 版本管理、跳过等待、更新提示与重启）
-- 离线支持（离线页面、缓存优先/网络优先策略）
-- 性能优化（关键资源预缓存、骨架屏、懒加载与后台缓存更新）
-- 响应式与无障碍（针对不同设备和无障碍改进）
+- **智能安装提示**：通过 `beforeinstallprompt` 事件捕获，使用 Naive UI 组件展示美观的安装横幅
+- **自动更新系统**：Service Worker 版本管理、跳过等待、更新提示与自动重载
+- **离线支持**：离线回退页面、缓存优先/网络优先策略、网络状态实时监测
+- **深色模式**：支持浅色/深色/跟随系统三种模式，与 Naive UI 深色主题完美集成
+- **快捷方式**：PWA 安装后支持快捷入口（搜索、书架、任务）
 
 ## 代码结构（关键文件）
 
-- `app/web/static/manifest.json` — 应用清单（快捷方式、图标、分享目标等）
-- `app/web/static/sw-enhanced.js` — 更完善的 Service Worker，实现多策略缓存、版本通知与离线页面
-- `app/web/static/sw.js` — 较基础的 Service Worker，作为降级方案
-- `app/web/static/js/pwa/install.js` — 安装横幅、安装逻辑与状态管理
-- `app/web/static/js/pwa/update.js` — 更新检测、通知和应用更新逻辑
-- `app/web/static/js/pwa/offline.js` — 网络状态检测、离线提示与离线功能说明
-- `app/web/static/js/pwa/skeleton.js` — 骨架屏与页面加载过渡管理
-- `app/web/static/css/pwa.css` — PWA 专用样式
+### 前端（Vue 3）
+
+```
+frontend/
+├── public/
+│   ├── manifest.json          # PWA 应用清单
+│   └── offline.html           # 离线回退页面
+├── src/
+│   ├── sw.js                  # Service Worker (Workbox)
+│   ├── stores/
+│   │   └── theme.js           # 主题状态管理 (Pinia)
+│   ├── components/
+│   │   ├── PWAManager.vue     # PWA 管理组件（安装/更新/离线提示）
+│   │   └── AppHeader.vue      # 顶部导航（含主题切换按钮）
+│   ├── styles/
+│   │   └── variables.css      # CSS 变量（含深色模式）
+│   └── pwa/                   # PWA 原生模块（备用）
+│       ├── install.js
+│       ├── update.js
+│       ├── offline.js
+│       └── skeleton.js
+└── vite.config.js             # Vite PWA 插件配置
+```
+
+### 后端静态资源
+
+```
+app/web/static/images/
+├── icon-64.png
+├── icon-192.png
+├── icon-512.png
+└── icon.svg
+```
 
 ## Service Worker 设计要点
 
-- 使用版本号（`APP_VERSION`）进行缓存命名与更新比对。
-- 根据请求类型使用不同策略：静态资源 cache-first、API network-first、图片 cache-first（并后台刷新）、页面 network-first 并提供离线页回退。
-- 预缓存关键资源（`PRECACHE_URLS`），激活时清理旧缓存并通知客户端。
-- 注意：不是所有响应都会带 `Date` header，因此不能完全依赖它判断缓存过期。可选策略是在缓存时保存自定义元数据（例如使用 IndexedDB 存储时间戳）。
+基于 **Workbox** 实现，使用 `injectManifest` 策略：
+
+### 缓存策略
+
+| 资源类型 | 策略 | 缓存名称 | 过期时间 |
+|---------|------|---------|---------|
+| 静态资源 (CSS/JS/Font) | CacheFirst | static-resources-v1 | 7 天 |
+| 图片资源 | CacheFirst | images-v1 | 30 天 |
+| API 数据 (/api/books, /api/stats) | NetworkFirst | api-data-v1 | 1 小时 |
+| 其他 API | StaleWhileRevalidate | api-cache-v1 | 5 分钟 |
+| HTML 页面 | NetworkFirst | pages-v1 | 1 天 |
+
+### 离线回退
+
+```javascript
+// 导航请求失败时返回离线页面
+setCatchHandler(async ({request}) => {
+  if (request.destination === 'document') {
+    return matchPrecache('/offline.html');
+  }
+  return Response.error();
+});
+```
+
+### 更新机制
+
+1. 新 Service Worker 安装后进入 `waiting` 状态
+2. PWAManager 组件检测到更新，显示通知
+3. 用户点击"立即更新"发送 `SKIP_WAITING` 消息
+4. 新 SW 激活后触发 `controllerchange` 事件
+5. 页面自动刷新以加载新版本
+
+## 深色模式
+
+### 主题切换
+
+支持三种模式：
+- **浅色**：固定使用浅色主题
+- **深色**：固定使用深色主题
+- **跟随系统**：根据 `prefers-color-scheme` 媒体查询自动切换
+
+### 实现方式
+
+1. **Pinia Store** (`stores/theme.js`)：管理主题状态和持久化
+2. **CSS 变量** (`styles/variables.css`)：`:root.dark` 选择器定义深色配色
+3. **Naive UI**：动态传入 `darkTheme` 到 `n-config-provider`
+4. **DOM class**：在 `<html>` 元素上切换 `dark` class
+
+```javascript
+// 主题切换 API
+import { useThemeStore, ThemeMode } from '@/stores/theme'
+
+const themeStore = useThemeStore()
+themeStore.setMode(ThemeMode.DARK)    // 设置深色
+themeStore.toggleMode()                // 循环切换
+themeStore.isDark                      // 是否为深色模式
+```
 
 ## 测试与调试
 
-- 提供了 `tests/test_pwa/test_pwa_features.py`，用于对静态资源、页面模板中 PWA 引用等进行服务端级检查。浏览器端行为（Service Worker 注册、安装提示、appinstalled 事件等）需要通过 e2e 测试（Playwright/Selenium）验证。
-- 在本地调试 Service Worker：使用 Chrome 的 Application 面板可查看已注册的 SW、Cache Storage、发送消息和模拟离线。
+### 本地调试
 
-## 性能与安全建议
+1. 启动开发服务器：
+   ```bash
+   cd frontend
+   npm run dev
+   ```
 
-- 添加适当的缓存控制头（`Cache-Control`, `Service-Worker-Allowed` 如需跨目录）以配合 SW 策略。
-- 对敏感 API 使用 network-first，并避免把敏感响应长期缓存在客户端。
-- 推荐在生产上通过 HTTPS 部署以支持 PWA 特性（Service Worker 需要安全上下文）。
-- 为了防 XSS，建议逐步添加 Content-Security-Policy（CSP），并将内联脚本最小化。
+2. 打开 Chrome DevTools → Application 面板：
+   - **Service Workers**：查看注册状态、更新、调试
+   - **Cache Storage**：查看缓存内容
+   - **Manifest**：检查应用清单
 
-## 开发者注意事项
+3. 模拟离线：勾选 "Offline" 复选框
 
-- 这些大型静态文件（JS/CSS/Service Worker）可视为前端构建产物：如果你有前端源码或构建步骤（例如使用 Rollup、Webpack、esbuild），建议把源文件和构建脚本保留在 `frontend/` 或 `assets_src/`，并把生成产物加入 `.gitignore`，由 CI/CD 管道生成并发布。
-- 如果保留在仓库中，建议维护简要生成说明（例如 `scripts/generate_pwa_assets.sh`）帮助未来维护者。
+### Lighthouse 审计
+
+```bash
+# 构建生产版本
+npm run build
+
+# 使用 Lighthouse 检查 PWA 评分
+npx lighthouse http://localhost:4568 --view
+```
+
+## PWA 安装要求
+
+浏览器显示安装提示需满足以下条件：
+
+1. ✅ HTTPS 或 localhost
+2. ✅ 有效的 Web App Manifest
+3. ✅ 注册了 Service Worker
+4. ✅ 用户与页面有一定交互
+
+## 配置说明
+
+### manifest.json 关键配置
+
+```json
+{
+  "name": "番茄七猫小说下载器",
+  "short_name": "番茄七猫",
+  "display": "standalone",
+  "theme_color": "#18a058",
+  "icons": [...],
+  "shortcuts": [
+    {"name": "搜索书籍", "url": "/search"},
+    {"name": "我的书架", "url": "/books"},
+    {"name": "下载任务", "url": "/tasks"}
+  ]
+}
+```
+
+### Vite PWA 插件配置
+
+```javascript
+// vite.config.js
+VitePWA({
+  strategies: 'injectManifest',
+  srcDir: 'src',
+  filename: 'sw.js',
+  devOptions: {
+    enabled: true,
+    type: 'module'
+  }
+})
+```
 
 ## 常见问题
 
-- 为什么 Service Worker 不触发更新？
-  - 需要在新 SW 安装完成后调用 `skipWaiting()` 并在 client 端通过 `postMessage` 触发 `skip-waiting` 或直接刷新页面。
+### Service Worker 不触发更新？
 
-- 缓存过期如何控制？
-  - 可以在缓存时写入自定义 header 或把元数据存入 IndexedDB，用以判断是否需要后台刷新。
+1. 确保新 SW 文件有变化（构建时自动更新预缓存列表）
+2. 检查是否正确处理了 `SKIP_WAITING` 消息
+3. 在 DevTools 中手动点击 "Update" 按钮测试
 
-## 参考
+### 深色模式样式不生效？
 
-- PWA 基本指南：https://web.dev/progressive-web-apps/
-- Service Worker Cookbook: https://serviceworke.rs/
+1. 确保使用 CSS 变量而非硬编码颜色
+2. 检查 `<html>` 元素上是否有 `dark` class
+3. 确认 Naive UI 组件正确接收了 `darkTheme` prop
+
+### 离线页面不显示？
+
+1. 确保 `offline.html` 在预缓存列表中
+2. 检查 `setCatchHandler` 配置
+3. 清除所有缓存后重新测试
+
+## 参考资源
+
+- [Workbox 文档](https://developer.chrome.com/docs/workbox/)
+- [PWA 基本指南](https://web.dev/progressive-web-apps/)
+- [Naive UI 深色模式](https://www.naiveui.com/zh-CN/os-theme/docs/customize-theme)
+- [Vite Plugin PWA](https://vite-pwa-org.netlify.app/)
 
 ---
 
-文档由仓库维护者生成，后续可根据实现演进补充细节与示例代码片段。
+*文档更新于 v1.5.0，包含 PWA 功能完善和深色模式支持。*

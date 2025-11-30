@@ -91,7 +91,7 @@ function handleMenuSelect(key) {
     <!-- 底部信息 -->
     <div v-if="!collapsed" class="sidebar-footer">
       <div class="version-info">
-        <span class="version-label">v1.4.0</span>
+        <span class="version-label">v1.4.2</span>
       </div>
     </div>
   </div>
@@ -102,7 +102,8 @@ function handleMenuSelect(key) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+  background: var(--card-bg, #ffffff);
+  transition: background-color 0.3s ease;
 }
 
 .logo {
@@ -172,7 +173,7 @@ function handleMenuSelect(key) {
   font-size: 12px;
   color: var(--text-color-tertiary, #999);
   padding: 4px 12px;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--bg-color-tertiary, rgba(0, 0, 0, 0.04));
   border-radius: 12px;
 }
 

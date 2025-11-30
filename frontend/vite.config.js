@@ -14,13 +14,18 @@ export default defineConfig({
       injectManifest: {
         globDirectory: 'dist',
         globPatterns: [
-          '**/*.{js,css,html,png,svg,ico}'
+          '**/*.{js,css,html,png,svg,ico,woff,woff2}'
         ],
+        // 排除过大的文件
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
       },
       manifest: false,
       injectRegister: null,
+      // 开发模式启用
       devOptions: {
-        enabled: true
+        enabled: true,
+        type: 'module',
+        navigateFallback: 'index.html'
       }
     })
   ],

@@ -7,6 +7,40 @@
 
 ## [Unreleased]
 
+## [1.4.2] - 2025-11-30
+
+### ✨ 新增
+
+- **深色模式支持**
+  - 新增主题 Store (`theme.js`)：支持浅色/深色/跟随系统三种模式
+  - CSS 变量系统扩展：添加 `:root.dark` 深色配色方案
+  - Naive UI 深色主题集成：动态切换 `darkTheme`
+  - 顶部导航栏添加主题切换按钮：点击循环切换三种模式
+
+- **PWA 功能完善**
+  - 新增 `PWAManager.vue` 组件：整合安装提示、更新通知、离线状态管理
+  - 新增 `offline.html` 离线回退页面：美观的离线提示，支持深色模式
+  - 完善 `manifest.json`：添加 PNG 图标、shortcuts 快捷方式、screenshots 截图
+  - Service Worker 重构：基于 Workbox 的多层缓存策略、版本管理、自动更新
+
+### 🔧 改进
+
+- **缓存策略优化**
+  - 静态资源：CacheFirst 策略，7天过期
+  - 图片资源：CacheFirst 策略，30天过期
+  - API 数据：NetworkFirst 策略，支持离线回退
+  - 导航请求：NetworkFirst 策略，超时后返回离线页面
+
+- **主题系统**
+  - localStorage 持久化用户主题偏好
+  - 监听 `prefers-color-scheme` 媒体查询自动适配
+  - 平滑的主题过渡动画
+
+### 📝 文档
+
+- 更新 `PWA_FEATURES.md`：完整的 PWA 和深色模式功能文档
+- 更新 `ROADMAP.md`：标记 PWA 和深色模式任务完成
+
 ## [1.4.1] - 2025-11-30
 
 ### ✨ 新增

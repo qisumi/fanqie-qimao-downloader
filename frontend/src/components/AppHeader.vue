@@ -2,12 +2,14 @@
 import { computed, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { 
-  NLayoutHeader, NSpace, NButton, NIcon, NDropdown, NAvatar, NBadge
+  NLayoutHeader, NSpace, NButton, NIcon, NDropdown, NAvatar, NBadge, NTooltip
 } from 'naive-ui'
 import { 
-  PersonOutline, LogOutOutline, SettingsOutline, MenuOutline 
+  PersonOutline, LogOutOutline, SettingsOutline, MenuOutline,
+  SunnyOutline, MoonOutline, DesktopOutline
 } from '@vicons/ionicons5'
 import { useUserStore } from '@/stores/user'
+import { useThemeStore, ThemeMode } from '@/stores/theme'
 
 const props = defineProps({
   isMobile: {
@@ -21,8 +23,23 @@ const emit = defineEmits(['toggle-menu'])
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const themeStore = useThemeStore()
 
 const pageTitle = computed(() => route.meta.title || '番茄七猫下载器')
+
+// 主题图标组件
+const themeIconComponent = computed(() => {
+  switch (themeStore.mode) {
+    case ThemeMode.LIGHT:
+      return SunnyOutline
+    case ThemeMode.DARK:
+      return MoonOutline
+    case ThemeMode.SYSTEM:
+      return DesktopOutline
+    default:
+      return SunnyOutline
+  }
+})
 
 const userOptions = [
   { label: '设置', key: 'settings', icon: SettingsOutline },
@@ -40,6 +57,10 @@ async function handleUserAction(key) {
 
 function handleToggleMenu() {
   emit('toggle-menu')
+}
+
+function handleToggleTheme() {
+  themeStore.toggleMode()
 }
 </script>
 
@@ -67,6 +88,25 @@ function handleToggleMenu() {
       
       <!-- 右侧区域 -->
       <div class="header-right">
+        <!-- 主题切换按钮 -->
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button 
+              quaternary 
+              circle 
+              class="theme-btn"
+              @click="handleToggleTheme"
+            >
+              <template #icon>
+                <n-icon :size="20">
+                  <component :is="themeIconComponent" />
+                </n-icon>
+              </template>
+            </n-button>
+          </template>
+          {{ themeStore.themeLabel }}
+        </n-tooltip>
+        
         <n-dropdown 
           v-if="userStore.isAuthenticated && userStore.requireAuth"
           :options="userOptions" 
@@ -93,12 +133,13 @@ function handleToggleMenu() {
 .app-header {
   height: var(--header-height, 64px);
   padding: 0 var(--spacing-lg, 24px);
-  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  background: var(--card-bg, #ffffff);
   border-bottom: 1px solid var(--border-color-light, #efeff5);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky, 1020);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .header-content {
@@ -142,6 +183,15 @@ function handleToggleMenu() {
 
 .user-btn:hover {
   transform: scale(1.05);
+}
+
+.theme-btn {
+  transition: transform var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
+}
+
+.theme-btn:hover {
+  transform: scale(1.1);
+  color: var(--primary-color);
 }
 
 /* 移动端适配 */

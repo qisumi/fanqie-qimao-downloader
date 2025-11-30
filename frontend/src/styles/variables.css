@@ -88,3 +88,64 @@
   --breakpoint-xl: 1280px;
   --breakpoint-2xl: 1536px;
 }
+
+/* ===== 深色模式 ===== */
+:root.dark {
+  /* 主色调 - 深色模式下稍微调亮 */
+  --primary-color: #36ad6a;
+  --primary-color-hover: #4ebe7a;
+  --primary-color-pressed: #2d9259;
+  --primary-color-suppl: #36ad6a;
+  
+  --info-color: #4098fc;
+  --success-color: #36ad6a;
+  --warning-color: #fcb040;
+  --error-color: #e05070;
+  
+  /* 背景色 - 深色系 */
+  --bg-color: #101014;
+  --bg-color-secondary: #18181c;
+  --bg-color-tertiary: #1e1e22;
+  --card-bg: #18181c;
+  
+  /* 文字颜色 - 浅色系 */
+  --text-color-primary: #ffffffd9;
+  --text-color-secondary: #ffffff99;
+  --text-color-tertiary: #ffffff66;
+  --text-color-disabled: #ffffff40;
+  
+  /* 边框 */
+  --border-color: #ffffff1a;
+  --border-color-light: #ffffff0f;
+  
+  /* 阴影 - 深色模式下更微妙 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15), 0 1px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 3px 6px -4px rgba(0, 0, 0, 0.3), 0 6px 16px 0 rgba(0, 0, 0, 0.25), 0 9px 28px 8px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 6px 16px -8px rgba(0, 0, 0, 0.25), 0 9px 28px 0 rgba(0, 0, 0, 0.2), 0 12px 48px 16px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 1px 2px -2px rgba(0, 0, 0, 0.25), 0 3px 6px 0 rgba(0, 0, 0, 0.2), 0 5px 12px 4px rgba(0, 0, 0, 0.12);
+  --shadow-card-hover: 0 4px 12px -4px rgba(0, 0, 0, 0.35), 0 8px 24px 0 rgba(0, 0, 0, 0.25);
+  
+  /* 渐变 - 深色模式下调整 */
+  --gradient-primary: linear-gradient(135deg, #36ad6a 0%, #4ebe7a 100%);
+  --gradient-info: linear-gradient(135deg, #4098fc 0%, #60a8ff 100%);
+  --gradient-warning: linear-gradient(135deg, #fcb040 0%, #ffc060 100%);
+  --gradient-error: linear-gradient(135deg, #e05070 0%, #f07080 100%);
+  --gradient-hero: linear-gradient(135deg, #8090f0 0%, #9060c0 100%);
+  --gradient-card: linear-gradient(145deg, #1e1e22 0%, #18181c 100%);
+}
+
+/* 系统偏好深色模式 (作为回退) */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    /* 只在没有手动设置为 light 时应用 */
+  }
+}
+
+/* 主题过渡动画 */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark {
+  color-scheme: dark;
+}
