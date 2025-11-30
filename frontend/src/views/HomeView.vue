@@ -1,13 +1,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { NCard, NGrid, NGi, NStatistic, NSpace, NH2, NIcon, NButton } from 'naive-ui'
-import { BookOutline, DownloadOutline, CloudDownloadOutline, TimeOutline } from '@vicons/ionicons5'
 import { useRouter } from 'vue-router'
 import * as statsApi from '@/api/stats'
+import * as taskApi from '@/api/tasks'
+
+// 子组件
+import WelcomeCard from '@/components/WelcomeCard.vue'
+import StatsGrid from '@/components/StatsGrid.vue'
+import QuickActions from '@/components/QuickActions.vue'
 
 const router = useRouter()
 const rawStats = ref(null)
 const loading = ref(true)
+const activeTasksCount = ref(0)
 
 // 计算属性：从后端数据中提取需要的字段
 const stats = computed(() => {
@@ -36,13 +41,14 @@ const stats = computed(() => {
   return {
     total_books: data.total_books || 0,
     completed_books: completedBooks,
-    active_tasks: 0, // TODO: 从任务API获取
+    active_tasks: activeTasksCount.value,
     today_words: todayWords,
     daily_limit: dailyLimit
   }
 })
 
 onMounted(async () => {
+  fetchActiveTasksCount()
   try {
     const response = await statsApi.getStats()
     rawStats.value = response.data
@@ -52,6 +58,21 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function fetchActiveTasksCount() {
+  try {
+    const [runningResponse, pendingResponse] = await Promise.all([
+      taskApi.listTasks({ status: 'running', limit: 1 }),
+      taskApi.listTasks({ status: 'pending', limit: 1 }),
+    ])
+    const runningTotal = runningResponse?.data?.total || 0
+    const pendingTotal = pendingResponse?.data?.total || 0
+    activeTasksCount.value = runningTotal + pendingTotal
+  } catch (error) {
+    console.error('Failed to load active tasks:', error)
+    activeTasksCount.value = 0
+  }
+}
 
 function goToSearch() {
   router.push({ name: 'search' })
@@ -68,90 +89,23 @@ function goToTasks() {
 
 <template>
   <div class="home-view">
-    <n-space vertical :size="24">
-      <!-- 欢迎区域 -->
-      <n-card>
-        <n-space justify="space-between" align="center">
-          <div>
-            <n-h2 style="margin: 0;">欢迎使用番茄七猫下载器</n-h2>
-            <p style="color: #666; margin: 8px 0 0 0;">
-              支持番茄小说、七猫小说的批量下载和 EPUB 导出
-            </p>
-          </div>
-          <n-button type="primary" size="large" @click="goToSearch">
-            <template #icon>
-              <n-icon><CloudDownloadOutline /></n-icon>
-            </template>
-            搜索书籍
-          </n-button>
-        </n-space>
-      </n-card>
+    <!-- 欢迎区域 -->
+    <WelcomeCard @search="goToSearch" />
 
-      <!-- 统计卡片 -->
-      <n-grid :cols="4" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-        <n-gi span="4 m:2 l:1">
-          <n-card hoverable @click="goToBooks" style="cursor: pointer;">
-            <n-statistic label="书库总数">
-              <template #prefix>
-                <n-icon :size="24" color="#18a058"><BookOutline /></n-icon>
-              </template>
-              {{ stats.total_books }}
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        
-        <n-gi span="4 m:2 l:1">
-          <n-card hoverable @click="goToBooks" style="cursor: pointer;">
-            <n-statistic label="已完成">
-              <template #prefix>
-                <n-icon :size="24" color="#2080f0"><DownloadOutline /></n-icon>
-              </template>
-              {{ stats.completed_books }}
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        
-        <n-gi span="4 m:2 l:1">
-          <n-card hoverable @click="goToTasks" style="cursor: pointer;">
-            <n-statistic label="活跃任务">
-              <template #prefix>
-                <n-icon :size="24" color="#f0a020"><TimeOutline /></n-icon>
-              </template>
-              {{ stats.active_tasks }}
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        
-        <n-gi span="4 m:2 l:1">
-          <n-card>
-            <n-statistic label="今日已用字数">
-              {{ (stats.today_words / 10000).toFixed(1) }}万 / {{ (stats.daily_limit / 10000).toFixed(0) }}万
-            </n-statistic>
-          </n-card>
-        </n-gi>
-      </n-grid>
+    <!-- 统计卡片 -->
+    <StatsGrid 
+      :stats="stats" 
+      :loading="loading"
+      @go-books="goToBooks"
+      @go-tasks="goToTasks"
+    />
 
-      <!-- 快速入口 -->
-      <n-card title="快速入口">
-        <n-grid :cols="3" :x-gap="16" :y-gap="16">
-          <n-gi>
-            <n-button block size="large" @click="goToSearch">
-              搜索新书
-            </n-button>
-          </n-gi>
-          <n-gi>
-            <n-button block size="large" @click="goToBooks">
-              我的书库
-            </n-button>
-          </n-gi>
-          <n-gi>
-            <n-button block size="large" @click="goToTasks">
-              下载任务
-            </n-button>
-          </n-gi>
-        </n-grid>
-      </n-card>
-    </n-space>
+    <!-- 快速入口 -->
+    <QuickActions 
+      @go-search="goToSearch"
+      @go-books="goToBooks"
+      @go-tasks="goToTasks"
+    />
   </div>
 </template>
 

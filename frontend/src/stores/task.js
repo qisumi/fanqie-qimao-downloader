@@ -120,20 +120,12 @@ export const useTaskStore = defineStore('task', () => {
    */
   async function startDownload(bookId, startChapter, endChapter) {
     const response = await taskApi.startDownload(bookId, startChapter, endChapter)
-    const task = response.data
+    const task = response.data || {}
+    const taskId = task.task_id || task.id
     tasks.value.unshift(task)
-    connectWebSocket(task.id)
-    return task
-  }
-  
-  /**
-   * 启动更新任务
-   */
-  async function startUpdate(bookId) {
-    const response = await taskApi.startUpdate(bookId)
-    const task = response.data
-    tasks.value.unshift(task)
-    connectWebSocket(task.id)
+    if (taskId) {
+      connectWebSocket(taskId)
+    }
     return task
   }
   
@@ -159,7 +151,6 @@ export const useTaskStore = defineStore('task', () => {
     disconnectWebSocket,
     disconnectAll,
     startDownload,
-    startUpdate,
     cancelTask
   }
 })

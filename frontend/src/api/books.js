@@ -38,6 +38,14 @@ export function getBook(id) {
 }
 
 /**
+ * 刷新书籍信息
+ * @param {string} id - 书籍UUID
+ */
+export function refreshBook(id) {
+  return api.post(`/books/${id}/refresh`)
+}
+
+/**
  * 获取书籍状态（轻量级，用于轮询）
  * @param {string} id - 书籍UUID
  */

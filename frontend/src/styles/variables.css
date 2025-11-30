@@ -1,0 +1,90 @@
+/**
+ * 设计系统 - CSS变量定义
+ * 包含颜色、间距、动画、阴影等全局变量
+ */
+
+:root {
+  /* ===== 主色调 ===== */
+  --primary-color: #18a058;
+  --primary-color-hover: #36ad6a;
+  --primary-color-pressed: #0c7a43;
+  --primary-color-suppl: #18a058;
+  
+  --info-color: #2080f0;
+  --success-color: #18a058;
+  --warning-color: #f0a020;
+  --error-color: #d03050;
+  
+  /* ===== 背景色 ===== */
+  --bg-color: #f5f7f9;
+  --bg-color-secondary: #ffffff;
+  --bg-color-tertiary: #fafafa;
+  --card-bg: #ffffff;
+  
+  /* ===== 文字颜色 ===== */
+  --text-color-primary: #333639;
+  --text-color-secondary: #666666;
+  --text-color-tertiary: #999999;
+  --text-color-disabled: #c0c4cc;
+  
+  /* ===== 边框 ===== */
+  --border-color: #e0e0e6;
+  --border-color-light: #efeff5;
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  
+  /* ===== 阴影 ===== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 6px 16px -8px rgba(0, 0, 0, 0.08), 0 9px 28px 0 rgba(0, 0, 0, 0.05), 0 12px 48px 16px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 1px 2px -2px rgba(0, 0, 0, 0.08), 0 3px 6px 0 rgba(0, 0, 0, 0.06), 0 5px 12px 4px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px -4px rgba(0, 0, 0, 0.12), 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+  
+  /* ===== 间距 ===== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  
+  /* ===== 布局 ===== */
+  --header-height: 64px;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --content-max-width: 1200px;
+  
+  /* ===== 动画 ===== */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+  --transition-slow: 0.35s ease;
+  
+  /* ===== 渐变 ===== */
+  --gradient-primary: linear-gradient(135deg, #18a058 0%, #36ad6a 100%);
+  --gradient-info: linear-gradient(135deg, #2080f0 0%, #409eff 100%);
+  --gradient-warning: linear-gradient(135deg, #f0a020 0%, #faad14 100%);
+  --gradient-error: linear-gradient(135deg, #d03050 0%, #f56c6c 100%);
+  --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-card: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+  
+  /* ===== Z-index ===== */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
+
+/* 响应式断点变量 (供 JS 使用) */
+:root {
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}

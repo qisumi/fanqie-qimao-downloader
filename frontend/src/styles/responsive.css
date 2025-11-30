@@ -1,0 +1,319 @@
+/**
+ * 响应式布局样式
+ * 包含移动端适配、媒体查询、通用响应式工具类
+ */
+
+/* ===== 基础重置 ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 平滑滚动 */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ===== 响应式容器 ===== */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--spacing-md);
+  padding-right: var(--spacing-md);
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1200px;
+  }
+}
+
+/* ===== 移动端显示/隐藏 ===== */
+.hide-mobile {
+  display: block;
+}
+
+.show-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  .show-mobile {
+    display: block !important;
+  }
+  
+  .show-mobile-flex {
+    display: flex !important;
+  }
+  
+  .show-mobile-inline {
+    display: inline !important;
+  }
+}
+
+/* ===== 移动端间距调整 ===== */
+@media (max-width: 768px) {
+  .mobile-p-0 { padding: 0 !important; }
+  .mobile-p-sm { padding: var(--spacing-sm) !important; }
+  .mobile-p-md { padding: var(--spacing-md) !important; }
+  .mobile-px-sm { padding-left: var(--spacing-sm) !important; padding-right: var(--spacing-sm) !important; }
+  .mobile-px-md { padding-left: var(--spacing-md) !important; padding-right: var(--spacing-md) !important; }
+  .mobile-py-sm { padding-top: var(--spacing-sm) !important; padding-bottom: var(--spacing-sm) !important; }
+  .mobile-py-md { padding-top: var(--spacing-md) !important; padding-bottom: var(--spacing-md) !important; }
+  
+  .mobile-m-0 { margin: 0 !important; }
+  .mobile-m-sm { margin: var(--spacing-sm) !important; }
+  .mobile-mt-0 { margin-top: 0 !important; }
+  .mobile-mb-sm { margin-bottom: var(--spacing-sm) !important; }
+  .mobile-mb-md { margin-bottom: var(--spacing-md) !important; }
+}
+
+/* ===== 移动端字体大小 ===== */
+@media (max-width: 768px) {
+  .mobile-text-xs { font-size: 12px !important; }
+  .mobile-text-sm { font-size: 13px !important; }
+  .mobile-text-base { font-size: 14px !important; }
+  .mobile-text-lg { font-size: 16px !important; }
+}
+
+/* ===== Flex 工具类 ===== */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+.flex-shrink-0 { flex-shrink: 0; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+.gap-xs { gap: var(--spacing-xs); }
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
+.gap-lg { gap: var(--spacing-lg); }
+
+@media (max-width: 768px) {
+  .mobile-flex-col { flex-direction: column !important; }
+  .mobile-flex-wrap { flex-wrap: wrap !important; }
+  .mobile-items-stretch { align-items: stretch !important; }
+  .mobile-gap-sm { gap: var(--spacing-sm) !important; }
+  .mobile-gap-md { gap: var(--spacing-md) !important; }
+}
+
+/* ===== 宽度工具类 ===== */
+.w-full { width: 100%; }
+.min-w-0 { min-width: 0; }
+.max-w-full { max-width: 100%; }
+
+@media (max-width: 768px) {
+  .mobile-w-full { width: 100% !important; }
+}
+
+/* ===== 文本工具类 ===== */
+.text-center { text-align: center; }
+.text-ellipsis { 
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.text-truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ===== 动画效果 ===== */
+.transition-base {
+  transition: all var(--transition-base);
+}
+
+.hover-lift {
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.hover-scale {
+  transition: transform var(--transition-fast);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* ===== 卡片美化 ===== */
+.card-enhanced {
+  background: var(--card-bg);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-base), transform var(--transition-base);
+}
+
+.card-enhanced:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.card-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* ===== 渐变背景 ===== */
+.bg-gradient-hero {
+  background: var(--gradient-hero);
+}
+
+.bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+
+/* ===== 触摸优化 ===== */
+@media (max-width: 768px) {
+  /* 更大的点击区域 */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 防止长按选择 */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* 平滑滚动容器 */
+  .scroll-smooth {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* ===== 安全区域适配 (iPhone 刘海屏等) ===== */
+@supports (padding: max(0px)) {
+  .safe-area-inset {
+    padding-left: max(var(--spacing-md), env(safe-area-inset-left));
+    padding-right: max(var(--spacing-md), env(safe-area-inset-right));
+    padding-bottom: max(var(--spacing-md), env(safe-area-inset-bottom));
+  }
+}
+
+/* ===== 骨架屏动画 ===== */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: var(--border-radius-sm);
+}
+
+/* ===== 淡入动画 ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ===== 滑入动画 ===== */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* ===== 脉冲动画 ===== */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

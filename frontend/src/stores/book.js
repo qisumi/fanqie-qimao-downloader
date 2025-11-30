@@ -73,6 +73,27 @@ export const useBookStore = defineStore('book', () => {
   }
   
   /**
+   * 刷新书籍信息
+   */
+  async function refreshBook(id) {
+    try {
+      const response = await bookApi.refreshBook(id)
+      const updatedBook = response.data
+      const index = books.value.findIndex(b => b.id === id)
+      if (index !== -1) {
+        books.value[index] = { ...books.value[index], ...updatedBook }
+      }
+      if (currentBook.value?.id === id) {
+        Object.assign(currentBook.value, updatedBook)
+      }
+      return updatedBook
+    } catch (error) {
+      console.error('Failed to refresh book:', error)
+      throw error
+    }
+  }
+  
+  /**
    * 搜索书籍
    */
   async function searchBooks(platform, keyword, page = 0) {
@@ -165,6 +186,7 @@ export const useBookStore = defineStore('book', () => {
     deleteBook,
     generateEpub,
     clearSearch,
-    updateCurrentBookProgress
+    updateCurrentBookProgress,
+    refreshBook
   }
 })

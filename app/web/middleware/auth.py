@@ -25,6 +25,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     EXCLUDE_PATHS = [
         "/login",
         "/static",
+        "/assets",  # 前端构建产物
         "/health",
         "/docs",
         "/redoc",
@@ -32,6 +33,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/ws",  # WebSocket 路由使用单独的认证机制
         "/api/auth",  # 认证 API 不需要预先认证
     ]
+    
+    # 不需要认证的静态文件扩展名
+    STATIC_EXTENSIONS = (
+        ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
+        ".woff", ".woff2", ".ttf", ".eot", ".json", ".webmanifest"
+    )
     
     COOKIE_NAME = "auth_token"
     
@@ -42,7 +49,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
     
     def _is_excluded_path(self, path: str) -> bool:
         """检查路径是否在排除列表中"""
-        return any(path.startswith(prefix) for prefix in self.EXCLUDE_PATHS)
+        # 检查路径前缀
+        if any(path.startswith(prefix) for prefix in self.EXCLUDE_PATHS):
+            return True
+        # 检查静态文件扩展名
+        if path.lower().endswith(self.STATIC_EXTENSIONS):
+            return True
+        return False
     
     def _is_authenticated(self, request: Request) -> bool:
         """检查请求是否已认证"""

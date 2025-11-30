@@ -3,6 +3,10 @@ import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
 
+// Global styles
+import './styles/variables.css'
+import './styles/responsive.css'
+
 // PWA modules (optional - can be used later)
 // import { PWAInstall } from './pwa/install.js'
 // import { PWAUpdate } from './pwa/update.js'

@@ -2,9 +2,10 @@ import api from './index'
 
 /**
  * 获取任务列表
+ * @param {Object} params - 查询参数
  */
-export function listTasks() {
-  return api.get('/tasks/')
+export function listTasks(params = {}) {
+  return api.get('/tasks/', { params })
 }
 
 /**
@@ -26,14 +27,6 @@ export function startDownload(bookId, startChapter, endChapter) {
   if (startChapter !== undefined) params.start_chapter = startChapter
   if (endChapter !== undefined) params.end_chapter = endChapter
   return api.post(`/tasks/${bookId}/download`, null, { params })
-}
-
-/**
- * 启动书籍更新任务
- * @param {string} bookId - 书籍UUID
- */
-export function startUpdate(bookId) {
-  return api.post(`/tasks/${bookId}/update`)
 }
 
 /**

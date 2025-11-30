@@ -85,8 +85,19 @@ if os.path.exists(FRONTEND_DIR):
     async def serve_spa(full_path: str):
         """SPA 前端路由，未匹配的路径返回 index.html"""
         file_path = os.path.join(FRONTEND_DIR, full_path)
+        # 静态文件直接返回
         if os.path.isfile(file_path):
+            # 根据文件扩展名设置正确的 MIME 类型
+            if full_path.endswith('.json'):
+                return FileResponse(file_path, media_type='application/json')
+            if full_path.endswith('.js'):
+                return FileResponse(file_path, media_type='application/javascript')
+            if full_path.endswith('.css'):
+                return FileResponse(file_path, media_type='text/css')
+            if full_path.endswith('.svg'):
+                return FileResponse(file_path, media_type='image/svg+xml')
             return FileResponse(file_path)
+        # 其他路径返回 index.html（SPA 路由）
         return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
