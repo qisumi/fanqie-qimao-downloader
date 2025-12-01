@@ -5,7 +5,10 @@ import * as taskApi from '@/api/tasks'
 export const useTaskStore = defineStore('task', () => {
   const tasks = ref([])
   const loading = ref(false)
+  // taskId -> connection meta: { ws, heartbeat, reconnectAttempts, reconnectTimer, pollTimer }
   const wsConnections = ref(new Map())
+  const maxReconnectAttempts = 5
+  const heartbeatIntervalMs = 15000
   
   // 活跃任务（运行中或等待中）
   const activeTasks = computed(() => 
@@ -50,55 +53,219 @@ export const useTaskStore = defineStore('task', () => {
    * 建立 WebSocket 连接
    */
   function connectWebSocket(taskId) {
-    if (wsConnections.value.has(taskId)) return
+    if (!taskId) return
+    
+    const existing = wsConnections.value.get(taskId)
+    if (existing?.ws && (
+      existing.ws.readyState === WebSocket.OPEN || 
+      existing.ws.readyState === WebSocket.CONNECTING
+    )) {
+      return
+    }
+    
+    cleanupConnection(taskId)
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/tasks/${taskId}`)
+    let ws
+    try {
+      ws = new WebSocket(`${protocol}//${window.location.host}/ws/tasks/${taskId}`)
+    } catch (error) {
+      console.error(`Failed to create WebSocket for task ${taskId}:`, error)
+      startPolling(taskId)
+      return
+    }
+    
+    const connection = {
+      ws,
+      heartbeat: null,
+      reconnectAttempts: existing?.reconnectAttempts || 0,
+      reconnectTimer: null,
+      pollTimer: null,
+    }
+    wsConnections.value.set(taskId, connection)
     
     ws.onopen = () => {
       console.log(`WebSocket connected for task ${taskId}`)
+      connection.reconnectAttempts = 0
+      stopPolling(taskId)
+      startHeartbeat(taskId)
     }
     
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'progress') {
-        updateTaskProgress(taskId, data.data)
-      } else if (data.type === 'completed') {
-        handleTaskCompleted(taskId, data.data)
+      try {
+        const data = JSON.parse(event.data)
+        switch (data.type) {
+          case 'progress':
+            updateTaskProgress(taskId, data.data)
+            break
+          case 'completed':
+            handleTaskCompleted(taskId, data.data)
+            stopHeartbeat(taskId)
+            stopPolling(taskId)
+            break
+          case 'pong':
+            // 心跳响应
+            break
+          default:
+            console.warn(`Unknown WebSocket message for task ${taskId}:`, data.type)
+        }
+      } catch (error) {
+        console.error(`Failed to parse WebSocket message for task ${taskId}:`, error)
       }
     }
     
     ws.onerror = (error) => {
       console.error(`WebSocket error for task ${taskId}:`, error)
+      stopHeartbeat(taskId)
     }
     
-    ws.onclose = () => {
-      console.log(`WebSocket closed for task ${taskId}`)
-      wsConnections.value.delete(taskId)
+    ws.onclose = (event) => {
+      console.log(`WebSocket closed for task ${taskId}:`, event.code, event.reason)
+      stopHeartbeat(taskId)
+      stopPolling(taskId)
+      
+      const existingConnection = wsConnections.value.get(taskId) || { reconnectAttempts: 0 }
+      existingConnection.ws = null
+      wsConnections.value.set(taskId, existingConnection)
+      
+      if (event.code === 4001) {
+        console.error(`WebSocket unauthorized for task ${taskId}, falling back to polling`)
+        startPolling(taskId)
+        return
+      }
+      
+      if (isTaskActive(taskId)) {
+        attemptReconnect(taskId)
+      } else {
+        wsConnections.value.delete(taskId)
+      }
     }
-    
-    wsConnections.value.set(taskId, ws)
   }
   
   /**
    * 断开 WebSocket 连接
    */
   function disconnectWebSocket(taskId) {
-    const ws = wsConnections.value.get(taskId)
-    if (ws) {
-      ws.close()
-      wsConnections.value.delete(taskId)
+    const connection = wsConnections.value.get(taskId)
+    if (connection?.ws) {
+      connection.ws.close()
     }
+    cleanupConnection(taskId)
   }
   
   /**
    * 断开所有连接
    */
   function disconnectAll() {
-    wsConnections.value.forEach((ws, taskId) => {
-      ws.close()
+    wsConnections.value.forEach((_conn, taskId) => {
+      disconnectWebSocket(taskId)
     })
     wsConnections.value.clear()
+  }
+
+  function cleanupConnection(taskId) {
+    const connection = wsConnections.value.get(taskId)
+    if (!connection) return
+    
+    stopHeartbeat(taskId)
+    stopPolling(taskId)
+    
+    if (connection.reconnectTimer) {
+      clearTimeout(connection.reconnectTimer)
+    }
+    
+    if (connection.ws && (
+      connection.ws.readyState === WebSocket.OPEN ||
+      connection.ws.readyState === WebSocket.CONNECTING
+    )) {
+      connection.ws.close()
+    }
+    
+    wsConnections.value.delete(taskId)
+  }
+  
+  function isTaskActive(taskId) {
+    const task = tasks.value.find(t => t.id === taskId)
+    return task && (task.status === 'running' || task.status === 'pending')
+  }
+  
+  function attemptReconnect(taskId) {
+    const connection = wsConnections.value.get(taskId) || { reconnectAttempts: 0 }
+    if (connection.reconnectAttempts >= maxReconnectAttempts) {
+      console.warn(`Max reconnect attempts reached for task ${taskId}, switching to polling`)
+      startPolling(taskId)
+      return
+    }
+    
+    const delay = Math.min(1000 * Math.pow(2, connection.reconnectAttempts), 30000)
+    connection.reconnectAttempts += 1
+    connection.reconnectTimer = setTimeout(() => {
+      connectWebSocket(taskId)
+    }, delay)
+    wsConnections.value.set(taskId, connection)
+  }
+  
+  function startHeartbeat(taskId) {
+    const connection = wsConnections.value.get(taskId)
+    if (!connection?.ws) return
+    
+    stopHeartbeat(taskId)
+    connection.heartbeat = setInterval(() => {
+      if (connection.ws?.readyState === WebSocket.OPEN) {
+        try {
+          connection.ws.send(JSON.stringify({ type: 'ping' }))
+        } catch (error) {
+          console.error(`Failed to send heartbeat for task ${taskId}:`, error)
+        }
+      }
+    }, heartbeatIntervalMs)
+  }
+  
+  function stopHeartbeat(taskId) {
+    const connection = wsConnections.value.get(taskId)
+    if (connection?.heartbeat) {
+      clearInterval(connection.heartbeat)
+      connection.heartbeat = null
+    }
+  }
+  
+  function startPolling(taskId) {
+    const connection = wsConnections.value.get(taskId) || { reconnectAttempts: 0 }
+    if (connection.pollTimer) return
+    
+    connection.pollTimer = setInterval(() => refreshTaskStatus(taskId), 3000)
+    wsConnections.value.set(taskId, connection)
+  }
+  
+  function stopPolling(taskId) {
+    const connection = wsConnections.value.get(taskId)
+    if (connection?.pollTimer) {
+      clearInterval(connection.pollTimer)
+      connection.pollTimer = null
+    }
+  }
+  
+  async function refreshTaskStatus(taskId) {
+    if (!taskId) return
+    try {
+      const response = await taskApi.getTask(taskId)
+      const data = response.data
+      if (!data) return
+      
+      const task = tasks.value.find(t => t.id === taskId)
+      if (task) {
+        Object.assign(task, data)
+      } else {
+        tasks.value.unshift(data)
+      }
+      
+      if (!isTaskActive(taskId)) {
+        stopPolling(taskId)
+        disconnectWebSocket(taskId)
+      }
+    } catch (error) {
+      console.error(`Failed to refresh task ${taskId}:`, error)
+    }
   }
   
   /**

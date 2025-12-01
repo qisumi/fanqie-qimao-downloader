@@ -1,6 +1,13 @@
 # FanqieQimaoDownloader - 路线图
 
 
+## 最新进展（v1.4.3）
+
+- [x] Book/Download 服务拆分为可组合的 mixin 模块，任务/配额逻辑独立
+- [x] API 路由模块化（books_* / tasks_* 聚合）
+- [x] PWA 安装/更新/离线横幅与状态管理统一到 `usePwaManager`
+- [x] 端到端测试拆分覆盖完整下载、增量更新与错误响应
+
 ## 待修复/待实现任务
 
 ### 高优先级

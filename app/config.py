@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     download_delay: float = 0.5
 
     # Web服务配置
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 4568
     debug: bool = True
     reload: bool = True

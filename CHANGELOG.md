@@ -7,6 +7,23 @@
 
 ## [Unreleased]
 
+## [1.4.3] - 2025-12-02
+
+### ♻️ 重构
+
+- 后端服务拆分为可组合的 mixin：`BookService` 拆出搜索/查询/更新/删除模块，`DownloadService` 拆出任务管理、并发下载、配额/取消等模块，降低单文件复杂度
+- API 路由按职责拆分为子模块（books_search/books_crud/books_status/...、tasks_list/tasks_quota/tasks_start/tasks_control），由聚合路由集中注册
+
+### ✨ 新增
+
+- PWA 体验提升：新增安装/离线/更新三类横幅组件与 `usePwaManager` 组合式 API，支持延迟弹出、跳过版本、离线提示与 Service Worker 版本控制
+- 任务 WebSocket 更健壮：心跳、指数回退重连与轮询兜底并存，自动为活跃任务建立连接，确保下载进度实时可见
+- EPUB 默认样式：内置 `epub_default.css`，统一封面、章节标题与段落排版
+
+### 🧪 测试
+
+- 端到端测试拆分为独立用例集，覆盖完整下载流程、增量更新、API 错误响应、并发下载与 EPUB 生成；新增 pytest fixtures（`conftest.py`、结构化测试数据）并移除旧版单文件 E2E 用例
+
 ## [1.4.2] - 2025-11-30
 
 ### ✨ 新增

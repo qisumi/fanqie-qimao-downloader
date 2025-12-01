@@ -26,6 +26,9 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+CSS_PATH = Path(__file__).with_name("epub_default.css")
+
+
 class EPUBService:
     """
     EPUB生成服务
@@ -39,72 +42,11 @@ class EPUBService:
     - 元数据完整（书名、作者、语言等）
     """
     
-    # CSS样式
-    DEFAULT_CSS = """
-    @namespace epub "http://www.idpf.org/2007/ops";
-    
-    body {
-        font-family: "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-        font-size: 1em;
-        line-height: 1.8;
-        margin: 1em;
-        text-align: justify;
-    }
-    
-    h1 {
-        font-size: 1.5em;
-        font-weight: bold;
-        margin: 1em 0 0.5em 0;
-        text-align: center;
-    }
-    
-    h2 {
-        font-size: 1.3em;
-        font-weight: bold;
-        margin: 1em 0 0.5em 0;
-        text-align: center;
-        color: #333;
-    }
-    
-    p {
-        margin: 0.5em 0;
-        text-indent: 2em;
-    }
-    
-    .cover {
-        text-align: center;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .cover img {
-        max-width: 100%;
-        max-height: 100%;
-    }
-    
-    .volume-title {
-        font-size: 1.4em;
-        font-weight: bold;
-        margin: 2em 0 1em 0;
-        text-align: center;
-        color: #666;
-        border-bottom: 1px solid #ddd;
-        padding-bottom: 0.5em;
-    }
-    
-    .chapter-title {
-        font-size: 1.2em;
-        font-weight: bold;
-        margin: 1.5em 0 1em 0;
-        text-align: center;
-    }
-    
-    .info {
-        text-align: center;
-        color: #666;
-        margin: 1em 0;
-    }
-    """
+    try:
+        DEFAULT_CSS = CSS_PATH.read_text(encoding="utf-8")
+    except Exception:
+        logger.warning("Failed to load default EPUB CSS, using empty fallback")
+        DEFAULT_CSS = ""
     
     def __init__(
         self,

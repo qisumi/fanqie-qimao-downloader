@@ -1,6 +1,6 @@
 # FanqieQimaoDownloader
 
-[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.4.1)
+[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.4.3)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -131,7 +131,7 @@ python start.py
 或者使用uvicorn：
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 4568 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 4568 --reload
 ```
 
 访问 http://localhost:4568 开始使用。
@@ -265,7 +265,7 @@ CONCURRENT_DOWNLOADS=3
 DOWNLOAD_DELAY=0.5
 
 # 服务配置
-HOST=0.0.0.0
+HOST=127.0.0.1
 PORT=4568
 DEBUG=false  # 生产环境设为 false
 LOG_LEVEL=INFO
@@ -278,7 +278,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 ## PWA (Progressive Web App)
 
-项目包含对 PWA 的完整支持（manifest、service worker、离线回退、安装与更新提示等）。
+项目包含对 PWA 的完整支持（manifest、service worker、离线回退、安装与更新提示等），并提供安装/更新/离线横幅与统一的 `usePwaManager` 管理。
 
 详细实现、调试与设计要点见：`docs/PWA_FEATURES.md`。
 
@@ -286,7 +286,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 ## 📊 开发状态
 
-**当前版本: v1.4.0** 🎉
+**当前版本: v1.4.3** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|

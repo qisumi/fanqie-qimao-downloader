@@ -5,8 +5,8 @@
 基于 Rain API V3 的番茄小说和七猫小说下载工具，支持批量下载和 EPUB 导出。
 
 - **技术栈**: Python + FastAPI + SQLAlchemy + SQLite + Vue 3 + Naive UI
-- **版本**: v1.4.0 (Vue 3 前端迁移完成)
-- **测试**: 98 个测试用例
+- **版本**: v1.4.3（服务/路由拆分 + PWA 状态管理优化）
+- **测试**: 单元 + 端到端（新增多文件 E2E 场景覆盖）
 
 ## Architecture
 
@@ -42,22 +42,40 @@ app/                    # 后端应用
 ├── schemas/            # Pydantic模型
 │   ├── api_responses.py    # API响应模型
 │   └── service_schemas.py  # 服务层模型
-├── services/           # 业务逻辑
-│   ├── storage_service.py  # 文件存储
-│   ├── book_service.py     # 书籍管理
-│   ├── download_service.py # 下载管理
-│   └── epub_service.py     # EPUB生成
+├── services/           # 业务逻辑（聚合类 + mixin 拆分）
+│   ├── storage_service.py          # 文件存储
+│   ├── book_service.py             # 书籍聚合
+│   ├── book_service_base.py        # 平台客户端选择
+│   ├── book_service_add.py         # 搜索/添加
+│   ├── book_service_query.py       # 列表/统计
+│   ├── book_service_update.py      # 增量更新/状态刷新
+│   ├── book_service_delete.py      # 删除
+│   ├── download_service.py         # 下载聚合
+│   ├── download_service_base.py    # 公共初始化、配额
+│   ├── download_service_tasks.py   # 任务管理
+│   ├── download_service_operations.py # 并发章节下载/重试
+│   ├── download_service_quota.py   # 配额查询与速率限制
+│   └── epub_service.py             # EPUB生成
 ├── utils/              # 工具函数
 │   ├── database.py     # 数据库连接
 │   ├── logger.py       # 日志管理
 │   └── rate_limiter.py # 速率限制
 ├── web/                # Web层
-│   ├── routes/         # API路由
-│   │   ├── books.py    # /api/books
-│   │   ├── tasks.py    # /api/tasks
-│   │   ├── stats.py    # /api/stats
-│   │   ├── auth.py     # /api/auth
-│   │   └── ws.py       # WebSocket路由
+│   ├── routes/         # API路由（聚合 + 子模块）
+│   │   ├── books.py            # /api/books 聚合
+│   │   ├── books_search.py     # 搜索
+│   │   ├── books_crud.py       # 创建/列表/详情
+│   │   ├── books_status.py     # 轻量状态与章节摘要
+│   │   ├── books_maintenance.py # 刷新/增量/删除
+│   │   ├── books_epub.py       # EPUB 生成/下载
+│   │   ├── tasks.py            # /api/tasks 聚合
+│   │   ├── tasks_list.py       # 列表/详情
+│   │   ├── tasks_quota.py      # 配额查询
+│   │   ├── tasks_start.py      # 下载/更新触发与后台执行
+│   │   ├── tasks_control.py    # 取消/重试
+│   │   ├── stats.py            # /api/stats
+│   │   ├── auth.py             # /api/auth
+│   │   └── ws.py               # WebSocket路由
 │   ├── middleware/
 │   │   └── auth.py     # 认证中间件
 │   ├── websocket.py    # WebSocket连接管理器
@@ -145,7 +163,9 @@ settings.app_password        # 应用密码 (可选)
 # PWA 文件位置
 - `frontend/public/manifest.json` — Web 应用清单（manifest）
 - `frontend/src/sw.js` — Service Worker
-- `frontend/src/pwa/` — PWA 相关组件和逻辑
+- `frontend/src/components/pwa/` — 安装/更新/离线提示组件
+- `frontend/src/composables/usePwaManager.js` — PWA 状态与提示管理
+- `frontend/src/pwa/update.js` — 前端更新检测逻辑
 - 图标目录：`app/web/static/images/`（包含 `icon-64.png`, `icon-192.png`, `icon-512.png`, `icon.svg`）
 ```
 

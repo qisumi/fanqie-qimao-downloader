@@ -40,7 +40,7 @@ services:
       - DOWNLOAD_DELAY=${DOWNLOAD_DELAY:-0.5}
       
       # 服务配置
-      - HOST=0.0.0.0
+      - HOST=127.0.0.1
       - PORT=4568
       - DEBUG=${DEBUG:-false}
       - RELOAD=false

@@ -240,7 +240,7 @@ python init_db.py
 python start.py
 
 # 或直接使用 uvicorn
-python -m uvicorn app.main:app --host 0.0.0.0 --port 4568
+python -m uvicorn app.main:app --host 127.0.0.1 --port 4568
 ```
 
 #### 8. 设置开机自启动（可选）
@@ -475,7 +475,7 @@ sudo systemctl reload nginx
 | `DAILY_WORD_LIMIT` | `20000000` | 每日字数限制 (2000万) |
 | `CONCURRENT_DOWNLOADS` | `3` | 并发下载数 |
 | `DOWNLOAD_DELAY` | `0.5` | 下载间隔 (秒) |
-| `HOST` | `0.0.0.0` | 监听地址 |
+| `HOST` | `127.0.0.1` | 监听地址 |
 | `PORT` | `4568` | 监听端口 |
 | `DEBUG` | `true` | 调试模式 |
 | `RELOAD` | `true` | 热重载 |
