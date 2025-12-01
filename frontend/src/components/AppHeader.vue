@@ -26,6 +26,12 @@ const userStore = useUserStore()
 const themeStore = useThemeStore()
 
 const pageTitle = computed(() => route.meta.title || '番茄七猫下载器')
+const userInitial = computed(() => {
+  if (userStore.currentUsername) {
+    return userStore.currentUsername[0].toUpperCase()
+  }
+  return 'U'
+})
 
 // 主题图标组件
 const themeIconComponent = computed(() => {
@@ -51,7 +57,7 @@ async function handleUserAction(key) {
     await userStore.logout()
     router.push({ name: 'login' })
   } else if (key === 'settings') {
-    // TODO: 跳转到设置页面
+    router.push({ name: 'settings' })
   }
 }
 
@@ -120,7 +126,7 @@ function handleToggleTheme() {
               color="#18a058"
               style="font-size: 14px;"
             >
-              U
+              {{ userInitial }}
             </n-avatar>
           </n-button>
         </n-dropdown>

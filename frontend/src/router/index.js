@@ -33,6 +33,12 @@ const routes = [
     meta: { title: '下载任务' }
   },
   {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('@/views/SettingsView.vue'),
+    meta: { title: '设置' }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/LoginView.vue'),

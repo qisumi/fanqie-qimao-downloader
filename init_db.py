@@ -6,7 +6,7 @@
 from app.utils.database import Base, engine
 
 # 导入所有模型，确保它们被注册到 Base.metadata
-from app.models import Book, Chapter, DownloadTask, DailyQuota
+from app.models import Book, Chapter, DownloadTask, DailyQuota, User, UserBook
 
 def init_database():
     """初始化数据库，创建所有表"""

@@ -1,6 +1,6 @@
 # FanqieQimaoDownloader
 
-[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.4.3)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.5.0)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -17,6 +17,7 @@
 - ⚡ **高性能** - 异步架构，并发控制
 - 📊 **任务管理** - 实时进度跟踪
 - 🔒 **密码保护** - 可选的访问密码保护
+- 👥 **公共+私人书架** - 共用访问密码，可按用户名切换私人书架，公共书架与任务状态共享
 - 🔐 **配额保护** - 自动速率限制（每日2000万字）
 - 🌐 **PWA 支持** - 完整的PWA功能，包括安装提示、自动更新、离线支持和骨架屏加载效果
 
@@ -286,7 +287,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 ## 📊 开发状态
 
-**当前版本: v1.4.3** 🎉
+**当前版本: v1.5.0** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|

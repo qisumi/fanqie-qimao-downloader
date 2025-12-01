@@ -47,6 +47,11 @@ const menuOptions = [
     label: '下载任务',
     key: 'tasks',
     icon: renderIcon(DownloadOutline)
+  },
+  {
+    label: '设置',
+    key: 'settings',
+    icon: renderIcon(SettingsOutline)
   }
 ]
 
@@ -90,8 +95,8 @@ function handleMenuSelect(key) {
     
     <!-- 底部信息 -->
     <div v-if="!collapsed" class="sidebar-footer">
-      <div class="version-info">
-        <span class="version-label">v1.4.3</span>
+<div class="version-info">
+        <span class="version-label">v1.5.0</span>
       </div>
     </div>
   </div>

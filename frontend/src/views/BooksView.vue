@@ -1,26 +1,29 @@
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
-  NCard, NGrid, NGi, NSpace, NEmpty, NSpin, NButton, 
-  NSelect, NInput, NIcon, NTag, NImage, NCollapse, NCollapseItem,
+  NGrid, NGi, NSpace, NEmpty, NSpin, NButton, 
+  NSelect, NInput, NIcon, NTabs, NTabPane, NAlert, NTag,
   useMessage
 } from 'naive-ui'
-import { RefreshOutline, TrashOutline, DownloadOutline, FilterOutline, SearchOutline } from '@vicons/ionicons5'
+import { RefreshOutline, FilterOutline, SearchOutline } from '@vicons/ionicons5'
 import { useBookStore } from '@/stores/book'
 import { useTaskStore } from '@/stores/task'
+import { useUserStore } from '@/stores/user'
 import BookCard from '@/components/BookCard.vue'
 
 const router = useRouter()
 const message = useMessage()
 const bookStore = useBookStore()
 const taskStore = useTaskStore()
+const userStore = useUserStore()
 const isMobile = inject('isMobile', ref(false))
 
 const filterPlatform = ref(null)
 const filterStatus = ref(null)
 const searchKeyword = ref('')
 const showFilters = ref(false)
+const activeTab = ref('public')
 
 const platformOptions = [
   { label: '全部平台', value: null },
@@ -36,9 +39,10 @@ const statusOptions = [
 ]
 
 const loading = computed(() => bookStore.loading)
+const userShelfLoading = computed(() => bookStore.userBooksLoading)
 
-const filteredBooks = computed(() => {
-  let result = bookStore.books
+function filterBooks(list) {
+  let result = list
   
   if (filterPlatform.value) {
     result = result.filter(b => b.platform === filterPlatform.value)
@@ -57,18 +61,48 @@ const filteredBooks = computed(() => {
   }
   
   return result
-})
+}
+
+const filteredBooks = computed(() => filterBooks(bookStore.books))
+const filteredUserBooks = computed(() => filterBooks(bookStore.userBooks))
 
 const hasFilters = computed(() => {
   return filterPlatform.value || filterStatus.value || searchKeyword.value
 })
 
-onMounted(() => {
-  bookStore.fetchBooks()
+const hasUser = computed(() => !!userStore.currentUserId)
+const currentUserLabel = computed(() => userStore.currentUsername || '未选择')
+
+onMounted(async () => {
+  await userStore.initUserContext()
+  await bookStore.fetchBooks()
+  if (userStore.currentUserId) {
+    await bookStore.fetchUserBooks(userStore.currentUserId)
+  }
+})
+
+watch(
+  () => userStore.currentUserId,
+  async (id) => {
+    if (id) {
+      await bookStore.fetchUserBooks(id)
+    } else {
+      await bookStore.fetchUserBooks(null)
+    }
+  }
+)
+
+watch(activeTab, async (tab) => {
+  if (tab === 'private' && userStore.currentUserId && bookStore.userBooks.length === 0) {
+    await bookStore.fetchUserBooks(userStore.currentUserId)
+  }
 })
 
 async function refreshBooks() {
   await bookStore.fetchBooks()
+  if (userStore.currentUserId) {
+    await bookStore.fetchUserBooks(userStore.currentUserId)
+  }
   message.success('书库已刷新')
 }
 
@@ -89,6 +123,9 @@ async function deleteBook(book) {
   try {
     await bookStore.deleteBook(book.id)
     message.success(`《${book.title}》已删除`)
+    if (userStore.currentUserId) {
+      await bookStore.fetchUserBooks(userStore.currentUserId)
+    }
   } catch (error) {
     message.error('删除失败')
   }
@@ -99,6 +136,26 @@ function clearFilters() {
   filterStatus.value = null
   searchKeyword.value = ''
 }
+
+async function toggleShelf(book) {
+  if (!userStore.currentUserId) {
+    message.warning('请先在设置中选择用户名')
+    router.push({ name: 'settings' })
+    return
+  }
+  try {
+    if (bookStore.isInUserShelf(book.id)) {
+      await bookStore.removeFromUserShelf(userStore.currentUserId, book.id)
+      message.success('已从私人书架移除')
+    } else {
+      await bookStore.addToUserShelf(userStore.currentUserId, book.id)
+      message.success('已加入私人书架')
+    }
+  } catch (error) {
+    const msg = error.response?.data?.detail || error.message || '操作失败'
+    message.error(msg)
+  }
+}
 </script>
 
 <template>
@@ -106,8 +163,14 @@ function clearFilters() {
     <!-- 页面标题和工具栏 -->
     <div class="page-header">
       <div class="header-left">
-        <h2 class="page-title">我的书库</h2>
-        <span class="book-count">共 {{ filteredBooks.length }} 本书</span>
+        <h2 class="page-title">书架</h2>
+        <span class="book-count">
+          公共 {{ filteredBooks.length }} 本 · 私人 {{ filteredUserBooks.length }} 本
+        </span>
+        <n-tag v-if="hasUser" type="success" size="small" round>
+          当前用户：{{ currentUserLabel }}
+        </n-tag>
+        <n-tag v-else type="warning" size="small" round>未选择用户</n-tag>
       </div>
       <n-space :size="8">
         <n-button 
@@ -167,55 +230,118 @@ function clearFilters() {
       </div>
     </transition>
 
-    <!-- 书籍列表 -->
-    <n-spin :show="loading">
-      <template v-if="filteredBooks.length > 0">
-        <n-grid 
-          :cols="isMobile ? 1 : 2" 
-          :x-gap="16" 
-          :y-gap="16"
-          class="book-grid"
-        >
-          <n-gi 
-            v-for="book in filteredBooks" 
-            :key="book.id"
-          >
-            <BookCard 
-              :book="book"
-              :compact="isMobile"
-              @click="goToDetail(book)"
-              @download="startDownload(book)"
-              @delete="deleteBook(book)"
-            />
-          </n-gi>
-        </n-grid>
-      </template>
-      
-      <n-empty v-else class="empty-state">
-        <template #icon>
-          <div class="empty-icon">📚</div>
-        </template>
-        <template #description>
-          <span class="empty-text">{{ hasFilters ? '没有找到匹配的书籍' : '书库为空，去搜索添加一些书籍吧' }}</span>
-        </template>
-        <template #extra>
-          <n-space :size="12">
-            <n-button 
-              v-if="hasFilters"
-              @click="clearFilters"
+    <n-tabs v-model:value="activeTab" type="line" animated>
+      <n-tab-pane name="public" tab="公共书架">
+        <n-spin :show="loading">
+          <template v-if="filteredBooks.length > 0">
+            <n-grid 
+              :cols="isMobile ? 1 : 2" 
+              :x-gap="16" 
+              :y-gap="16"
+              class="book-grid"
             >
-              清除筛选
-            </n-button>
-            <n-button 
-              type="primary" 
-              @click="router.push({ name: 'search' })"
-            >
-              搜索书籍
-            </n-button>
-          </n-space>
+              <n-gi 
+                v-for="book in filteredBooks" 
+                :key="book.id"
+              >
+                <BookCard 
+                  :book="book"
+                  :compact="isMobile"
+                  :can-toggle-shelf="hasUser"
+                  :in-shelf="bookStore.isInUserShelf(book.id)"
+                  @click="goToDetail(book)"
+                  @download="startDownload(book)"
+                  @delete="deleteBook(book)"
+                  @toggle-shelf="toggleShelf(book)"
+                />
+              </n-gi>
+            </n-grid>
+          </template>
+          
+          <n-empty v-else class="empty-state">
+            <template #icon>
+              <div class="empty-icon">📚</div>
+            </template>
+            <template #description>
+              <span class="empty-text">{{ hasFilters ? '没有找到匹配的书籍' : '书库为空，去搜索添加一些书籍吧' }}</span>
+            </template>
+            <template #extra>
+              <n-space :size="12">
+                <n-button 
+                  v-if="hasFilters"
+                  @click="clearFilters"
+                >
+                  清除筛选
+                </n-button>
+                <n-button 
+                  type="primary" 
+                  @click="router.push({ name: 'search' })"
+                >
+                  搜索书籍
+                </n-button>
+              </n-space>
+            </template>
+          </n-empty>
+        </n-spin>
+      </n-tab-pane>
+
+      <n-tab-pane :tab="`私人书架（${currentUserLabel}）`" name="private">
+        <template v-if="hasUser">
+          <n-spin :show="userShelfLoading">
+            <template v-if="filteredUserBooks.length > 0">
+              <n-grid 
+                :cols="isMobile ? 1 : 2" 
+                :x-gap="16" 
+                :y-gap="16"
+                class="book-grid"
+              >
+                <n-gi 
+                  v-for="book in filteredUserBooks" 
+                  :key="book.id"
+                >
+                  <BookCard 
+                    :book="book"
+                    :compact="isMobile"
+                    :can-toggle-shelf="true"
+                    :in-shelf="true"
+                    @click="goToDetail(book)"
+                    @download="startDownload(book)"
+                    @delete="deleteBook(book)"
+                    @toggle-shelf="toggleShelf(book)"
+                  />
+                </n-gi>
+              </n-grid>
+            </template>
+            <n-empty v-else class="empty-state">
+              <template #icon>
+                <div class="empty-icon">📚</div>
+              </template>
+              <template #description>
+                <span class="empty-text">私人书架为空，去公共书架收藏或添加吧</span>
+              </template>
+              <template #extra>
+                <n-space :size="12">
+                  <n-button 
+                    type="primary" 
+                    @click="router.push({ name: 'search' })"
+                  >
+                    搜索书籍
+                  </n-button>
+                </n-space>
+              </template>
+            </n-empty>
+          </n-spin>
         </template>
-      </n-empty>
-    </n-spin>
+        <n-alert v-else type="warning" show-icon>
+          还未选择用户，前往“设置”输入用户名后即可使用私人书架。
+          <template #action>
+            <n-button size="small" type="primary" text @click="router.push({ name: 'settings' })">
+              去设置
+            </n-button>
+          </template>
+        </n-alert>
+      </n-tab-pane>
+    </n-tabs>
   </div>
 </template>
 

@@ -40,6 +40,12 @@ class Book(Base):
         passive_deletes=True,
         order_by="Chapter.chapter_index"
     )
+    user_links = relationship(
+        "UserBook",
+        back_populates="book",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     def __repr__(self):
         return f"<Book(id={self.id}, title={self.title}, platform={self.platform})>"

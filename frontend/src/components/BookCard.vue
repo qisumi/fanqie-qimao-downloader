@@ -4,7 +4,8 @@ import {
   NCard, NSpace, NButton, NIcon, NTag, NProgress, NImage, NPopconfirm
 } from 'naive-ui'
 import { 
-  DownloadOutline, TrashOutline, BookOutline, ChevronForwardOutline
+  DownloadOutline, TrashOutline, BookOutline, ChevronForwardOutline,
+  BookmarkOutline, Bookmark
 } from '@vicons/ionicons5'
 
 const props = defineProps({
@@ -15,10 +16,18 @@ const props = defineProps({
   compact: {
     type: Boolean,
     default: false
+  },
+  canToggleShelf: {
+    type: Boolean,
+    default: false
+  },
+  inShelf: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['click', 'download', 'delete'])
+const emit = defineEmits(['click', 'download', 'delete', 'toggle-shelf'])
 
 const progress = computed(() => {
   if (!props.book.total_chapters) return 0
@@ -43,6 +52,8 @@ const statusTag = computed(() => {
 
 const isDownloading = computed(() => props.book.download_status === 'downloading')
 const isCompleted = computed(() => props.book.download_status === 'completed')
+const shelfIcon = computed(() => props.inShelf ? Bookmark : BookmarkOutline)
+const shelfLabel = computed(() => props.inShelf ? '移出' : '收藏')
 
 function handleClick() {
   emit('click')
@@ -55,6 +66,11 @@ function handleDownload(e) {
 
 function handleDelete() {
   emit('delete')
+}
+
+function handleToggleShelf(e) {
+  e.stopPropagation()
+  emit('toggle-shelf')
 }
 </script>
 
@@ -141,6 +157,20 @@ function handleDelete() {
         <span v-if="!compact" class="action-text">
           {{ isCompleted ? '重下' : '下载' }}
         </span>
+      </n-button>
+
+      <n-button
+        v-if="canToggleShelf"
+        :size="compact ? 'small' : 'medium'"
+        quaternary
+        type="default"
+        @click="handleToggleShelf"
+        class="action-btn"
+      >
+        <template #icon>
+          <n-icon><component :is="shelfIcon" /></n-icon>
+        </template>
+        <span v-if="!compact" class="action-text">{{ shelfLabel }}</span>
       </n-button>
       
       <n-popconfirm 

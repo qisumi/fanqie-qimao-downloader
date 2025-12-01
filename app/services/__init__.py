@@ -16,6 +16,7 @@ from app.services.download_service import (
     TaskCancelledError,
 )
 from app.services.epub_service import EPUBService
+from app.services.user_service import UserService
 
 __all__ = [
     "StorageService",
@@ -25,4 +26,5 @@ __all__ = [
     "QuotaReachedError",
     "TaskCancelledError",
     "EPUBService",
+    "UserService",
 ]

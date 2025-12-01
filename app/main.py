@@ -13,8 +13,9 @@ from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.utils.logger import init_from_settings, get_logger
-from app.web.routes import books, tasks, stats, ws, auth
+from app.web.routes import books, tasks, stats, ws, auth, users
 from app.web.middleware import AuthMiddleware
+from app.utils.database import Base, engine
 
 # 初始化日志系统
 init_from_settings()
@@ -32,6 +33,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"日志级别: {settings.log_level}")
     logger.info(f"密码保护: {'已启用' if settings.app_password else '未启用'}")
     logger.info("=" * 50)
+
+    # 确保新增的数据表存在（不会影响已有数据）
+    Base.metadata.create_all(bind=engine)
     
     yield
     
@@ -56,6 +60,10 @@ tags_metadata = [
     {
         "name": "auth",
         "description": "认证接口。提供登录、登出和认证状态检查功能（仅在配置了密码时需要）。",
+    },
+    {
+        "name": "users",
+        "description": "用户与私人书架接口。用于管理用户列表、个人书架关联。",
     },
     {
         "name": "websocket",
@@ -89,7 +97,7 @@ app = FastAPI(
 系统默认每日字数限制为 20,000,000 字，可通过环境变量 `DAILY_WORD_LIMIT` 配置。
 配额按平台分别计算，每日凌晨重置。
     """,
-    version="1.4.3",
+    version="1.5.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_tags=tags_metadata,
@@ -123,6 +131,7 @@ app.include_router(books.router, prefix="/api/books", tags=["books"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(ws.router, prefix="/ws", tags=["websocket"])
 
 @app.get("/health", summary="健康检查", tags=["system"])

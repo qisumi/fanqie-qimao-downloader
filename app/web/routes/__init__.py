@@ -9,7 +9,7 @@
 - auth: 认证API路由
 """
 
-from app.web.routes import books, tasks, stats, ws, auth
+from app.web.routes import books, tasks, stats, ws, auth, users
 
 __all__ = [
     "books",
@@ -17,4 +17,5 @@ __all__ = [
     "stats",
     "ws",
     "auth",
+    "users",
 ]
