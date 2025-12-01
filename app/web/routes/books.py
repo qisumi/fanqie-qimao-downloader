@@ -14,7 +14,7 @@ import asyncio
 import logging
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, Path, Depends, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -48,11 +48,42 @@ router = APIRouter()
 
 # ============ 搜索书籍 ============
 
-@router.get("/search")
+@router.get(
+    "/search",
+    summary="搜索书籍",
+    response_description="返回搜索结果列表",
+    responses={
+        200: {
+            "description": "搜索成功",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "books": [
+                            {
+                                "book_id": "7384886245497586234",
+                                "title": "第一序列",
+                                "author": "爱潜水的乌贼",
+                                "cover_url": "https://example.com/cover.jpg",
+                                "abstract": "小说简介...",
+                                "word_count": 1234567,
+                                "creation_status": "连载中"
+                            }
+                        ],
+                        "total": 10,
+                        "page": 0
+                    }
+                }
+            }
+        },
+        400: {"description": "参数错误，平台必须是 fanqie 或 qimao"},
+        502: {"description": "API请求失败，上游服务不可用"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def search_books(
-    q: str = Query(..., description="搜索关键词"),
-    platform: str = Query("fanqie", description="平台: fanqie 或 qimao"),
-    page: int = Query(0, ge=0, description="页码 (从0开始)"),
+    q: str = Query(..., description="搜索关键词", min_length=1, max_length=100, example="第一序列"),
+    platform: str = Query("fanqie", description="平台: fanqie 或 qimao", regex="^(fanqie|qimao)$"),
+    page: int = Query(0, ge=0, description="页码 (从0开始)", example=0),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -82,11 +113,44 @@ async def search_books(
 
 # ============ 添加书籍 ============
 
-@router.post("/add/{platform}/{book_id}", response_model=Dict[str, Any])
+@router.post(
+    "/add/{platform}/{book_id}",
+    response_model=Dict[str, Any],
+    summary="添加书籍",
+    response_description="返回添加结果和书籍信息",
+    responses={
+        200: {
+            "description": "添加成功",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "书籍《第一序列》添加成功",
+                        "book": {
+                            "id": "uuid-string",
+                            "platform": "fanqie",
+                            "book_id": "7384886245497586234",
+                            "title": "第一序列",
+                            "author": "爱潜水的乌贼",
+                            "total_chapters": 1273,
+                            "downloaded_chapters": 0,
+                            "download_status": "pending"
+                        }
+                    }
+                }
+            }
+        },
+        400: {"description": "参数错误"},
+        404: {"description": "书籍在平台上不存在"},
+        409: {"description": "书籍已存在"},
+        502: {"description": "API请求失败"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def add_book(
-    platform: str,
-    book_id: str,
-    background_tasks: BackgroundTasks,
+    platform: str = Path(..., description="平台名称", regex="^(fanqie|qimao)$", example="fanqie"),
+    book_id: str = Path(..., description="平台上的书籍ID", example="7384886245497586234"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -154,13 +218,22 @@ async def add_book(
 
 # ============ 获取书籍列表 ============
 
-@router.get("/", response_model=BookListResponse)
+@router.get(
+    "/",
+    response_model=BookListResponse,
+    summary="获取书籍列表",
+    response_description="返回分页的书籍列表",
+    responses={
+        200: {"description": "获取成功"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def list_books(
-    platform: Optional[str] = Query(None, description="按平台筛选"),
-    status: Optional[str] = Query(None, description="按下载状态筛选"),
-    search: Optional[str] = Query(None, description="搜索书名或作者"),
-    page: int = Query(0, ge=0, description="页码"),
-    limit: int = Query(20, ge=1, le=100, description="每页数量"),
+    platform: Optional[str] = Query(None, description="按平台筛选", regex="^(fanqie|qimao)$", example="fanqie"),
+    status: Optional[str] = Query(None, description="按下载状态筛选", regex="^(pending|downloading|completed|failed|partial)$", example="completed"),
+    search: Optional[str] = Query(None, description="搜索书名或作者", max_length=100, example="第一序列"),
+    page: int = Query(0, ge=0, description="页码", example=0),
+    limit: int = Query(20, ge=1, le=100, description="每页数量", example=20),
     db: Session = Depends(get_db),
 ) -> BookListResponse:
     """
@@ -223,9 +296,19 @@ async def list_books(
 
 # ============ 获取书籍详情 ============
 
-@router.get("/{book_id}", response_model=BookDetailResponse)
+@router.get(
+    "/{book_id}",
+    response_model=BookDetailResponse,
+    summary="获取书籍详情",
+    response_description="返回书籍信息、章节列表和统计数据",
+    responses={
+        200: {"description": "获取成功"},
+        404: {"description": "书籍不存在"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def get_book(
-    book_id: str,
+    book_id: str = Path(..., description="书籍UUID", example="123e4567-e89b-12d3-a456-426614174000"),
     db: Session = Depends(get_db),
 ) -> BookDetailResponse:
     """
@@ -475,10 +558,20 @@ async def get_chapter_status_summary(
 
 # ============ 删除书籍 ============
 
-@router.delete("/{book_id}", response_model=SuccessResponse)
+@router.delete(
+    "/{book_id}",
+    response_model=SuccessResponse,
+    summary="删除书籍",
+    response_description="返回删除结果",
+    responses={
+        200: {"description": "删除成功"},
+        404: {"description": "书籍不存在"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def delete_book(
-    book_id: str,
-    delete_files: bool = Query(True, description="是否同时删除本地文件"),
+    book_id: str = Path(..., description="书籍UUID"),
+    delete_files: bool = Query(True, description="是否同时删除本地文件（章节内容、封面等）"),
     db: Session = Depends(get_db),
 ) -> SuccessResponse:
     """
@@ -683,10 +776,30 @@ async def _generate_epub_async(
         }
 
 
-@router.post("/{book_id}/epub")
+@router.post(
+    "/{book_id}/epub",
+    summary="异步生成EPUB",
+    response_description="返回任务启动结果",
+    responses={
+        200: {
+            "description": "任务启动成功",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "EPUB生成任务已启动",
+                        "book_id": "uuid-string"
+                    }
+                }
+            }
+        },
+        404: {"description": "书籍不存在"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def generate_epub(
-    book_id: str,
-    background_tasks: BackgroundTasks,
+    book_id: str = Path(..., description="书籍UUID"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -731,9 +844,48 @@ async def generate_epub(
         raise HTTPException(status_code=500, detail=f"启动EPUB生成失败: {str(e)}")
 
 
-@router.get("/{book_id}/epub/status")
+@router.get(
+    "/{book_id}/epub/status",
+    summary="获取EPUB生成状态",
+    response_description="返回EPUB生成任务的当前状态",
+    responses={
+        200: {
+            "description": "状态查询成功",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "running": {
+                            "summary": "生成中",
+                            "value": {
+                                "status": "running",
+                                "progress": 50,
+                                "message": "正在生成EPUB..."
+                            }
+                        },
+                        "completed": {
+                            "summary": "生成完成",
+                            "value": {
+                                "status": "completed",
+                                "progress": 100,
+                                "message": "EPUB生成成功",
+                                "file_path": "/path/to/book.epub"
+                            }
+                        },
+                        "not_started": {
+                            "summary": "未启动",
+                            "value": {
+                                "status": "not_started",
+                                "message": "没有正在进行的EPUB生成任务"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 async def get_epub_status(
-    book_id: str,
+    book_id: str = Path(..., description="书籍UUID"),
 ) -> Dict[str, Any]:
     """
     获取EPUB生成状态

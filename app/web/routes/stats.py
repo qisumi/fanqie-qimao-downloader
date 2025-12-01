@@ -32,7 +32,16 @@ settings = get_settings()
 router = APIRouter()
 
 
-@router.get("/", response_model=SystemStats)
+@router.get(
+    "/",
+    response_model=SystemStats,
+    summary="获取系统统计信息",
+    response_description="返回系统整体概览，包括书籍、章节、存储和配额统计",
+    responses={
+        200: {"description": "获取成功"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def get_stats(
     db: Session = Depends(get_db),
 ) -> SystemStats:
@@ -130,7 +139,16 @@ async def get_stats(
         raise HTTPException(status_code=500, detail=f"获取统计信息失败: {str(e)}")
 
 
-@router.get("/storage", response_model=StorageStats)
+@router.get(
+    "/storage",
+    response_model=StorageStats,
+    summary="获取存储统计信息",
+    response_description="返回存储使用详情，包括书籍目录和EPUB目录大小",
+    responses={
+        200: {"description": "获取成功"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def get_storage_stats() -> StorageStats:
     """
     获取存储统计信息
@@ -161,7 +179,40 @@ async def get_storage_stats() -> StorageStats:
         raise HTTPException(status_code=500, detail=f"获取存储统计失败: {str(e)}")
 
 
-@router.get("/quota", response_model=AllQuotaResponse)
+@router.get(
+    "/quota",
+    response_model=AllQuotaResponse,
+    summary="获取配额使用情况",
+    response_description="返回所有平台的今日配额使用情况",
+    responses={
+        200: {
+            "description": "获取成功",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "fanqie": {
+                            "date": "2024-01-01",
+                            "platform": "fanqie",
+                            "downloaded": 5000000,
+                            "limit": 20000000,
+                            "remaining": 15000000,
+                            "percentage": 25.0
+                        },
+                        "qimao": {
+                            "date": "2024-01-01",
+                            "platform": "qimao",
+                            "downloaded": 3000000,
+                            "limit": 20000000,
+                            "remaining": 17000000,
+                            "percentage": 15.0
+                        }
+                    }
+                }
+            }
+        },
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def get_quota_stats(
     db: Session = Depends(get_db),
 ) -> AllQuotaResponse:

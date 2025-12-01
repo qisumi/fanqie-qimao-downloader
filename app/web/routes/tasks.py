@@ -14,7 +14,7 @@ import asyncio
 import logging
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Path, Depends
 from sqlalchemy.orm import Session
 
 from app.utils.database import get_db
@@ -45,12 +45,21 @@ _running_downloads: Dict[str, asyncio.Task] = {}
 
 # ============ 任务列表 ============
 
-@router.get("/", response_model=TaskListResponse)
+@router.get(
+    "/",
+    response_model=TaskListResponse,
+    summary="获取任务列表",
+    response_description="返回分页的任务列表",
+    responses={
+        200: {"description": "获取成功"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def list_tasks(
-    book_id: Optional[str] = Query(None, description="按书籍筛选"),
-    status: Optional[str] = Query(None, description="按状态筛选"),
-    page: int = Query(0, ge=0, description="页码"),
-    limit: int = Query(20, ge=1, le=100, description="每页数量"),
+    book_id: Optional[str] = Query(None, description="按书籍UUID筛选", example="123e4567-e89b-12d3-a456-426614174000"),
+    status: Optional[str] = Query(None, description="按状态筛选", regex="^(pending|running|completed|failed|cancelled)$", example="completed"),
+    page: int = Query(0, ge=0, description="页码", example=0),
+    limit: int = Query(20, ge=1, le=100, description="每页数量", example=20),
     db: Session = Depends(get_db),
 ) -> TaskListResponse:
     """
@@ -266,12 +275,34 @@ async def _run_download_task(
 
 # ============ 开始下载 ============
 
-@router.post("/{book_id}/download")
+@router.post(
+    "/{book_id}/download",
+    summary="启动下载任务",
+    response_description="返回任务启动结果",
+    responses={
+        200: {
+            "description": "任务启动成功",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "《第一序列》下载任务已启动",
+                        "task_id": "task-uuid",
+                        "book_id": "book-uuid"
+                    }
+                }
+            }
+        },
+        404: {"description": "书籍不存在"},
+        429: {"description": "配额已用尽"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def start_download(
-    book_id: str,
-    background_tasks: BackgroundTasks,
-    start_chapter: int = Query(0, ge=0, description="起始章节索引"),
-    end_chapter: Optional[int] = Query(None, ge=0, description="结束章节索引（包含），留空表示到最后一章"),
+    book_id: str = Path(..., description="书籍UUID"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    start_chapter: int = Query(0, ge=0, description="起始章节索引，默认从第0章开始", example=0),
+    end_chapter: Optional[int] = Query(None, ge=0, description="结束章节索引（包含），留空表示下载到最后一章", example=None),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -392,10 +423,46 @@ async def start_download(
 
 # ============ 开始更新 ============
 
-@router.post("/{book_id}/update")
+@router.post(
+    "/{book_id}/update",
+    summary="更新书籍（下载新章节）",
+    response_description="返回更新任务启动结果",
+    responses={
+        200: {
+            "description": "任务启动成功或无需更新",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "has_updates": {
+                            "summary": "有新章节",
+                            "value": {
+                                "success": True,
+                                "message": "《第一序列》发现15个新章节，更新任务已启动",
+                                "task_id": "task-uuid",
+                                "book_id": "book-uuid",
+                                "new_chapters_count": 15
+                            }
+                        },
+                        "no_updates": {
+                            "summary": "无新章节",
+                            "value": {
+                                "success": True,
+                                "message": "《第一序列》已是最新版本，无需更新",
+                                "book_id": "book-uuid",
+                                "new_chapters_count": 0
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        404: {"description": "书籍不存在"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def start_update(
-    book_id: str,
-    background_tasks: BackgroundTasks,
+    book_id: str = Path(..., description="书籍UUID"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -508,9 +575,20 @@ async def start_update(
 
 # ============ 取消任务 ============
 
-@router.post("/{task_id}/cancel", response_model=SuccessResponse)
+@router.post(
+    "/{task_id}/cancel",
+    response_model=SuccessResponse,
+    summary="取消任务",
+    response_description="返回取消结果",
+    responses={
+        200: {"description": "取消成功"},
+        400: {"description": "任务状态不允许取消"},
+        404: {"description": "任务不存在"},
+        500: {"description": "服务器内部错误"}
+    }
+)
 async def cancel_task(
-    task_id: str,
+    task_id: str = Path(..., description="任务UUID"),
     db: Session = Depends(get_db),
 ) -> SuccessResponse:
     """

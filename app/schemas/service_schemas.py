@@ -82,7 +82,29 @@ class BookResponse(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "platform": "fanqie",
+                "book_id": "7384886245497586234",
+                "title": "第一序列",
+                "author": "爱潜水的乌贼",
+                "cover_url": "https://example.com/cover.jpg",
+                "cover_path": "/data/books/fanqie_7384886245497586234/cover.jpg",
+                "total_chapters": 1273,
+                "downloaded_chapters": 856,
+                "word_count": 3250000,
+                "creation_status": "已完结",
+                "last_chapter_title": "第一千二百七十三章 新的开始",
+                "last_update_time": "2024-01-01T12:00:00",
+                "download_status": "partial",
+                "created_at": "2024-01-01T10:00:00",
+                "updated_at": "2024-01-01T12:30:00"
+            }
+        }
+    )
 
 
 class BookListResponse(BaseModel):
@@ -172,7 +194,25 @@ class TaskResponse(BaseModel):
     completed_at: Optional[datetime] = Field(default=None, description="完成时间")
     created_at: datetime = Field(..., description="创建时间")
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "task-uuid-123",
+                "book_id": "book-uuid-456",
+                "task_type": "full_download",
+                "status": "running",
+                "total_chapters": 1273,
+                "downloaded_chapters": 856,
+                "failed_chapters": 12,
+                "progress": 67.2,
+                "error_message": None,
+                "started_at": "2024-01-01T12:00:00",
+                "completed_at": None,
+                "created_at": "2024-01-01T11:55:00"
+            }
+        }
+    )
 
 
 class TaskListResponse(BaseModel):
@@ -243,6 +283,50 @@ class SystemStats(BaseModel):
     downloaded_chapters: int = Field(default=0, description="已下载章节")
     storage: StorageStats = Field(..., description="存储统计")
     quota: AllQuotaResponse = Field(..., description="配额使用")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_books": 25,
+                "books_by_platform": {
+                    "fanqie": 15,
+                    "qimao": 10
+                },
+                "books_by_status": {
+                    "completed": 10,
+                    "partial": 8,
+                    "downloading": 3,
+                    "pending": 4
+                },
+                "total_chapters": 30000,
+                "downloaded_chapters": 25000,
+                "storage": {
+                    "books_count": 25,
+                    "epubs_count": 10,
+                    "total_chapters": 25000,
+                    "total_size_mb": 1250.5
+                },
+                "quota": {
+                    "fanqie": {
+                        "date": "2024-01-01",
+                        "platform": "fanqie",
+                        "downloaded": 5000000,
+                        "limit": 20000000,
+                        "remaining": 15000000,
+                        "percentage": 25.0
+                    },
+                    "qimao": {
+                        "date": "2024-01-01",
+                        "platform": "qimao",
+                        "downloaded": 3000000,
+                        "limit": 20000000,
+                        "remaining": 17000000,
+                        "percentage": 15.0
+                    }
+                }
+            }
+        }
+    )
 
 
 # ============ 搜索相关 Schemas ============
