@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Set, Union
 
 from sqlalchemy.orm import Session
 
@@ -37,7 +37,8 @@ class DownloadServiceBase:
     其他功能通过 mixin 组合的方式拆分到独立模块中，降低单文件体积。
     """
     
-    _shared_progress_callbacks: Dict[str, Callable] = {}
+    # 每个任务可以有多个进度回调（多个页面/客户端同时订阅）
+    _shared_progress_callbacks: Dict[str, Set[Callable]] = {}
     _shared_cancelled_tasks: set = set()
     
     def __init__(

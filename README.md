@@ -1,6 +1,6 @@
 # FanqieQimaoDownloader
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.5.0)
+[![Version](https://img.shields.io/badge/version-1.5.1-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.5.1)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -287,7 +287,7 @@ SESSION_EXPIRE_HOURS=168    # 登录有效期: 7天
 
 ## 📊 开发状态
 
-**当前版本: v1.5.0** 🎉
+**当前版本: v1.5.1** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|

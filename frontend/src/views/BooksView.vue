@@ -172,7 +172,7 @@ async function toggleShelf(book) {
         </n-tag>
         <n-tag v-else type="warning" size="small" round>未选择用户</n-tag>
       </div>
-      <n-space :size="8">
+      <n-space :size="8" class="header-actions">
         <n-button 
           v-if="isMobile"
           :type="showFilters ? 'primary' : 'default'"
@@ -233,13 +233,13 @@ async function toggleShelf(book) {
     <n-tabs v-model:value="activeTab" type="line" animated>
       <n-tab-pane name="public" tab="公共书架">
         <n-spin :show="loading">
-          <template v-if="filteredBooks.length > 0">
-            <n-grid 
-              :cols="isMobile ? 1 : 2" 
-              :x-gap="16" 
-              :y-gap="16"
-              class="book-grid"
-            >
+            <template v-if="filteredBooks.length > 0">
+              <n-grid 
+                :cols="isMobile ? 1 : 2" 
+                :x-gap="isMobile ? 12 : 16" 
+                :y-gap="isMobile ? 12 : 16"
+                class="book-grid"
+              >
               <n-gi 
                 v-for="book in filteredBooks" 
                 :key="book.id"
@@ -291,8 +291,8 @@ async function toggleShelf(book) {
             <template v-if="filteredUserBooks.length > 0">
               <n-grid 
                 :cols="isMobile ? 1 : 2" 
-                :x-gap="16" 
-                :y-gap="16"
+                :x-gap="isMobile ? 12 : 16" 
+                :y-gap="isMobile ? 12 : 16"
                 class="book-grid"
               >
                 <n-gi 
@@ -356,13 +356,20 @@ async function toggleShelf(book) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.header-actions {
+  display: flex;
 }
 
 .page-title {
@@ -458,6 +465,9 @@ async function toggleShelf(book) {
 @media (max-width: 768px) {
   .page-header {
     margin-bottom: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
   
   .page-title {
@@ -466,6 +476,17 @@ async function toggleShelf(book) {
   
   .book-count {
     font-size: 12px;
+  }
+  
+  .header-left {
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
   
   .hide-mobile {

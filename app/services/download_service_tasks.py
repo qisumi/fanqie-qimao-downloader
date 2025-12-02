@@ -16,10 +16,40 @@ logger = logging.getLogger(__name__)
 class DownloadTaskMixin(DownloadServiceBase):
     """任务管理相关的逻辑拆分到独立 mixin 中。"""
     
+    def _calculate_task_total(
+        self,
+        book_uuid: str,
+        task_type: str = "full_download",
+        start_chapter: int = 0,
+        end_chapter: Optional[int] = None,
+        skip_completed: bool = True,
+    ) -> int:
+        """
+        计算任务实际需要处理的章节数，保证任务进度的分母准确。
+        """
+        query = self.db.query(func.count(Chapter.id)).filter(
+            Chapter.book_id == book_uuid,
+            Chapter.chapter_index >= start_chapter,
+        )
+        
+        if end_chapter is not None:
+            query = query.filter(Chapter.chapter_index <= end_chapter)
+        
+        if task_type == "full_download":
+            if skip_completed:
+                query = query.filter(Chapter.download_status != "completed")
+        else:
+            query = query.filter(Chapter.download_status == "pending")
+        
+        return query.scalar() or 0
+    
     def create_task(
         self,
         book_uuid: str,
         task_type: str = "full_download",
+        start_chapter: int = 0,
+        end_chapter: Optional[int] = None,
+        skip_completed: bool = True,
     ) -> DownloadTask:
         """
         创建下载任务
@@ -27,21 +57,21 @@ class DownloadTaskMixin(DownloadServiceBase):
         Args:
             book_uuid: 书籍UUID
             task_type: 任务类型 (full_download/update)
+            start_chapter: 起始章节索引
+            end_chapter: 结束章节索引（包含）
+            skip_completed: 是否跳过已完成章节（仅 full_download 有效）
         """
         book = self.db.query(Book).filter(Book.id == book_uuid).first()
         if not book:
             raise ValueError(f"Book not found: {book_uuid}")
         
-        if task_type == "full_download":
-            pending_count = self.db.query(func.count(Chapter.id)).filter(
-                Chapter.book_id == book_uuid,
-                Chapter.download_status != "completed"
-            ).scalar() or 0
-        else:
-            pending_count = self.db.query(func.count(Chapter.id)).filter(
-                Chapter.book_id == book_uuid,
-                Chapter.download_status == "pending"
-            ).scalar() or 0
+        pending_count = self._calculate_task_total(
+            book_uuid=book_uuid,
+            task_type=task_type,
+            start_chapter=start_chapter,
+            end_chapter=end_chapter,
+            skip_completed=skip_completed,
+        )
         
         task = DownloadTask(
             id=str(uuid.uuid4()),
@@ -145,13 +175,18 @@ class DownloadTaskMixin(DownloadServiceBase):
         
         self.db.commit()
         
-        callback = self._progress_callbacks.get(task.id)
-        if callback:
+        callbacks = self._progress_callbacks.get(task.id, set())
+        if callbacks:
             logger.debug(
-                f"Triggering progress callback for task {task.id}: "
+                f"Triggering {len(callbacks)} progress callback(s) for task {task.id}: "
                 f"{task.downloaded_chapters}/{task.total_chapters} ({task.progress}%)"
             )
-            callback(task)
+            # 复制列表，防止回调中修改集合导致迭代报错
+            for callback in list(callbacks):
+                try:
+                    callback(task)
+                except Exception:
+                    logger.exception(f"Progress callback failed for task {task.id}")
         else:
             logger.warning(f"No progress callback registered for task {task.id}")
     
@@ -160,12 +195,33 @@ class DownloadTaskMixin(DownloadServiceBase):
         task_id: str,
         callback: Callable[[DownloadTask], None],
     ):
-        """注册进度回调"""
-        self._progress_callbacks[task_id] = callback
+        """注册进度回调，支持多个订阅者并发存在"""
+        callbacks = self._progress_callbacks.setdefault(task_id, set())
+        callbacks.add(callback)
     
-    def unregister_progress_callback(self, task_id: str):
-        """注销进度回调"""
-        self._progress_callbacks.pop(task_id, None)
+    def unregister_progress_callback(
+        self,
+        task_id: str,
+        callback: Optional[Callable[[DownloadTask], None]] = None,
+    ):
+        """
+        注销进度回调
+        
+        Args:
+            task_id: 任务ID
+            callback: 指定要移除的回调，不传则移除该任务的所有回调
+        """
+        callbacks = self._progress_callbacks.get(task_id)
+        if not callbacks:
+            return
+        
+        if callback is None:
+            self._progress_callbacks.pop(task_id, None)
+            return
+        
+        callbacks.discard(callback)
+        if not callbacks:
+            self._progress_callbacks.pop(task_id, None)
 
 
 __all__ = ["DownloadTaskMixin"]

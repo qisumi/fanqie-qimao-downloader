@@ -38,6 +38,14 @@ const chapterSummary = ref({ segments: [] })
 // 章节范围选择器引用
 const rangeSelectorRef = ref(null)
 
+// 当前任务进度（优先使用任务范围内的章节数）
+const taskProgress = computed(() => {
+  const downloaded = book.value?.task_downloaded_chapters ?? book.value?.downloaded_chapters ?? 0
+  const total = book.value?.task_total_chapters ?? book.value?.total_chapters ?? 0
+  const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
+  return { downloaded, total, percent }
+})
+
 // 加载章节状态摘要
 async function loadChapterSummary() {
   if (!book.value) return
@@ -194,11 +202,6 @@ async function deleteBook() {
 function handleSelectSegment(segment) {
   rangeSelectorRef.value?.selectSegment(segment)
 }
-
-function getProgressPercent() {
-  if (!book.value || book.value.total_chapters === 0) return 0
-  return Math.round((book.value.downloaded_chapters / book.value.total_chapters) * 100)
-}
 </script>
 
 <template>
@@ -216,6 +219,7 @@ function getProgressPercent() {
         <!-- 书籍信息卡片 -->
         <BookInfoCard
           :book="book"
+          :task-progress="taskProgress"
           :download-loading="downloadLoading"
           :update-loading="updateLoading"
           :generating="generating"
@@ -236,8 +240,8 @@ function getProgressPercent() {
             <n-icon><DownloadOutline /></n-icon>
           </template>
           <template #header>下载进行中...</template>
-          已下载 {{ book.downloaded_chapters || 0 }}/{{ book.total_chapters || 0 }} 章节
-          ({{ getProgressPercent() }}%)
+          已下载 {{ taskProgress.downloaded || 0 }}/{{ taskProgress.total || 0 }} 章节
+          ({{ taskProgress.percent }}%)
         </n-alert>
 
         <!-- 章节下载状态热力图 -->

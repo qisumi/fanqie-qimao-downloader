@@ -120,16 +120,14 @@ export function useBookWebSocket(options) {
 
       case 'status':
         console.log('ℹ️ Book status:', msg.data)
-        // 如果书籍正在下载但没有找到任务，说明任务还在创建中
-        // 延迟后重新连接以获取任务进度
-        if (book.value?.download_status === 'downloading') {
-          console.log('🔄 Book is downloading but no task found, will reconnect...')
-          setTimeout(() => {
-            if (book.value?.download_status === 'downloading') {
-              disconnect()
-              connect()
-            }
-          }, 1000)
+        // 同步服务端状态，避免前端停留在过期的 downloading 状态导致循环重连
+        if (book.value && msg.data) {
+          Object.assign(book.value, msg.data)
+        }
+        // 如果服务器仍标记 downloading 但未返回任务进度，切换为轮询防止死循环
+        if ((msg.data?.download_status || book.value?.download_status) === 'downloading') {
+          console.log('🔄 Book downloading but no active task found, fallback to polling')
+          startPolling()
         }
         break
 

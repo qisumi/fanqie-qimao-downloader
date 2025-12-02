@@ -152,30 +152,29 @@ async def websocket_task_progress(
         async def on_progress(updated_task: DownloadTask):
             """进度更新回调"""
             try:
-                if websocket.client_state == WebSocketState.CONNECTED:
-                    # 检查任务是否完成
-                    if updated_task.status in ("completed", "failed", "cancelled"):
-                        await manager.broadcast_completed(
-                            task_id=updated_task.id,
-                            success=updated_task.status == "completed",
-                            message=updated_task.error_message or (
-                                "下载完成" if updated_task.status == "completed"
-                                else "任务已取消" if updated_task.status == "cancelled"
-                                else "下载失败"
-                            ),
-                            book_title=book_title,
-                        )
-                    else:
-                        await manager.broadcast_progress(
-                            task_id=updated_task.id,
-                            status=updated_task.status,
-                            total_chapters=updated_task.total_chapters or 0,
-                            downloaded_chapters=updated_task.downloaded_chapters or 0,
-                            failed_chapters=updated_task.failed_chapters or 0,
-                            progress=updated_task.progress or 0.0,
-                            error_message=updated_task.error_message,
-                            book_title=book_title,
-                        )
+                # 广播给所有订阅者，不依赖当前 WebSocket 是否仍连接
+                if updated_task.status in ("completed", "failed", "cancelled"):
+                    await manager.broadcast_completed(
+                        task_id=updated_task.id,
+                        success=updated_task.status == "completed",
+                        message=updated_task.error_message or (
+                            "下载完成" if updated_task.status == "completed"
+                            else "任务已取消" if updated_task.status == "cancelled"
+                            else "下载失败"
+                        ),
+                        book_title=book_title,
+                    )
+                else:
+                    await manager.broadcast_progress(
+                        task_id=updated_task.id,
+                        status=updated_task.status,
+                        total_chapters=updated_task.total_chapters or 0,
+                        downloaded_chapters=updated_task.downloaded_chapters or 0,
+                        failed_chapters=updated_task.failed_chapters or 0,
+                        progress=updated_task.progress or 0.0,
+                        error_message=updated_task.error_message,
+                        book_title=book_title,
+                    )
             except Exception as e:
                 logger.warning(f"Progress callback error: {e}")
         
@@ -184,7 +183,12 @@ async def websocket_task_progress(
             """同步回调包装器，创建异步任务执行实际回调"""
             asyncio.create_task(on_progress(updated_task))
         
-        download_service.register_progress_callback(task_id, sync_callback)
+        callbacks = download_service._progress_callbacks.get(task_id, set())
+        if callbacks:
+            logger.info(f"Task {task_id} already has {len(callbacks)} callback(s), reusing existing ones")
+        else:
+            download_service.register_progress_callback(task_id, sync_callback)
+            logger.info(f"Registered progress callback for task {task_id}")
         
         # 保持连接，等待客户端消息或断开
         try:
@@ -205,15 +209,16 @@ async def websocket_task_progress(
         db.close()
         await manager.disconnect(websocket)
         
-        # 尝试注销回调
-        try:
-            db_cleanup = SessionLocal()
-            storage = StorageService()
-            download_service = DownloadService(db=db_cleanup, storage=storage)
-            download_service.unregister_progress_callback(task_id)
-            db_cleanup.close()
-        except Exception as e:
-            logger.warning(f"Failed to unregister callback: {e}")
+        # 注销回调，避免长时间保留无效回调
+        if current_task_id and registered_callback:
+            try:
+                db_cleanup = SessionLocal()
+                storage = StorageService()
+                download_service_cleanup = DownloadService(db=db_cleanup, storage=storage)
+                download_service_cleanup.unregister_progress_callback(current_task_id, registered_callback)
+                db_cleanup.close()
+            except Exception as e:
+                logger.warning(f"Failed to unregister callback: {e}")
 
 
 @router.websocket("/books/{book_id}")
@@ -240,8 +245,13 @@ async def websocket_book_progress(
     
     db = SessionLocal()
     current_task_id = None
+    registered_callback = None
+    monitor_task = None
     
     try:
+        storage = StorageService()
+        download_service = DownloadService(db=db, storage=storage)
+        
         # 查找书籍
         book = db.query(Book).filter(Book.id == book_id).first()
         if not book:
@@ -256,17 +266,18 @@ async def websocket_book_progress(
             await websocket.close()
             return
         
-        # 查找最新的运行中任务
-        task = db.query(DownloadTask).filter(
-            DownloadTask.book_id == book_id,
-            DownloadTask.status.in_(["pending", "running"])
-        ).order_by(DownloadTask.created_at.desc()).first()
+        def get_running_task() -> Optional[DownloadTask]:
+            return db.query(DownloadTask).filter(
+                DownloadTask.book_id == book_id,
+                DownloadTask.status.in_(["pending", "running"])
+            ).order_by(DownloadTask.created_at.desc()).first()
         
-        if task:
+        async def attach_task(task: DownloadTask):
+            """发送初始状态并注册进度回调/连接管理"""
+            nonlocal current_task_id, registered_callback
             current_task_id = task.id
             logger.info(f"Found running task {current_task_id} for book {book_id}")
             
-            # 发送初始状态
             await websocket.send_json({
                 "type": "progress",
                 "data": {
@@ -282,7 +293,6 @@ async def websocket_book_progress(
                 }
             })
             
-            # 注册到任务的连接管理
             async with manager._lock:
                 if current_task_id not in manager._connections:
                     manager._connections[current_task_id] = set()
@@ -290,10 +300,6 @@ async def websocket_book_progress(
                 manager._websocket_to_task[websocket] = current_task_id
             
             logger.info(f"Registered WebSocket for task {current_task_id}, total connections: {len(manager._connections.get(current_task_id, []))}")
-            
-            # 注册回调
-            storage = StorageService()
-            download_service = DownloadService(db=db, storage=storage)
             
             def sync_callback(updated_task: DownloadTask):
                 async def broadcast():
@@ -326,14 +332,29 @@ async def websocket_book_progress(
                         logger.error(f"Book progress callback error: {e}", exc_info=True)
                 asyncio.create_task(broadcast())
             
-            # 检查是否已有回调
-            existing_callback = download_service._progress_callbacks.get(current_task_id)
-            if existing_callback:
-                logger.info(f"Task {current_task_id} already has a callback, reusing it")
+            callbacks = download_service._progress_callbacks.get(current_task_id, set())
+            if callbacks:
+                logger.info(f"Task {current_task_id} already has {len(callbacks)} callback(s), reusing existing ones")
             else:
-                # 只在没有现有回调时注册新回调
                 download_service.register_progress_callback(current_task_id, sync_callback)
                 logger.info(f"Registered progress callback for task {current_task_id}")
+            registered_callback = sync_callback
+        
+        async def monitor_new_task_if_needed():
+            """当书籍标记为下载中但未找到任务时，轮询等待任务创建"""
+            while current_task_id is None and websocket.client_state == WebSocketState.CONNECTED:
+                await asyncio.sleep(1)
+                db.expire_all()
+                new_task = get_running_task()
+                if new_task:
+                    await attach_task(new_task)
+                    break
+        
+        # 查找最新的运行中任务
+        task = get_running_task()
+        
+        if task:
+            await attach_task(task)
         else:
             # 没有正在运行的任务，发送当前书籍状态
             logger.info(f"No running task for book {book_id}, sending book status")
@@ -348,6 +369,9 @@ async def websocket_book_progress(
                     "message": "没有正在运行的下载任务",
                 }
             })
+            if book.download_status == "downloading":
+                logger.info(f"Book {book_id} marked downloading but no task found, waiting for task to start")
+            monitor_task = asyncio.create_task(monitor_new_task_if_needed())
         
         # 保持连接
         try:
@@ -362,17 +386,8 @@ async def websocket_book_progress(
             logger.error(f"WebSocket error for book {book_id}: {e}", exc_info=True)
             
     finally:
+        if monitor_task:
+            monitor_task.cancel()
         db.close()
         await manager.disconnect(websocket)
         
-        # 注销回调
-        if current_task_id:
-            try:
-                db_cleanup = SessionLocal()
-                storage = StorageService()
-                download_service = DownloadService(db=db_cleanup, storage=storage)
-                download_service.unregister_progress_callback(current_task_id)
-                logger.info(f"Unregistered callback for task {current_task_id}")
-                db_cleanup.close()
-            except Exception as e:
-                logger.warning(f"Failed to unregister callback: {e}")

@@ -1,5 +1,5 @@
 <script setup>
-import { inject } from 'vue'
+import { computed, inject } from 'vue'
 import { 
   NButton, NIcon, NTag, NProgress, NImage, NPopconfirm 
 } from 'naive-ui'
@@ -24,6 +24,10 @@ const props = defineProps({
   generating: {
     type: Boolean,
     default: false
+  },
+  taskProgress: {
+    type: Object,
+    default: null
   }
 })
 
@@ -64,10 +68,24 @@ function getStatusColor(status) {
   return colorMap[statusInfo.type] || colorMap['default']
 }
 
-function getProgressPercent() {
-  if (!props.book || props.book.total_chapters === 0) return 0
-  return Math.round((props.book.downloaded_chapters / props.book.total_chapters) * 100)
-}
+const progressDownloaded = computed(() => {
+  return props.taskProgress?.downloaded 
+    ?? props.book.task_downloaded_chapters 
+    ?? props.book.downloaded_chapters 
+    ?? 0
+})
+
+const progressTotal = computed(() => {
+  return props.taskProgress?.total 
+    ?? props.book.task_total_chapters 
+    ?? props.book.total_chapters 
+    ?? 0
+})
+
+const progressPercent = computed(() => {
+  if (!progressTotal.value) return 0
+  return Math.round((progressDownloaded.value / progressTotal.value) * 100)
+})
 </script>
 
 <template>
@@ -111,7 +129,7 @@ function getProgressPercent() {
         <div class="book-stats">
           <div class="stat-item">
             <span class="stat-label">章节</span>
-            <span class="stat-value">{{ book.downloaded_chapters || 0 }}<span class="stat-divider">/</span>{{ book.total_chapters || 0 }}</span>
+            <span class="stat-value">{{ progressDownloaded }}<span class="stat-divider">/</span>{{ progressTotal }}</span>
           </div>
           <div class="stat-item" v-if="book.word_count">
             <span class="stat-label">字数</span>
@@ -124,16 +142,16 @@ function getProgressPercent() {
         </div>
         
         <!-- 下载进度 -->
-        <div v-if="(book.total_chapters || 0) > 0" class="progress-section">
+        <div v-if="(progressTotal || 0) > 0" class="progress-section">
           <n-progress 
             type="line" 
-            :percentage="getProgressPercent()"
+            :percentage="progressPercent"
             :show-indicator="false"
             :height="8"
             :border-radius="4"
             :color="book.download_status === 'completed' ? '#18a058' : '#2080f0'"
           />
-          <span class="progress-text">{{ getProgressPercent() }}%</span>
+          <span class="progress-text">{{ progressPercent }}%</span>
         </div>
       </div>
     </div>

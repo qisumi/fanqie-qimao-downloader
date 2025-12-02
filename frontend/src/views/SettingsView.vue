@@ -115,7 +115,7 @@ function goToBooks() {
         <div class="eyebrow">共同密码，独立书架</div>
         <h2 class="title">设置与用户</h2>
         <p class="subtitle">
-          密码依旧从 .env 读取，新增用户只用于区分私人书架，其余数据（公共书架、任务、配额）完全共享。
+          密码依旧从 .env 读取，用户名用于区分私人书架；私人书架内容存放在服务器以便多设备同步，公共书架、任务与配额仍然共享。
         </p>
       </div>
       <div class="header-actions">
@@ -136,7 +136,7 @@ function goToBooks() {
           </div>
         </template>
         <n-alert type="info" show-icon style="margin-bottom: 16px;">
-          所有用户共用同一个访问密码。这里的“用户”只影响私人书架，不会影响下载任务和限额。
+          用户名仅用于区分私人书架；私人书架数据保存在服务器，可在同一用户的不同设备间同步，不影响公共书架、下载任务和限额。
         </n-alert>
         <n-form label-placement="top" :show-require-mark="false">
           <n-form-item label="输入用户名（不存在则自动创建）">
@@ -160,7 +160,7 @@ function goToBooks() {
           </div>
         </template>
 
-        <n-list v-if="userList.length" hoverable>
+        <n-list v-if="userList.length" hoverable class="user-list">
           <n-list-item v-for="user in userList" :key="user.id">
             <div class="user-row">
               <div class="user-meta">
@@ -181,7 +181,7 @@ function goToBooks() {
                 </span>
                 <span class="user-date">创建于 {{ new Date(user.created_at).toLocaleString() }}</span>
               </div>
-              <n-space size="small" wrap>
+              <n-space size="small" wrap class="user-actions">
                 <n-button
                   quaternary
                   size="small"
@@ -313,6 +313,16 @@ function goToBooks() {
   font-size: 12px;
 }
 
+.user-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.user-list :deep(.n-list-item) {
+  padding: 12px 10px;
+}
+
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
@@ -333,13 +343,33 @@ function goToBooks() {
   }
 
   .user-row {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
 
   .user-meta {
     width: 100%;
+    gap: 8px;
+  }
+
+  .user-date {
+    width: 100%;
+    display: block;
+  }
+
+  .user-actions {
+    width: 100%;
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  .user-actions :deep(.n-button) {
+    flex: 1;
+  }
+
+  .user-list :deep(.n-list-item) {
+    padding: 10px 8px;
   }
 
   .subtitle {

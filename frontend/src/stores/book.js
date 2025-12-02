@@ -219,10 +219,16 @@ export const useBookStore = defineStore('book', () => {
   function updateCurrentBookProgress(progress) {
     if (currentBook.value) {
       if (progress.downloaded_chapters !== undefined) {
-        currentBook.value.downloaded_chapters = progress.downloaded_chapters
+        currentBook.value.task_downloaded_chapters = progress.downloaded_chapters
       }
       if (progress.total_chapters !== undefined) {
-        currentBook.value.total_chapters = progress.total_chapters
+        currentBook.value.task_total_chapters = progress.total_chapters
+      }
+      if (progress.task_downloaded_chapters !== undefined) {
+        currentBook.value.task_downloaded_chapters = progress.task_downloaded_chapters
+      }
+      if (progress.task_total_chapters !== undefined) {
+        currentBook.value.task_total_chapters = progress.task_total_chapters
       }
       if (progress.download_status !== undefined) {
         currentBook.value.download_status = progress.download_status
@@ -236,10 +242,16 @@ export const useBookStore = defineStore('book', () => {
     if (index !== -1) {
       const target = userBooks.value[index]
       if (progress.downloaded_chapters !== undefined) {
-        target.downloaded_chapters = progress.downloaded_chapters
+        target.task_downloaded_chapters = progress.downloaded_chapters
       }
       if (progress.total_chapters !== undefined) {
-        target.total_chapters = progress.total_chapters
+        target.task_total_chapters = progress.total_chapters
+      }
+      if (progress.task_downloaded_chapters !== undefined) {
+        target.task_downloaded_chapters = progress.task_downloaded_chapters
+      }
+      if (progress.task_total_chapters !== undefined) {
+        target.task_total_chapters = progress.task_total_chapters
       }
       if (progress.download_status !== undefined) {
         target.download_status = progress.download_status

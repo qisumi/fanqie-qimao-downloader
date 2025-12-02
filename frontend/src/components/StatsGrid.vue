@@ -18,10 +18,15 @@ const emit = defineEmits(['go-books', 'go-tasks'])
 
 const isMobile = inject('isMobile', { value: false })
 
-// 今日配额使用百分比
-function getQuotaPercent() {
+// 今日剩余额度与百分比（避免展示总额分式）
+function getRemainingWords() {
   if (!props.stats.daily_limit) return 0
-  return Math.min(100, Math.round((props.stats.today_words / props.stats.daily_limit) * 100))
+  return Math.max(0, props.stats.daily_limit - props.stats.today_words)
+}
+
+function getRemainingPercent() {
+  if (!props.stats.daily_limit) return 0
+  return Math.min(100, Math.round((getRemainingWords() / props.stats.daily_limit) * 100))
 }
 </script>
 
@@ -84,21 +89,19 @@ function getQuotaPercent() {
           <div class="stat-icon">
             <n-icon :size="isMobile ? 28 : 32"><FlashOutline /></n-icon>
           </div>
-          <div class="stat-info">
+          <div class="stat-info quota-info">
             <div class="stat-value-small">
-              {{ (stats.today_words / 10000).toFixed(1) }}万
-              <span class="stat-divider">/</span>
-              {{ (stats.daily_limit / 10000).toFixed(0) }}万
+              {{ (getRemainingWords() / 10000).toFixed(1) }}万
             </div>
-            <div class="stat-label">今日配额</div>
+            <div class="stat-label">今日剩余额度</div>
             <n-progress 
               type="line" 
-              :percentage="getQuotaPercent()"
+              :percentage="getRemainingPercent()"
               :show-indicator="false"
-              :height="4"
+              :height="5"
               :rail-color="'rgba(255,255,255,0.2)'"
-              :fill-color="getQuotaPercent() > 80 ? '#ff6b6b' : '#ffffff'"
-              style="margin-top: 8px;"
+              :fill-color="getRemainingPercent() < 20 ? '#ff6b6b' : '#ffffff'"
+              class="quota-progress"
             />
           </div>
         </template>
@@ -144,6 +147,7 @@ function getQuotaPercent() {
 .stat-card-quota {
   background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
   cursor: default;
+  align-items: flex-start;
 }
 
 .stat-card-quota:hover {
@@ -164,6 +168,12 @@ function getQuotaPercent() {
 .stat-info {
   flex: 1;
   min-width: 0;
+}
+
+.quota-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .stat-value {
@@ -189,16 +199,23 @@ function getQuotaPercent() {
   margin-top: 4px;
 }
 
+.quota-progress {
+  margin-top: 4px;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .stat-card {
-    padding: 16px;
+    padding: 14px 12px;
     min-height: 90px;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
   
   .stat-icon {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
   
   .stat-value {
@@ -206,11 +223,15 @@ function getQuotaPercent() {
   }
   
   .stat-value-small {
-    font-size: 15px;
+    font-size: 14px;
   }
   
   .stat-label {
     font-size: 12px;
+  }
+  
+  .quota-info {
+    width: 100%;
   }
 }
 </style>

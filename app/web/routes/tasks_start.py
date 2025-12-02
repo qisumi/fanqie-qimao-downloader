@@ -140,7 +140,13 @@ async def start_download(
             _running_downloads.pop(book_id, None)
             logger.warning(f"Cleaned up completed task for book {book_id}")
         
-        task = download_service.create_task(book_id, "full_download")
+        task = download_service.create_task(
+            book_id,
+            "full_download",
+            start_chapter=start_chapter,
+            end_chapter=end_chapter,
+            skip_completed=True,
+        )
         
         from app.web.websocket import get_connection_manager
         from datetime import datetime

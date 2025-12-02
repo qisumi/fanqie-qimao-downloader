@@ -48,7 +48,13 @@ class DownloadOperationMixin(DownloadServiceBase):
             if not task:
                 raise ValueError(f"Task not found: {task_id}")
         else:
-            task = self.create_task(book_uuid, task_type)
+            task = self.create_task(
+                book_uuid,
+                task_type,
+                start_chapter=start_chapter,
+                end_chapter=end_chapter,
+                skip_completed=skip_completed,
+            )
         
         try:
             if task_type == "full_download" and not skip_completed:
@@ -57,9 +63,13 @@ class DownloadOperationMixin(DownloadServiceBase):
             book.download_status = "downloading"
             task.status = "running"
             task.started_at = datetime.utcnow()
-            self.db.commit()
             
             chapters = self._get_pending_chapters(book_uuid, task_type, start_chapter, end_chapter, skip_completed)
+            task.total_chapters = len(chapters)
+            task.downloaded_chapters = 0
+            task.failed_chapters = 0
+            task.progress = 0.0
+            self.db.commit()
             
             if not chapters:
                 task.status = "completed"
@@ -94,10 +104,14 @@ class DownloadOperationMixin(DownloadServiceBase):
             
             self.db.commit()
             
-            callback = self._progress_callbacks.get(task.id)
-            if callback:
-                logger.debug(f"Triggering final progress callback for task {task.id}, status={task.status}")
-                callback(task)
+            callbacks = self._progress_callbacks.get(task.id, set())
+            if callbacks:
+                logger.debug(f"Triggering {len(callbacks)} final progress callback(s) for task {task.id}, status={task.status}")
+                for callback in list(callbacks):
+                    try:
+                        callback(task)
+                    except Exception:
+                        logger.exception(f"Final progress callback failed for task {task.id}")
             
             logger.info(
                 f"Download completed: book={book.title}, "
@@ -113,10 +127,14 @@ class DownloadOperationMixin(DownloadServiceBase):
             book.download_status = "failed"
             self.db.commit()
             
-            callback = self._progress_callbacks.get(task.id)
-            if callback:
-                logger.debug(f"Triggering failure callback for task {task.id}")
-                callback(task)
+            callbacks = self._progress_callbacks.get(task.id, set())
+            if callbacks:
+                logger.debug(f"Triggering {len(callbacks)} failure callback(s) for task {task.id}")
+                for callback in list(callbacks):
+                    try:
+                        callback(task)
+                    except Exception:
+                        logger.exception(f"Failure progress callback failed for task {task.id}")
             
             logger.error(f"Download failed: {e}")
             raise

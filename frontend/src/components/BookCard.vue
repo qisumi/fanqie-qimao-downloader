@@ -154,7 +154,7 @@ function handleToggleShelf(e) {
         <template #icon>
           <n-icon><DownloadOutline /></n-icon>
         </template>
-        <span v-if="!compact" class="action-text">
+        <span class="action-text">
           {{ isCompleted ? '重下' : '下载' }}
         </span>
       </n-button>
@@ -170,7 +170,7 @@ function handleToggleShelf(e) {
         <template #icon>
           <n-icon><component :is="shelfIcon" /></n-icon>
         </template>
-        <span v-if="!compact" class="action-text">{{ shelfLabel }}</span>
+        <span class="action-text">{{ shelfLabel }}</span>
       </n-button>
       
       <n-popconfirm 
@@ -205,7 +205,7 @@ function handleToggleShelf(e) {
 <style scoped>
 .book-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   padding: 16px;
   background: var(--card-bg, #fff);
@@ -275,17 +275,20 @@ function handleToggleShelf(e) {
 
 .book-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .book-title {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-color-primary, #333);
-  white-space: nowrap;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .compact .book-title {
@@ -299,11 +302,13 @@ function handleToggleShelf(e) {
 .book-author {
   font-size: 13px;
   color: var(--text-color-secondary, #666);
+  line-height: 1.4;
 }
 
 .book-meta {
   display: flex;
   gap: 16px;
+  flex-wrap: wrap;
   font-size: 13px;
   color: var(--text-color-tertiary, #999);
 }
@@ -358,6 +363,7 @@ function handleToggleShelf(e) {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: 4px;
 }
 
 .action-btn {
@@ -389,16 +395,56 @@ function handleToggleShelf(e) {
 /* 移动端适配 */
 @media (max-width: 768px) {
   .book-card {
+    padding: 12px;
     gap: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .book-header {
+    gap: 6px;
+  }
+  
+  .book-title {
+    font-size: 15px;
+    -webkit-line-clamp: 2;
   }
   
   .book-meta {
     font-size: 12px;
-    gap: 12px;
+    gap: 10px;
+  }
+  
+  .progress-wrapper {
+    margin-top: 2px;
+  }
+  
+  .book-actions {
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--divider-color, #f0f0f0);
+    justify-content: space-between;
+    gap: 10px;
+    align-items: stretch;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+  
+  .book-actions > *:not(.arrow-icon) {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .book-actions :deep(.n-button) {
+    width: 100%;
+  }
+  
+  .book-actions :deep(.n-button__content) {
+    justify-content: center;
   }
   
   .action-text {
-    display: none;
+    display: inline;
+    margin-left: 6px;
   }
   
   .arrow-icon {
