@@ -42,9 +42,18 @@ const emit = defineEmits([
 ])
 
 const fontOptions = [
-  { label: '衬线（Serif）', value: 'serif' },
-  { label: '无衬线（Sans）', value: 'sans-serif' },
-  { label: '等宽（Mono）', value: 'monospace' }
+  { label: '霞鹜文楷', value: '"LXGW WenKai Screen", "LXGW WenKai", serif' },
+  { label: '思源宋体', value: '"Noto Serif SC", serif' },
+  { label: '思源黑体', value: '"Noto Sans SC", sans-serif' },
+  { label: '小赖字体', value: '"XLai", sans-serif' },
+  { label: '系统默认', value: 'system-ui, -apple-system, sans-serif' }
+]
+
+const fontWeightOptions = [
+  { label: '细体', value: 300 },
+  { label: '常规', value: 400 },
+  { label: '中等', value: 500 },
+  { label: '粗体', value: 600 }
 ]
 
 const themePresets = [
@@ -66,6 +75,10 @@ function applyThemePreset(preset) {
 
 function handleFontFamilyChange(val) {
   emit('update-setting', 'fontFamily', val)
+}
+
+function handleFontWeightChange(val) {
+  emit('update-setting', 'fontWeight', val)
 }
 
 function handleFontSizeChange(value) {
@@ -115,6 +128,16 @@ function handleTextColorChange(value) {
             size="small"
             style="width: 180px"
             @update:value="handleFontFamilyChange"
+          />
+        </div>
+        <div class="setting-row">
+          <span>字重</span>
+          <n-select
+            :value="settings.fontWeight || 400"
+            :options="fontWeightOptions"
+            size="small"
+            style="width: 180px"
+            @update:value="handleFontWeightChange"
           />
         </div>
         <div class="setting-row">

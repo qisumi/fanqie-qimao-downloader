@@ -154,12 +154,20 @@ function registerChapterRef(id, el) {
 }
 
 .chapter-text {
-  word-break: break-word;
+  word-break: normal;
+  /* 中文排版优化 */
+  line-break: strict;           /* 严格断行规则，避头尾标点 */
+  overflow-wrap: break-word;    /* 长单词换行 */
+  hanging-punctuation: first allow-end;  /* 段首标点悬挂，行尾标点允许悬挂 */
+  text-spacing-trim: space-first allow-end trim-adjacent; /* 标点挤压（现代浏览器） */
 }
 
 .paragraph {
   margin: 0;
   color: inherit;
+  /* 标点挤压备用方案 */
+  font-feature-settings: "halt" 1, "vhal" 1;  /* 标点半宽 */
+  font-kerning: normal;         /* 启用字距调整 */
 }
 
 .paragraph.spacer {

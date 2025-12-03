@@ -97,7 +97,7 @@ app = FastAPI(
 系统默认每日字数限制为 20,000,000 字，可通过环境变量 `DAILY_WORD_LIMIT` 配置。
 配额按平台分别计算，每日凌晨重置。
     """,
-    version="1.6.1",
+    version="1.6.3",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_tags=tags_metadata,

@@ -46,7 +46,8 @@ function ensureDeviceId() {
 }
 
 const defaultSettings = () => ({
-  fontFamily: 'serif',
+  fontFamily: '"LXGW WenKai Screen", "LXGW WenKai", serif',
+  fontWeight: 400,
   fontSize: 18,
   lineHeight: 1.8,
   paragraphSpacing: 12,

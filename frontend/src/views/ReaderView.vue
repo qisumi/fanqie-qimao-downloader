@@ -106,6 +106,7 @@ const backgroundStyle = computed(() => ({
 
 const readerContentStyle = computed(() => ({
   fontSize: `${readerSettings.value.fontSize || 18}px`,
+  fontWeight: readerSettings.value.fontWeight || 400,
   lineHeight: readerSettings.value.lineHeight || 1.8,
   color: textColor.value,
   fontFamily: readerSettings.value.fontFamily || 'serif'
@@ -127,13 +128,6 @@ const currentBookTitle = computed(() => bookStore.currentBook?.title || '在线�
 const chapterLabel = computed(() => {
   if (readerStore.currentChapter?.title) return readerStore.currentChapter.title
   return currentBookTitle.value
-})
-
-// 翻页模式专用的章节标题（用于分页时插入）
-// 注：API 返回的章节标题已包含"第X章"信息，无需额外拼接
-const pageChapterTitleText = computed(() => {
-  const chapter = chapterComposable.currentChapter.value
-  return chapter?.title || null
 })
 
 // 多章节模式：是否启用无缝章节切换
@@ -181,11 +175,7 @@ const scrollComposable = useReaderScroll({
 
 const pageComposable = useReaderPage({
   readerSettings,
-  textColor,
-  chapterContent: chapterComposable.chapterContent,
-  textParagraphs: chapterComposable.textParagraphs,
-  chapterIndex: computed(() => chapterComposable.currentChapter.value?.index),
-  chapterTitle: computed(() => chapterComposable.currentChapter.value?.title)
+  textColor
 })
 
 const epubComposable = useReaderEpub({
@@ -195,8 +185,6 @@ const epubComposable = useReaderEpub({
 
 const ttsComposable = useReaderTts({ message })
 
-const pageContainerRef = pageComposable.pageContainerRef
-const flickingRef = pageComposable.flickingRef
 const epubContainerRef = epubComposable.epubContainerRef
 
 /**
@@ -288,13 +276,8 @@ async function paginateMultipleChaptersForPageMode(targetPercent = 0, anchorChap
   const chapters = await prefetchChaptersForPageMode(anchorId)
   const currentChapterId = anchorId || chapterComposable.currentChapter.value?.id
   
-  if (chapters.length > 1) {
-    multiChapterMode.value = true
-    pageComposable.paginateMultipleChapters(chapters, currentChapterId, targetPercent)
-  } else {
-    multiChapterMode.value = false
-    pageComposable.paginateText(targetPercent, pageChapterTitleText.value)
-  }
+  multiChapterMode.value = chapters.length > 1
+  pageComposable.paginateMultipleChapters(chapters, currentChapterId, targetPercent)
   
   progressComposable.pageChunks.value = pageComposable.pageChunks.value
   progressComposable.currentPageIndex.value = pageComposable.currentPageIndex.value
@@ -485,10 +468,16 @@ function handleProgressChange(value) {
     return
   }
   if (isPageMode.value) {
-    pageComposable.moveToPageByPercent(value).then(() => {
-      progressComposable.currentPageIndex.value = pageComposable.currentPageIndex.value
-      progressComposable.updatePageProgress(true)
-    })
+    // 使用 getChapterPageIndex 计算目标页，然后通知组件跳转
+    const chapterId = pageComposable.activeChapterId.value
+    if (chapterId) {
+      const targetIndex = pageComposable.getChapterPageIndex(chapterId, value)
+      if (targetIndex !== null) {
+        pageComposable.currentPageIndex.value = targetIndex
+        progressComposable.currentPageIndex.value = targetIndex
+        progressComposable.updatePageProgress(true)
+      }
+    }
     return
   }
   if (isEpubMode.value) {
@@ -537,6 +526,9 @@ async function handlePageChanged(event) {
   }
 }
 
+// 翻页动画时长（与 ReaderPageContent 保持一致）
+const PAGE_ANIMATION_DURATION = 250
+
 // 翻页模式章节变化事件处理（由子组件触发）
 async function handleChapterChanged(event) {
   if (!isPageMode.value || !multiChapterMode.value) return
@@ -557,8 +549,37 @@ async function handleChapterChanged(event) {
   // 保存进度
   progressComposable.queueSaveProgress(0, 0)
 
-  // 新章节到达时，若后续章节未预取则向后预取2章
-  await prefetchNextChaptersIfNeeded(chapterId)
+  // 检查是否需要移动窗口：当进入窗口边缘章节且后续章节未在窗口内时
+  // 这样后续章节会提前加载到窗口内，实现真正的无缝翻页
+  const loadedChapterIds = pageComposable.loadedChapterIds.value
+  if (loadedChapterIds.length >= 3) {
+    const chapterIndexInWindow = loadedChapterIds.indexOf(chapterId)
+    
+    // 检查是否需要向后移动窗口
+    const isNearEnd = chapterIndexInWindow >= loadedChapterIds.length - 2
+    const nextChapterNotInWindow = boundary.next_id && !loadedChapterIds.includes(boundary.next_id)
+    
+    // 检查是否需要向前移动窗口
+    const isNearStart = chapterIndexInWindow <= 1
+    const prevChapterNotInWindow = boundary.prev_id && !loadedChapterIds.includes(boundary.prev_id)
+    
+    // 只有当边缘章节的相邻章节不在窗口内时才移动窗口
+    if ((isNearEnd && nextChapterNotInWindow) || (isNearStart && prevChapterNotInWindow)) {
+      // 等待翻页动画完成后再处理，避免动画卡顿
+      setTimeout(async () => {
+        // 计算当前在章节内的相对进度
+        const currentPercent = pageComposable.calculateChapterProgress(chapterId)
+        // 以当前章节为锚点重新分页，保持当前阅读位置
+        await paginateMultipleChaptersForPageMode(currentPercent, chapterId)
+      }, PAGE_ANIMATION_DURATION + 50)  // 额外 50ms 缓冲
+      return
+    }
+  }
+
+  // 如果不需要移动窗口，也等动画结束后再预取，避免影响动画流畅度
+  setTimeout(() => {
+    prefetchNextChaptersIfNeeded(chapterId)
+  }, PAGE_ANIMATION_DURATION + 50)
 }
 
 // 翻页模式需要加载更多章节事件处理
@@ -572,13 +593,6 @@ async function handleNeedMoreChapters(event) {
 
 // 翻页模式到达边界时的处理
 async function handleReachEdge(event) {
-  console.log('[ReaderView] handleReachEdge called:', {
-    direction: event?.direction,
-    isPageMode: isPageMode.value,
-    isLoadingChapter: chapterComposable.isLoadingChapter.value,
-    multiChapterMode: multiChapterMode.value
-  })
-  
   if (!isPageMode.value) return
   if (chapterComposable.isLoadingChapter.value) return
   
@@ -616,18 +630,10 @@ async function handleReachEdge(event) {
         // 预取上一章内容
         await prefetchChapterForPageMode(firstBoundary.prev_id)
         
-        // 预取完成后，使用第一个加载的章节作为锚点（而不是当前阅读章节）
-        // 这样可以确保新预取的章节被包含在分页窗口内
-        const freshAnchorChapterId = firstChapterId
-        const freshPosition = pageComposable.getChapterRelativePosition(freshAnchorChapterId)
-        
-        // 使用当前最新位置计算进度
-        let finalPercent = 0
-        if (freshPosition) {
-          const { relativeIndex, totalPages } = freshPosition
-          finalPercent = totalPages > 1 ? (relativeIndex / (totalPages - 1)) * 100 : 0
-        }
-        await paginateMultipleChaptersForPageMode(finalPercent, freshAnchorChapterId)
+        // 预取完成后，使用新预取的章节作为锚点，从其最后一页开始
+        // 这样用户会从新章节的末尾开始阅读（向前翻页时的正常行为）
+        const freshAnchorChapterId = firstBoundary.prev_id
+        await paginateMultipleChaptersForPageMode(100, freshAnchorChapterId)
       }
     } else if (event?.direction === 'NEXT') {
       if (!lastBoundary?.next_id) {
@@ -637,18 +643,10 @@ async function handleReachEdge(event) {
         // 预取下一章内容
         await prefetchChapterForPageMode(lastBoundary.next_id)
         
-        // 预取完成后，使用最后加载的章节作为锚点（而不是当前阅读章节）
-        // 这样可以确保新预取的章节被包含在分页窗口内
-        const freshAnchorChapterId = lastChapterId
-        const freshPosition = pageComposable.getChapterRelativePosition(freshAnchorChapterId)
-        
-        // 使用当前最新位置计算进度
-        let finalPercent = 100
-        if (freshPosition) {
-          const { relativeIndex, totalPages } = freshPosition
-          finalPercent = totalPages > 1 ? (relativeIndex / (totalPages - 1)) * 100 : 100
-        }
-        await paginateMultipleChaptersForPageMode(finalPercent, freshAnchorChapterId)
+        // 预取完成后，使用新预取的章节作为锚点，从其第一页开始
+        // 这样用户会从新章节的开头开始阅读
+        const freshAnchorChapterId = lastBoundary.next_id
+        await paginateMultipleChaptersForPageMode(0, freshAnchorChapterId)
       }
     }
     return
@@ -805,10 +803,8 @@ function handleResize() {
   }
 }
 
-function handlePageResize({ width, height }) {
+function handlePageResize() {
   if (!isPageMode.value) return
-  
-  pageComposable.updateDimensions(width, height)
   
   clearTimeout(resizeTimer)
   resizeTimer = window.setTimeout(async () => {
@@ -998,7 +994,6 @@ watch(
           <!-- 翻页模式 -->
           <template v-else-if="isPageMode">
             <ReaderPageContent
-              v-model:flicking-ref="flickingRef"
               :is-mobile="isMobile"
               :page-chunks="pageComposable.pageChunks.value"
               :page-panel-style="pagePanelStyle"
@@ -1009,6 +1004,7 @@ watch(
               :multi-chapter-mode="multiChapterMode"
               :has-next-chapter="!!chapterComposable.currentChapter.value?.next_id"
               :has-prev-chapter="!!chapterComposable.currentChapter.value?.prev_id"
+              :current-page-index="pageComposable.currentPageIndex.value"
               @page-changed="handlePageChanged"
               @chapter-changed="handleChapterChanged"
               @need-more-chapters="handleNeedMoreChapters"

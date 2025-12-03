@@ -3,6 +3,16 @@
  * 包含颜色、间距、动画、阴影等全局变量
  */
 
+/* ===== 阅读字体引入 ===== */
+/* 霞鹜文楷屏幕阅读版 - 适合屏幕阅读的楷体 */
+@import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css');
+/* 思源宋体 - 适合屏幕阅读的宋体 (使用国内镜像) */
+@import url('https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@400;500;600&display=swap');
+/* 思源黑体 - 适合屏幕阅读的黑体 (使用国内镜像) */
+@import url('https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
+/* 小赖字体 - 适合阅读的圆体风格 */
+@import url('https://cdn.jsdelivr.net/npm/xlai-webfont@1.0.0/style.css');
+
 :root {
   /* ===== 主色调 ===== */
   --primary-color: #18a058;

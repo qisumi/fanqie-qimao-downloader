@@ -1,15 +1,14 @@
 <script setup>
 /**
- * 翻页模式内容组件
+ * 翻页模式内容组件（自定义实现）
  * 
  * 支持多章节无缝滑动：
- * - 使用 renderOnlyVisible 实现虚拟渲染，优化性能
- * - 通过 chapterBoundaries 跟踪章节边界
- * - 底部显示当前章节标题（根据页面位置动态更新）
+ * - 轻量级实现，无第三方依赖
+ * - 支持触摸和鼠标拖动
+ * - 平滑动画 + 边缘回弹
+ * - 动态页面增减无需重建
  */
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import Flicking from '@egjs/vue3-flicking'
-import '@egjs/vue3-flicking/dist/flicking.css'
 import { NSkeleton } from 'naive-ui'
 
 const props = defineProps({
@@ -18,93 +17,80 @@ const props = defineProps({
   pagePanelStyle: { type: Object, default: () => ({}) },
   readerContentStyle: { type: Object, default: () => ({}) },
   paragraphStyle: { type: Object, default: () => ({}) },
-  // 当前活跃章节标题（用于底部显示）
   chapterTitle: { type: String, default: '' },
-  // 章节边界映射 { chapterId: { startPage, endPage, title, index } }
   chapterBoundaries: { type: Object, default: () => ({}) },
-  // 是否启用多章节模式
   multiChapterMode: { type: Boolean, default: false },
   hasNextChapter: { type: Boolean, default: false },
-  hasPrevChapter: { type: Boolean, default: false }
+  hasPrevChapter: { type: Boolean, default: false },
+  currentPageIndex: { type: Number, default: 0 }  // 外部传入的当前页索引
 })
 
 const emit = defineEmits(['page-changed', 'reach-edge', 'resize', 'chapter-changed', 'need-more-chapters'])
 
-// 暴露 flicking ref 给父组件
-const flickingRef = defineModel('flickingRef')
+// ============ 核心状态 ============
 const containerRef = ref(null)
-let resizeObserver = null
+const trackRef = ref(null)
+const currentIndex = ref(0)
+const dragOffset = ref(0)        // 拖动时的临时偏移
+const isAnimating = ref(false)   // 是否正在动画中
+const isDragging = ref(false)    // 是否正在拖动
+const skipTransition = ref(false) // 是否跳过过渡动画（外部索引更新时）
 let isInitialized = ref(false)
 let lastEdgeTime = 0
+let resizeObserver = null
 
-// 当前页面索引（用于计算当前章节）
-const currentPageIdx = ref(0)
+// 拖动相关状态（不需要响应式）
+let startX = 0
+let startY = 0
+let startTime = 0
+let lastMoveX = 0
+let velocityX = 0
+let isHorizontalDrag = null  // null: 未确定方向, true: 水平, false: 垂直
 
-// 内部缓存的页面数据，避免在 Flicking 动画期间更新
-const internalPageChunks = ref([])
-// 是否正在动画中
-const isAnimating = ref(false)
-// 待更新的页面数据
-let pendingPageChunks = null
+// 配置
+const THRESHOLD = 50           // 切换页面的最小拖动距离
+const VELOCITY_THRESHOLD = 0.3 // 快速滑动的速度阈值
+const BOUNCE_DISTANCE = 60     // 边缘回弹距离
+const ANIMATION_DURATION = 250 // 动画时长(ms)
 
-// 安全过滤页面数据，确保 Flicking 子节点有效
+// ============ 安全过滤 ============
 function filterValidChunks(chunks) {
   if (!Array.isArray(chunks)) return []
   return chunks.filter(chunk => {
-    // chunk 必须是有效数组且每个元素都有效
     if (!Array.isArray(chunk) || chunk.length === 0) return false
-    // 确保 chunk 中没有 undefined/null 元素
     return chunk.every(item => item !== undefined && item !== null)
   })
 }
 
-// 同步外部 pageChunks 到内部缓存
-watch(() => props.pageChunks, (newChunks) => {
-  const filtered = filterValidChunks(newChunks)
-  
-  if (isAnimating.value) {
-    // 动画中，暂存更新
-    console.log('[ReaderPageContent] Animation in progress, deferring pageChunks update')
-    pendingPageChunks = filtered
-  } else {
-    // 非动画状态，直接更新
-    internalPageChunks.value = filtered
-  }
-}, { immediate: true })
+const safePageChunks = computed(() => filterValidChunks(props.pageChunks))
+const totalPages = computed(() => safePageChunks.value.length)
 
-// 过滤掉异常值，确保 Flicking 子节点有效
-const safePageChunks = computed(() => {
-  // 二次校验，确保在渲染时数据是安全的
-  return filterValidChunks(internalPageChunks.value)
+// ============ 计算位置 ============
+const pageWidth = computed(() => {
+  if (!containerRef.value) return 0
+  return containerRef.value.offsetWidth
 })
 
-// Flicking 组件的 key，用于在数据结构大幅变化时强制重新创建组件
-// 使用稳定的 key 策略：只基于章节数量，避免在追加章节时频繁重建
-// 注意：章节内容变化时不改变 key，让 Flicking 自己处理面板更新
-const flickingKeyCounter = ref(0)
-const flickingKey = computed(() => {
-  return `flicking-${flickingKeyCounter.value}`
+// 轨道样式（控制整体位移）
+const trackStyle = computed(() => {
+  const baseOffset = -currentIndex.value * pageWidth.value
+  const totalOffset = baseOffset + dragOffset.value
+  // 拖动中或跳过过渡时不使用动画
+  const useTransition = !isDragging.value && !skipTransition.value
+  return {
+    transform: `translate3d(${totalOffset}px, 0, 0)`,
+    transition: useTransition ? `transform ${ANIMATION_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)` : 'none'
+  }
 })
 
-// 监听章节数量变化，仅当数量减少或清空时才重建
-// （追加章节时不需要重建，Flicking 可以动态处理新增面板）
-let lastChapterCount = 0
-watch(() => Object.keys(props.chapterBoundaries).length, (newCount) => {
-  // 只有当章节数从多变少（比如切换书籍）时才重建
-  if (newCount < lastChapterCount || (lastChapterCount > 0 && newCount === 0)) {
-    flickingKeyCounter.value++
-  }
-  lastChapterCount = newCount
-}, { immediate: true })
-
-// 计算当前页面所属的章节信息
+// ============ 章节信息计算 ============
 const currentPageChapterInfo = computed(() => {
   if (!props.multiChapterMode || !Object.keys(props.chapterBoundaries).length) {
     return { title: props.chapterTitle, index: null }
   }
   
   for (const [chapterId, boundary] of Object.entries(props.chapterBoundaries)) {
-    if (currentPageIdx.value >= boundary.startPage && currentPageIdx.value <= boundary.endPage) {
+    if (currentIndex.value >= boundary.startPage && currentIndex.value <= boundary.endPage) {
       return {
         chapterId,
         title: boundary.title,
@@ -118,90 +104,198 @@ const currentPageChapterInfo = computed(() => {
   return { title: props.chapterTitle, index: null }
 })
 
-// 底部显示的章节标题
-// 注：API 返回的章节名已包含"第X章"信息，无需额外拼接
 const displayChapterTitle = computed(() => {
   return currentPageChapterInfo.value.title || props.chapterTitle
 })
 
-// 底部显示的页码（在章节内的相对页码）
 const displayPageInfo = computed(() => {
   if (!props.multiChapterMode || currentPageChapterInfo.value.startPage === undefined) {
-    return `${currentPageIdx.value + 1} / ${safePageChunks.value.length}`
+    return `${currentIndex.value + 1} / ${totalPages.value}`
   }
   
   const { startPage, endPage } = currentPageChapterInfo.value
   if (startPage === undefined || endPage === undefined) {
-    return `${currentPageIdx.value + 1} / ${safePageChunks.value.length}`
+    return `${currentIndex.value + 1} / ${totalPages.value}`
   }
   
-  const relativeIndex = currentPageIdx.value - startPage + 1
+  const relativeIndex = currentIndex.value - startPage + 1
   const chapterPageCount = endPage - startPage + 1
   return `${relativeIndex} / ${chapterPageCount}`
 })
 
-// Flicking ready 事件：组件初始化完成
-function handleReady() {
-  console.log('[ReaderPageContent] handleReady called, flickingRef:', {
-    exists: !!flickingRef.value,
-    initialized: flickingRef.value?.initialized,
-    index: flickingRef.value?.index
-  })
-  if (flickingRef.value?.index !== undefined) {
-    currentPageIdx.value = flickingRef.value.index
-  }
+// ============ 触摸/鼠标事件处理 ============
+function getEventX(e) {
+  return e.touches ? e.touches[0].clientX : e.clientX
 }
 
-// 动画开始
-function handleMoveStart() {
-  isAnimating.value = true
+function getEventY(e) {
+  return e.touches ? e.touches[0].clientY : e.clientY
 }
 
-// 动画结束
-function handleMoveEnd() {
-  isAnimating.value = false
-  // 如果有待更新的数据，使用 nextTick 确保当前渲染周期完成后再应用
-  if (pendingPageChunks !== null) {
-    console.log('[ReaderPageContent] Applying deferred pageChunks update')
-    const chunksToApply = pendingPageChunks
-    pendingPageChunks = null
-    // 使用 nextTick 避免在 Flicking 内部状态更新期间修改数据
-    nextTick(() => {
-      internalPageChunks.value = filterValidChunks(chunksToApply)
-    })
-  }
-}
-
-function handleChanged(event) {
-  console.log('[ReaderPageContent] handleChanged:', {
-    eventIndex: event.index,
-    prevIndex: currentPageIdx.value,
-    flickingInitialized: flickingRef.value?.initialized
-  })
-  const prevPageIdx = currentPageIdx.value
-  currentPageIdx.value = event.index
+function onDragStart(e) {
+  if (isAnimating.value) return
   
+  // 鼠标事件只响应左键
+  if (e.type === 'mousedown' && e.button !== 0) return
+  
+  isDragging.value = true
+  isHorizontalDrag = null
+  startX = getEventX(e)
+  startY = getEventY(e)
+  lastMoveX = startX
+  startTime = Date.now()
+  velocityX = 0
+  dragOffset.value = 0
+  
+  // 添加全局事件监听（确保拖到元素外也能响应）
+  if (e.type === 'mousedown') {
+    document.addEventListener('mousemove', onDragMove)
+    document.addEventListener('mouseup', onDragEnd)
+  }
+}
+
+function onDragMove(e) {
+  if (!isDragging.value) return
+  
+  const currentX = getEventX(e)
+  const currentY = getEventY(e)
+  const deltaX = currentX - startX
+  const deltaY = currentY - startY
+  
+  // 首次移动时判断方向
+  if (isHorizontalDrag === null) {
+    const absDeltaX = Math.abs(deltaX)
+    const absDeltaY = Math.abs(deltaY)
+    
+    // 需要至少移动 10px 才判断方向
+    if (absDeltaX > 10 || absDeltaY > 10) {
+      isHorizontalDrag = absDeltaX > absDeltaY
+      
+      // 如果是垂直滑动，取消拖动
+      if (!isHorizontalDrag) {
+        isDragging.value = false
+        return
+      }
+    } else {
+      return // 移动距离太小，继续等待
+    }
+  }
+  
+  // 只处理水平拖动
+  if (!isHorizontalDrag) return
+  
+  // 阻止默认行为（防止页面滚动）
+  e.preventDefault()
+  
+  // 计算速度
+  const now = Date.now()
+  const timeDelta = now - startTime
+  if (timeDelta > 0) {
+    velocityX = (currentX - lastMoveX) / timeDelta
+  }
+  lastMoveX = currentX
+  startTime = now
+  
+  // 边缘阻尼效果
+  let offset = deltaX
+  if (currentIndex.value === 0 && deltaX > 0) {
+    // 第一页向右拖动，增加阻尼
+    offset = deltaX * 0.3
+  } else if (currentIndex.value === totalPages.value - 1 && deltaX < 0) {
+    // 最后一页向左拖动，增加阻尼
+    offset = deltaX * 0.3
+  }
+  
+  dragOffset.value = offset
+}
+
+function onDragEnd(e) {
+  if (!isDragging.value) return
+  
+  // 移除全局事件监听
+  document.removeEventListener('mousemove', onDragMove)
+  document.removeEventListener('mouseup', onDragEnd)
+  
+  isDragging.value = false
+  
+  // 如果方向未确定或是垂直滑动，直接复位
+  if (isHorizontalDrag !== true) {
+    dragOffset.value = 0
+    return
+  }
+  
+  const offset = dragOffset.value
+  const absOffset = Math.abs(offset)
+  const absVelocity = Math.abs(velocityX)
+  
+  // 判断是否切换页面
+  let shouldSwitch = false
+  let direction = 0 // -1: 向前, 1: 向后
+  
+  if (absOffset > THRESHOLD || absVelocity > VELOCITY_THRESHOLD) {
+    if (offset > 0) {
+      // 向右拖动 -> 显示上一页
+      direction = -1
+    } else {
+      // 向左拖动 -> 显示下一页
+      direction = 1
+    }
+    
+    // 检查边界
+    const targetIndex = currentIndex.value + direction
+    if (targetIndex >= 0 && targetIndex < totalPages.value) {
+      shouldSwitch = true
+    }
+  }
+  
+  // 开始动画
+  isAnimating.value = true
+  dragOffset.value = 0
+  
+  if (shouldSwitch) {
+    const prevIndex = currentIndex.value
+    currentIndex.value += direction
+    
+    // 触发事件
+    emitPageChanged(prevIndex)
+  } else {
+    // 检查是否到达边缘
+    if (currentIndex.value === 0 && offset > THRESHOLD) {
+      emitReachEdge('PREV')
+    } else if (currentIndex.value === totalPages.value - 1 && offset < -THRESHOLD) {
+      emitReachEdge('NEXT')
+    }
+  }
+  
+  // 动画结束
+  setTimeout(() => {
+    isAnimating.value = false
+  }, ANIMATION_DURATION)
+}
+
+// ============ 事件发射 ============
+function emitPageChanged(prevIndex) {
+  const event = { index: currentIndex.value, prevIndex }
   emit('page-changed', event)
   
   // 多章节模式下检测章节变化
   if (props.multiChapterMode && Object.keys(props.chapterBoundaries).length) {
-    const prevChapterId = getChapterIdByPageIndex(prevPageIdx)
-    const currentChapterId = getChapterIdByPageIndex(event.index)
+    const prevChapterId = getChapterIdByPageIndex(prevIndex)
+    const currentChapterId = getChapterIdByPageIndex(currentIndex.value)
     
     if (currentChapterId && currentChapterId !== prevChapterId) {
       emit('chapter-changed', {
         chapterId: currentChapterId,
         boundary: props.chapterBoundaries[currentChapterId],
-        pageIndex: event.index
+        pageIndex: currentIndex.value
       })
     }
     
-    // 检查是否需要加载更多章节（接近边界时提前触发）
-    checkAndEmitNeedMoreChapters(event.index)
+    checkAndEmitNeedMoreChapters(currentIndex.value)
   }
   
   // 标记已初始化
-  if (!isInitialized.value && event.index >= 0) {
+  if (!isInitialized.value && currentIndex.value >= 0) {
     setTimeout(() => {
       isInitialized.value = true
     }, 300)
@@ -223,18 +317,15 @@ function checkAndEmitNeedMoreChapters(pageIndex) {
   const chapterIds = Object.keys(props.chapterBoundaries)
   if (!chapterIds.length) return
   
-  // 找到当前章节和其在列表中的位置
   const currentChapterId = getChapterIdByPageIndex(pageIndex)
   if (!currentChapterId) return
   
   const boundary = props.chapterBoundaries[currentChapterId]
   const chapterIndex = chapterIds.indexOf(currentChapterId)
-  
-  // 当前章节内的相对位置
   const chapterPageCount = boundary.endPage - boundary.startPage + 1
   const relativeIndex = pageIndex - boundary.startPage
   
-  // 如果接近章节末尾（最后2页），且有下一章，且下一章不在已加载列表中
+  // 接近章节末尾
   if (relativeIndex >= chapterPageCount - 2 && boundary.next_id) {
     const nextInLoaded = chapterIds.includes(boundary.next_id)
     if (!nextInLoaded || chapterIndex >= chapterIds.length - 2) {
@@ -242,7 +333,7 @@ function checkAndEmitNeedMoreChapters(pageIndex) {
     }
   }
   
-  // 如果接近章节开头（前2页），且有上一章，且上一章不在已加载列表中
+  // 接近章节开头
   if (relativeIndex <= 1 && boundary.prev_id) {
     const prevInLoaded = chapterIds.includes(boundary.prev_id)
     if (!prevInLoaded || chapterIndex <= 1) {
@@ -251,71 +342,107 @@ function checkAndEmitNeedMoreChapters(pageIndex) {
   }
 }
 
-function handleReachEdge(event) {
-  console.log('[ReaderPageContent] handleReachEdge called:', {
-    direction: event?.direction,
-    isInitialized: isInitialized.value,
-    timeSinceLastEdge: Date.now() - lastEdgeTime
-  })
+function emitReachEdge(direction) {
+  if (!isInitialized.value) return
   
-  // 未初始化完成时不触发
-  if (!isInitialized.value) {
-    console.log('[ReaderPageContent] handleReachEdge: skipped (not initialized)')
-    return
-  }
-  
-  // 防抖：避免短时间内重复触发
   const now = Date.now()
-  if (now - lastEdgeTime < 500) {
-    console.log('[ReaderPageContent] handleReachEdge: skipped (debounced)')
-    return
-  }
+  if (now - lastEdgeTime < 500) return
   lastEdgeTime = now
   
-  // 多章节模式下，边缘事件仅用于提示（不再自动切章）
-  // 因为章节已经预加载到 pageChunks 中，滑动是连续的
-  console.log('[ReaderPageContent] handleReachEdge: emitting reach-edge')
-  emit('reach-edge', event)
+  emit('reach-edge', { direction })
 }
 
-// 重置初始化状态（用于章节切换时）
+// ============ 公开方法 ============
+function goToPage(index, animate = true) {
+  if (index < 0 || index >= totalPages.value) return
+  
+  const prevIndex = currentIndex.value
+  if (!animate) {
+    currentIndex.value = index
+    emitPageChanged(prevIndex)
+    return
+  }
+  
+  isAnimating.value = true
+  currentIndex.value = index
+  emitPageChanged(prevIndex)
+  
+  setTimeout(() => {
+    isAnimating.value = false
+  }, ANIMATION_DURATION)
+}
+
+function prev() {
+  if (currentIndex.value > 0) {
+    goToPage(currentIndex.value - 1)
+  }
+}
+
+function next() {
+  if (currentIndex.value < totalPages.value - 1) {
+    goToPage(currentIndex.value + 1)
+  }
+}
+
 function resetInitState() {
   isInitialized.value = false
 }
 
 // 暴露给父组件
-defineExpose({ resetInitState })
+defineExpose({ 
+  resetInitState,
+  goToPage,
+  prev,
+  next,
+  get index() { return currentIndex.value },
+  get initialized() { return isInitialized.value }
+})
 
-// 监听内部 pageChunks 变化，同步更新 currentPageIdx
-watch(internalPageChunks, async () => {
-  console.log('[ReaderPageContent] internalPageChunks changed:', {
-    length: internalPageChunks.value?.length,
-    flickingExists: !!flickingRef.value,
-    flickingInitialized: flickingRef.value?.initialized
-  })
-  // 当 pageChunks 更新后，等待 DOM 更新，然后从 flickingRef 获取当前索引
+// ============ 监听数据变化 ============
+// 监听外部传入的页索引变化（重新分页后同步索引）
+watch(() => props.currentPageIndex, async (newIndex) => {
+  await nextTick()  // 等待 pageChunks 更新后再检查
+  if (newIndex !== currentIndex.value && newIndex >= 0 && newIndex < totalPages.value) {
+    // 外部索引更新时跳过动画
+    skipTransition.value = true
+    currentIndex.value = newIndex
+    // 在下一帧恢复动画
+    requestAnimationFrame(() => {
+      skipTransition.value = false
+    })
+  }
+})
+
+// 当页面数据变化时，同步外部传入的索引
+watch(() => props.pageChunks, async (newChunks) => {
   await nextTick()
-  // 确保 Flicking 实例存在且已初始化
-  if (flickingRef.value?.initialized && flickingRef.value?.index !== undefined) {
-    console.log('[ReaderPageContent] internalPageChunks watcher: updating currentPageIdx to', flickingRef.value.index)
-    currentPageIdx.value = flickingRef.value.index
+  
+  const filtered = filterValidChunks(newChunks)
+  const maxIndex = Math.max(0, filtered.length - 1)
+  
+  // 优先使用外部传入的索引（重新分页后的目标页）
+  if (props.currentPageIndex >= 0 && props.currentPageIndex <= maxIndex) {
+    // 外部索引更新时跳过动画
+    skipTransition.value = true
+    currentIndex.value = props.currentPageIndex
+    // 在下一帧恢复动画
+    requestAnimationFrame(() => {
+      skipTransition.value = false
+    })
+  } else if (currentIndex.value > maxIndex) {
+    // 如果当前索引超出范围，调整到最后一页
+    currentIndex.value = maxIndex
   }
 }, { deep: false })
 
-// 监听 flickingRef 的初始化
-watch(flickingRef, async (newRef) => {
-  console.log('[ReaderPageContent] flickingRef changed:', {
-    exists: !!newRef,
-    initialized: newRef?.initialized,
-    index: newRef?.index
-  })
-  // 确保 Flicking 实例已初始化
-  if (newRef?.initialized && newRef?.index !== undefined) {
-    await nextTick()
-    console.log('[ReaderPageContent] flickingRef watcher: updating currentPageIdx to', newRef.index)
-    currentPageIdx.value = newRef.index
+// 初始化时发射一次页面变化事件
+watch(totalPages, (newTotal, oldTotal) => {
+  if (oldTotal === 0 && newTotal > 0) {
+    // 首次有数据
+    isInitialized.value = true
+    emit('page-changed', { index: currentIndex.value, prevIndex: -1 })
   }
-})
+}, { immediate: true })
 
 onMounted(() => {
   if (containerRef.value) {
@@ -329,36 +456,29 @@ onMounted(() => {
   }
 })
 
+// ============ 生命周期 ============
 onBeforeUnmount(() => {
   if (resizeObserver) {
     resizeObserver.disconnect()
   }
+  document.removeEventListener('mousemove', onDragMove)
+  document.removeEventListener('mouseup', onDragEnd)
 })
 </script>
 
 <template>
-  <div class="page-flicking" :class="{ 'mobile-page': isMobile }" ref="containerRef">
+  <div 
+    class="page-swiper" 
+    :class="{ 'mobile-page': isMobile }" 
+    ref="containerRef"
+    @touchstart.passive="onDragStart"
+    @touchmove="onDragMove"
+    @touchend="onDragEnd"
+    @touchcancel="onDragEnd"
+    @mousedown="onDragStart"
+  >
     <template v-if="safePageChunks.length">
-      <Flicking
-        :key="flickingKey"
-        ref="flickingRef"
-        :options="{
-          align: 'prev',
-          circular: false,
-          autoResize: true,
-          bounce: 10,
-          duration: 180,
-          renderOnlyVisible: false,
-          moveType: 'strict',
-          threshold: 40,
-          preventDefaultOnDrag: true
-        }"
-        @ready="handleReady"
-        @move-start="handleMoveStart"
-        @move-end="handleMoveEnd"
-        @changed="handleChanged"
-        @reach-edge="handleReachEdge"
-      >
+      <div class="swiper-track" ref="trackRef" :style="trackStyle">
         <div
           v-for="(page, idx) in safePageChunks"
           :key="`page-${idx}`"
@@ -384,7 +504,7 @@ onBeforeUnmount(() => {
             <span class="footer-page">{{ displayPageInfo }}</span>
           </div>
         </div>
-      </Flicking>
+      </div>
     </template>
     <template v-else>
       <div class="chapter-placeholder">
@@ -395,20 +515,31 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.page-flicking {
+.page-swiper {
   height: 100%;
   width: 100%;
   padding: 24px;
   box-sizing: border-box;
   overflow: hidden;
+  position: relative;
+  touch-action: pan-y pinch-zoom; /* 允许垂直滚动，禁止水平滚动由浏览器处理 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.page-flicking.mobile-page {
+.page-swiper.mobile-page {
   padding: 0;
   min-height: 100dvh;
 }
 
+.swiper-track {
+  display: flex;
+  height: 100%;
+  will-change: transform;
+}
+
 .page-panel {
+  flex-shrink: 0;
   width: calc(100% - 32px);
   height: 100%;
   max-width: 820px;
@@ -422,9 +553,9 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 
-.page-flicking.mobile-page .page-panel {
+.page-swiper.mobile-page .page-panel {
   width: 100%;
-  height: 100dvh; /* 使用动态视口高度，适应移动端浏览器 UI */
+  height: 100dvh;
   max-width: none;
   margin: 0;
   border-radius: 0;
@@ -443,20 +574,29 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 
-.page-flicking.mobile-page .page-panel-body {
-  padding: 8px 8px calc(56px + env(safe-area-inset-bottom, 0px)); /* 移动端统一8px边距，底部额外预留信息栏和安全区 */
+.page-swiper.mobile-page .page-panel-body {
+  padding: 8px 8px calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 .page-text {
   flex: 1;
-  min-height: 0; /* 防止 flex 子元素溢出 */
+  min-height: 0;
   white-space: pre-wrap;
   overflow: visible;
+  /* 中文排版优化 */
+  line-break: strict;           /* 严格断行规则，避头尾标点 */
+  word-break: normal;           /* 正常断词 */
+  overflow-wrap: break-word;    /* 长单词换行 */
+  hanging-punctuation: first allow-end;  /* 段首标点悬挂，行尾标点允许悬挂 */
+  text-spacing-trim: space-first allow-end trim-adjacent; /* 标点挤压（现代浏览器） */
 }
 
 .paragraph {
   margin: 0;
   color: inherit;
+  /* 标点挤压备用方案 */
+  font-feature-settings: "halt" 1, "vhal" 1;  /* 标点半宽 */
+  font-kerning: normal;         /* 启用字距调整 */
 }
 
 .paragraph.chapter-title-line {
