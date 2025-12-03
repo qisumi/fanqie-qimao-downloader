@@ -113,10 +113,14 @@
 - EPUB：能加载生成的 EPUB，目录与分页正常；TXT/EPUB 双模式切换无异常。
 
 ## 逐步工作进度追踪（建议执行顺序，未开始请标记为 [ ]）
-- [ ] 后端接口落地：在 `app/web/routes/books_reader.py` 完成 TOC/内容/进度/书签/历史/缓存/在线补全接口，并补充 Pydantic schema 与汇总注册。
-- [ ] 数据表迁移：编写 Alembic 迁移创建 `reading_progress`、`bookmarks`、`reading_history`，添加唯一索引 `(book_id,user_id,device_id)` 等。
-- [ ] 下载服务适配：在 `DownloadService` 增加“按章节单拉 + 预取后续 N 章”方法，章节内容接口未命中时调用，返回 `status=fetching`。
-- [ ] 前端依赖与骨架：`frontend/package.json` 新增 `@egjs/vue3-flicking`，创建 `/reader/:bookId` 页面骨架与 `readerStore`（含 cacheState/online-fetching 状态）。
-- [ ] 缓存与 PWA 按钮：实现“缓存 EPUB”按钮逻辑（调用 `/cache/epub`，写入 Cache Storage），UI 显示缓存状态与清除入口。
-- [ ] 进度/历史同步：前端在章节切换/定时上报进度，提供“清空进度/清空历史”按钮调用 DELETE 接口；后端按用户区分并允许匿名。
-- [ ] 测试与验证：接口层单测（未下载章 -> fetching -> ready）、前端冒烟测试滚动/翻页/离线缓存路径，弱网/无网回退验证。
+- [x] 后端接口落地：在 `app/web/routes/books_reader.py` 完成 TOC/内容/进度/书签/历史/缓存/在线补全接口，并补充 Pydantic schema 与汇总注册。
+- [x] 数据表迁移：编写 Alembic 迁移创建 `reading_progress`、`bookmarks`、`reading_history`，添加唯一索引 `(book_id,user_id,device_id)` 等。
+- [x] 下载服务适配：在 `DownloadService` 增加"按章节单拉 + 预取后续 N 章"方法，章节内容接口未命中时调用，返回 `status=fetching`。
+- [x] 前端依赖与骨架：`frontend/package.json` 新增 `@egjs/vue3-flicking`，创建 `/reader/:bookId` 页面骨架与 `readerStore`（含 cacheState/online-fetching 状态）。
+- [x] 缓存与 PWA 按钮：实现"缓存 EPUB"按钮逻辑（调用 `/cache/epub`，写入 Cache Storage），UI 显示缓存状态与清除入口。
+- [x] 进度/历史同步：前端在章节切换/定时上报进度，提供"清空进度/清空历史"按钮调用 DELETE 接口；后端按用户区分并允许匿名。
+- [x] 测试与验证：接口层单测（未下载章 -> fetching -> ready）、前端冒烟测试滚动/翻页/离线缓存路径，弱网/无网回退验证。
+
+## TODO（待修复问题）
+- [ ] **翻页模式bug**：需要修复翻页模式（`@egjs/vue3-flicking`）相关的问题
+- [ ] **EPUB模式bug**：需要修复 EPUB 模式（`epubjs`）渲染和交互相关的问题
