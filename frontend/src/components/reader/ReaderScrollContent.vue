@@ -102,18 +102,20 @@ function registerChapterRef(id, el) {
 
 <style scoped>
 .chapter-scroll {
+  height: 100%;
   max-height: 100%;
   overflow-y: auto;
-  padding: 16px;
+  padding: 0px 16px;
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chapter-scroll.mobile-scroll {
+  height: 100%;
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  padding: 16px 14px;
-  /* 移动端使用100%高度，不预留工具栏/底部控制栏空间 */
+  padding: 16px;
   max-height: 100%;
   overflow-y: auto;
 }
@@ -181,8 +183,9 @@ function registerChapterRef(id, el) {
 
 @media (max-width: 768px) {
   .chapter-scroll {
-    max-height: calc(100vh - 240px);
-    padding: 18px;
+    height: 100%;
+    max-height: 100%;
+    padding: 0;
   }
 
   .chapter-heading {

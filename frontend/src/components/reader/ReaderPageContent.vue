@@ -300,6 +300,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: stretch;
   position: relative;
+  box-sizing: border-box;
 }
 
 .page-flicking.mobile-page .page-panel {
@@ -311,26 +312,27 @@ onBeforeUnmount(() => {
   box-shadow: none;
   background: transparent;
   position: relative;
+  padding: 8px;
 }
 
 .page-panel-body {
-  padding: 20px 22px 12px;
-  overflow: hidden;
+  padding: 20px 16px 12px;
+  overflow: visible;
   display: flex;
   flex-direction: column;
-  gap: 14px;
   width: 100%;
   box-sizing: border-box;
 }
 
 .page-flicking.mobile-page .page-panel-body {
-  padding: 16px 20px calc(48px + env(safe-area-inset-bottom, 0px)); /* 底部留出空间给页码和章节名信息栏以及安全区 */
+  padding: 8px 8px calc(56px + env(safe-area-inset-bottom, 0px)); /* 移动端统一8px边距，底部额外预留信息栏和安全区 */
 }
 
 .page-text {
   flex: 1;
+  min-height: 0; /* 防止 flex 子元素溢出 */
   white-space: pre-wrap;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .paragraph {

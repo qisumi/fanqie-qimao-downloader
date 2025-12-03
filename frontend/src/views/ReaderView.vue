@@ -1074,6 +1074,8 @@ watch(
   grid-template-columns: 80px 1fr;
   gap: 24px;
   padding: 0 12px 0 0;
+  height: 100vh;
+  min-height: unset;
 }
 
 .reader-view.is-mobile {
@@ -1088,6 +1090,7 @@ watch(
   gap: 12px;
   margin-top: 0;
   flex: 1;
+  min-height: 0; /* 允许 flex 子元素收缩，确保内部滚动正常 */
   justify-content: center;
 }
 
@@ -1105,19 +1108,34 @@ watch(
   background: transparent;
   border-radius: 0;
   box-shadow: none;
+  /* 桌面端需要明确高度以支持内部滚动 */
+  height: calc(100vh - 24px);
+  min-height: 0; /* 允许 flex 子元素收缩 */
   overflow: hidden;
   overflow-anchor: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* n-spin 需要撑满父容器以传递高度 */
+.reader-content :deep(.n-spin-container),
+.reader-content :deep(.n-spin-content) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .reader-view.is-mobile .reader-content {
   height: 100%;
   max-width: none;
   overflow: hidden;
+  padding: 0;
 }
 
 .reader-content.mobile-content {
   background: transparent;
   box-shadow: none;
+  padding: 0;
 }
 
 @media (max-width: 768px) {
