@@ -6,7 +6,7 @@ import asyncio
 import html
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -30,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 class ReaderService:
     """阅读器后端服务"""
+
+    # 进程内预取去重：跟踪正在预取的章节，避免重复下载
+    _prefetch_inflight: Set[str] = set()
+    _prefetch_lock: Optional[asyncio.Lock] = None
 
     def __init__(
         self,
@@ -208,6 +212,11 @@ class ReaderService:
             try:
                 storage = StorageService()
                 downloader = DownloadService(db=db, storage=storage)
+                cls = self.__class__
+                if cls._prefetch_lock is None:
+                    cls._prefetch_lock = asyncio.Lock()
+                lock = cls._prefetch_lock
+                inflight = cls._prefetch_inflight
 
                 chapters = db.query(Chapter).filter(
                     Chapter.book_id == book_id,
@@ -215,8 +224,14 @@ class ReaderService:
                 ).order_by(Chapter.chapter_index).limit(count).all()
 
                 for ch in chapters:
-                    if ch.download_status == "completed":
-                        continue
+                    cache_key = f"{book_id}:{ch.id}"
+                    async with lock:
+                        if cache_key in inflight or ch.download_status in ("completed", "downloading"):
+                            continue
+                        inflight.add(cache_key)
+                        if ch.download_status != "completed":
+                            ch.download_status = "downloading"
+                            db.commit()
                     try:
                         success = await downloader.download_chapter_with_retry(
                             book_id,
@@ -231,6 +246,9 @@ class ReaderService:
                     except Exception:
                         logger.exception("Prefetch chapter failed")
                         break
+                    finally:
+                        async with lock:
+                            inflight.discard(cache_key)
             finally:
                 db.close()
 

@@ -101,7 +101,7 @@ function handleTextColorChange(value) {
     :native-scrollbar="false"
     @update:show="$emit('update:visible', $event)"
   >
-    <n-drawer-content title="阅读设置">
+    <n-drawer-content title="阅读设置" :style="{ display: 'block' }">
       <div class="setting-block">
         <div class="setting-title">
           <n-icon :size="16"><ContrastOutline /></n-icon>

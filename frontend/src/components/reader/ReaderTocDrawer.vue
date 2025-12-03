@@ -2,6 +2,7 @@
 /**
  * 目录抽屉组件
  */
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   NDrawer,
   NDrawerContent,
@@ -13,10 +14,15 @@ const props = defineProps({
   isMobile: { type: Boolean, default: false },
   toc: { type: Array, default: () => [] },
   currentChapterId: { type: String, default: '' },
-  currentBookTitle: { type: String, default: '' }
+  currentBookTitle: { type: String, default: '' },
+  cachedChapters: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['update:visible', 'select-chapter'])
+
+const cachedSet = computed(() => new Set(props.cachedChapters || []))
+const tocListRef = ref(null)
+const activeItemRef = ref(null)
 
 function handleClose() {
   emit('update:visible', false)
@@ -25,6 +31,48 @@ function handleClose() {
 function handleSelectChapter(chapter) {
   emit('select-chapter', chapter)
 }
+
+function isCached(chapterId) {
+  return cachedSet.value.has(chapterId)
+}
+
+function setActiveItemRef(el, isActive) {
+  if (isActive) {
+    activeItemRef.value = el
+  } else if (activeItemRef.value === el) {
+    activeItemRef.value = null
+  }
+}
+
+function scrollToActiveChapter() {
+  const container = tocListRef.value
+  const activeEl = activeItemRef.value
+  if (!container || !activeEl) return
+  const target = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2
+  container.scrollTop = Math.max(0, target)
+}
+
+watch(
+  () => props.visible,
+  async (visible) => {
+    if (visible) {
+      await nextTick()
+      scrollToActiveChapter()
+    }
+  }
+)
+
+watch(
+  () => props.currentChapterId,
+  async () => {
+    if (props.visible) {
+      await nextTick()
+      scrollToActiveChapter()
+    } else {
+      activeItemRef.value = null
+    }
+  }
+)
 </script>
 
 <template>
@@ -36,7 +84,7 @@ function handleSelectChapter(chapter) {
     class="toc-drawer"
     @update:show="$emit('update:visible', $event)"
   >
-    <n-drawer-content body-content-style="padding: 0;">
+    <n-drawer-content :style="{ display: 'block' }" body-content-style="padding: 0;">
       <div class="toc-header">
         <div class="toc-title">
           <span>目录</span>
@@ -44,7 +92,7 @@ function handleSelectChapter(chapter) {
         </div>
         <div class="toc-subtitle">{{ currentBookTitle }}</div>
       </div>
-      <div class="toc-list">
+      <div class="toc-list" ref="tocListRef">
         <!-- 章节标题已包含"第X章"信息，无需额外显示索引 -->
         <div
           v-for="chapter in toc"
@@ -52,11 +100,15 @@ function handleSelectChapter(chapter) {
           class="toc-item"
           :class="{ active: chapter.id === currentChapterId }"
           @click="handleSelectChapter(chapter)"
+          :ref="el => setActiveItemRef(el, chapter.id === currentChapterId)"
         >
-          <div class="toc-meta">
-            <n-tag size="tiny" type="success" v-if="chapter.id === currentChapterId" round>当前</n-tag>
+          <div class="toc-row">
+            <div class="toc-tags" v-if="chapter.id === currentChapterId || isCached(chapter.id)">
+              <n-tag size="tiny" type="success" v-if="chapter.id === currentChapterId" round>当前</n-tag>
+              <n-tag size="tiny" type="info" v-if="isCached(chapter.id)" round>已缓存</n-tag>
+            </div>
+            <div class="toc-name">{{ chapter.title || '未命名章节' }}</div>
           </div>
-          <div class="toc-name">{{ chapter.title || '未命名章节' }}</div>
         </div>
       </div>
     </n-drawer-content>
@@ -110,7 +162,13 @@ function handleSelectChapter(chapter) {
   border-left: 4px solid #18a058;
 }
 
-.toc-meta {
+.toc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toc-tags {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -119,7 +177,7 @@ function handleSelectChapter(chapter) {
 }
 
 .toc-name {
-  margin-top: 4px;
+  flex: 1;
   color: var(--text-color-primary, #333);
   font-weight: 600;
 }

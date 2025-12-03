@@ -116,7 +116,7 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
-  async function loadChapter(chapterId, { range, prefetch = 3, format = 'html' } = {}) {
+  async function loadChapter(chapterId, { range, prefetch = 5, format = 'html' } = {}) {
     if (!bookId.value || !currentUserId.value) return
     loading.value = true
     error.value = null

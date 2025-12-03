@@ -24,6 +24,7 @@ export function useReaderPage(options = {}) {
   const loadedChapterIds = ref([])
   
   let suppressSave = false
+  let moveQueue = Promise.resolve()
 
   function updateDimensions(width, height) {
     containerWidth.value = width
@@ -228,8 +229,9 @@ export function useReaderPage(options = {}) {
     activeChapterId.value = currentChapterId
 
     nextTick(() => {
-      flickingRef.value?.moveTo(targetIndex, 0)
-      suppressSave = false
+      safeMoveTo(targetIndex, 0).finally(() => {
+        suppressSave = false
+      })
     })
 
     return { pages: allPages, targetIndex, boundaries }
@@ -340,8 +342,9 @@ export function useReaderPage(options = {}) {
     currentPageIndex.value = targetIndex
 
     nextTick(() => {
-      flickingRef.value?.moveTo(targetIndex, 0)
-      suppressSave = false
+      safeMoveTo(targetIndex, 0).finally(() => {
+        suppressSave = false
+      })
     })
 
     return { pages, targetIndex }
@@ -423,8 +426,11 @@ export function useReaderPage(options = {}) {
     currentPageIndex.value = targetIndex
     activeChapterId.value = chapterId
     await nextTick()
-    await flickingRef.value?.moveTo(targetIndex, 200)
-    suppressSave = false
+    try {
+      await safeMoveTo(targetIndex, 200)
+    } finally {
+      suppressSave = false
+    }
     
     return true
   }
@@ -443,8 +449,11 @@ export function useReaderPage(options = {}) {
     suppressSave = true
     currentPageIndex.value = target
     await nextTick()
-    await flickingRef.value?.moveTo(target, 200)
-    suppressSave = false
+    try {
+      await safeMoveTo(target, 200)
+    } finally {
+      suppressSave = false
+    }
     return target
   }
 
@@ -507,6 +516,22 @@ export function useReaderPage(options = {}) {
 
   function isSuppressSave() {
     return suppressSave
+  }
+
+  function safeMoveTo(targetIndex, duration = 200) {
+    moveQueue = moveQueue.then(async () => {
+      const flicking = flickingRef.value
+      if (!flicking) return
+      try {
+        await flicking.moveTo(targetIndex, duration)
+      } catch (error) {
+        // 忽略 Flicking 正在动画中的异常，避免未捕获报错
+        if (process?.env?.NODE_ENV !== 'production') {
+          console.debug('safeMoveTo skipped:', error?.message || error)
+        }
+      }
+    })
+    return moveQueue
   }
 
   return {

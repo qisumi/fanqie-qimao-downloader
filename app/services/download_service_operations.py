@@ -358,11 +358,18 @@ class DownloadOperationMixin(DownloadServiceBase):
             chapter.content_path = None
             self.db.commit()
 
+        # 若章节已在下载中或未完成，则标记为 downloading，避免并发重复下载
+        if chapter.download_status != "completed":
+            chapter.download_status = "downloading"
+            self.db.commit()
+
         last_error: Optional[str] = None
 
         for attempt in range(1, retries + 1):
             if not self.rate_limiter.can_download(book.platform):
                 remaining = self.rate_limiter.get_remaining(book.platform)
+                chapter.download_status = "pending"
+                self.db.commit()
                 raise QuotaReachedError(book.platform, remaining=remaining)
 
             result = await self._download_single_chapter(book, chapter)

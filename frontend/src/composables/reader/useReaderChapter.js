@@ -12,6 +12,7 @@ export function useReaderChapter(options = {}) {
   const nextChapterContent = ref(null)
   const loadedChapters = ref([])
   const chapterRefs = new Map()
+  const pendingChapterRequests = new Map()
 
   // 加载状态
   const autoLoadingNext = ref(false)
@@ -96,20 +97,37 @@ export function useReaderChapter(options = {}) {
   // 获取章节内容
   async function fetchChapterById(chapterId) {
     if (!chapterId || !bookStore?.currentBook?.id || !userStore?.currentUserId) return null
-    try {
-      const response = await readerApi.getChapterContent(bookStore.currentBook.id, chapterId, {
-        userId: userStore.currentUserId,
-        format: 'text',
-        prefetch: 1
-      })
-      const data = response.data || {}
-      if (!data.id) data.id = chapterId
-      data.paragraphs = buildParagraphs(data)
-      return data
-    } catch (error) {
-      console.warn('Fetch chapter failed', error)
-      return null
+    // 优先返回本地缓存或正在进行的请求，避免重复发起
+    const cached = findChapterDataById(chapterId)
+    if (cached) {
+      if (!cached.paragraphs) cached.paragraphs = buildParagraphs(cached)
+      return cached
     }
+    if (pendingChapterRequests.has(chapterId)) {
+      return pendingChapterRequests.get(chapterId)
+    }
+
+    const request = (async () => {
+      try {
+        const response = await readerApi.getChapterContent(bookStore.currentBook.id, chapterId, {
+          userId: userStore.currentUserId,
+          format: 'text',
+          prefetch: 5
+        })
+        const data = response.data || {}
+        if (!data.id) data.id = chapterId
+        data.paragraphs = buildParagraphs(data)
+        return data
+      } catch (error) {
+        console.warn('Fetch chapter failed', error)
+        return null
+      } finally {
+        pendingChapterRequests.delete(chapterId)
+      }
+    })()
+
+    pendingChapterRequests.set(chapterId, request)
+    return request
   }
 
   // 注册章节DOM引用

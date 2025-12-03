@@ -5,7 +5,7 @@ import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 // Service Worker 版本 (用于更新检测)
-const SW_VERSION = '1.5.1';
+const SW_VERSION = '1.6.0';
 
 // 自动注入预缓存列表 (构建时替换)
 precacheAndRoute(self.__WB_MANIFEST);

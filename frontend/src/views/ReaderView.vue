@@ -53,6 +53,7 @@ const mobileChromeVisible = ref(false)
 const isFullscreen = ref(false)
 const caching = ref(false)
 let resizeTimer = null
+let cacheRefreshTimer = null
 
 // 计算属性 - 阅读模式
 const readerSettings = computed(() => readerStore.settings || {})
@@ -62,6 +63,29 @@ const isPageMode = computed(() => activeMode.value === 'page')
 const isEpubMode = computed(() => activeMode.value === 'epub')
 const showChrome = computed(() => !isMobile.value || mobileChromeVisible.value)
 const cacheStatus = computed(() => readerStore.cacheStatus || {})
+const cachedChapterSet = computed(() => new Set(cacheStatus.value.cached_chapters || []))
+
+function refreshCacheStatusDebounced(delay = 400) {
+  if (cacheRefreshTimer) return
+  cacheRefreshTimer = window.setTimeout(async () => {
+    cacheRefreshTimer = null
+    try {
+      await readerStore.refreshCacheStatus()
+    } catch (error) {
+      console.warn('refreshCacheStatus failed', error)
+    }
+  }, delay)
+}
+
+function isChapterCached(chapterId) {
+  return !!chapterId && cachedChapterSet.value.has(chapterId)
+}
+
+function notifyDownloadingIfNeeded(chapterId) {
+  if (!chapterId || isChapterCached(chapterId)) return
+  message.info('后端正在下载新章节，请稍等')
+  refreshCacheStatusDebounced(0)
+}
 
 // 计算属性 - 样式
 const textColor = computed(() =>
@@ -403,6 +427,7 @@ async function handleSelectChapter(chapter) {
     return
   }
   try {
+    notifyDownloadingIfNeeded(chapter.id)
     chapterComposable.resetAdjacentCaches()
     chapterComposable.clearLoadedChapters()
     await readerStore.loadChapter(chapter.id, { format: 'text' })
@@ -416,6 +441,7 @@ async function handleSelectChapter(chapter) {
 async function handlePrev(options = {}) {
   if (!chapterComposable.currentChapter.value?.prev_id || chapterComposable.isLoadingChapter.value) return
   if (options.auto && chapterComposable.autoLoadingPrev.value) return
+  notifyDownloadingIfNeeded(chapterComposable.currentChapter.value.prev_id)
   if (options.resetProgress !== false) {
     progressComposable.setForcedStartPercent(options.startPercent ?? 0)
   } else if (options.startPercent !== undefined) {
@@ -435,6 +461,7 @@ async function handlePrev(options = {}) {
 async function handleNext(options = {}) {
   if (!chapterComposable.currentChapter.value?.next_id || chapterComposable.isLoadingChapter.value) return
   if (options.auto && chapterComposable.autoLoadingNext.value) return
+  notifyDownloadingIfNeeded(chapterComposable.currentChapter.value.next_id)
   if (options.resetProgress !== false) {
     progressComposable.setForcedStartPercent(options.startPercent ?? 0)
   } else if (options.startPercent !== undefined) {
@@ -529,6 +556,9 @@ async function handleChapterChanged(event) {
   
   // 保存进度
   progressComposable.queueSaveProgress(0, 0)
+
+  // 新章节到达时，若后续章节未预取则向后预取2章
+  await prefetchNextChaptersIfNeeded(chapterId)
 }
 
 // 翻页模式需要加载更多章节事件处理
@@ -575,6 +605,7 @@ async function handleReachEdge(event) {
       if (!firstBoundary?.prev_id) {
         message.info('已经是第一章了')
       } else {
+        notifyDownloadingIfNeeded(firstBoundary.prev_id)
         // 预取上一章内容
         await prefetchChapterForPageMode(firstBoundary.prev_id)
         
@@ -594,6 +625,7 @@ async function handleReachEdge(event) {
       if (!lastBoundary?.next_id) {
         message.info('已经是最后一章了')
       } else {
+        notifyDownloadingIfNeeded(lastBoundary.next_id)
         // 预取下一章内容
         await prefetchChapterForPageMode(lastBoundary.next_id)
         
@@ -650,6 +682,30 @@ async function prefetchChapterForPageMode(chapterId) {
   const data = await chapterComposable.fetchChapterById(chapterId)
   if (data) {
     prefetchedChapters.value.set(chapterId, data)
+  }
+}
+
+async function prefetchNextChaptersIfNeeded(currentChapterId) {
+  const toc = chapterComposable.toc.value || []
+  const currentIdx = toc.findIndex(c => c.id === currentChapterId)
+  if (currentIdx < 0) return
+
+  const idsToPrefetch = []
+  for (let i = 1; i <= 2; i++) {
+    const nextEntry = toc[currentIdx + i]
+    if (nextEntry?.id) idsToPrefetch.push(nextEntry.id)
+  }
+
+  const tasks = []
+  for (const id of idsToPrefetch) {
+    if (!id) continue
+    const alreadyLoaded = chapterComposable.findInLoaded(id) || prefetchedChapters.value.has(id)
+    if (alreadyLoaded) continue
+    tasks.push(prefetchChapterForPageMode(id))
+  }
+
+  if (tasks.length) {
+    await Promise.all(tasks)
   }
 }
 
@@ -772,11 +828,26 @@ onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   progressComposable.cleanup()
   clearTimeout(resizeTimer)
+  clearTimeout(cacheRefreshTimer)
   epubComposable.disposeEpub()
   ttsComposable.stopTts()
 })
 
 // Watchers
+watch(
+  () => readerStore.currentChapterId,
+  (id) => {
+    if (id) refreshCacheStatusDebounced()
+  }
+)
+
+watch(
+  () => tocVisible.value,
+  (visible) => {
+    if (visible) refreshCacheStatusDebounced(0)
+  }
+)
+
 watch(() => route.params.bookId, (id, prev) => {
   if (id && id !== prev) {
     ttsComposable.stopTts()
@@ -883,6 +954,7 @@ watch(
         :toc="chapterComposable.toc.value"
         :current-chapter-id="readerStore.currentChapterId"
         :current-book-title="currentBookTitle"
+        :cached-chapters="cacheStatus.cached_chapters"
         @select-chapter="handleSelectChapter"
       />
 
