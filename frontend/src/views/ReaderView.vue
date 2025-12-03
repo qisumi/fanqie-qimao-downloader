@@ -182,16 +182,31 @@ const epubContainerRef = epubComposable.epubContainerRef
 async function prefetchChaptersForPageMode(anchorChapterId = null) {
   const currentContent = chapterComposable.chapterContent.value
   const toc = chapterComposable.toc.value || []
+  
   if (!toc.length) return currentContent ? [currentContent] : []
 
   const anchorId = anchorChapterId || pageComposable.activeChapterId.value || chapterComposable.currentChapter.value?.id
   const anchorIndex = anchorId ? toc.findIndex(c => c.id === anchorId) : -1
   const centerIndex = anchorIndex >= 0 ? anchorIndex : toc.findIndex(c => c.id === chapterComposable.currentChapter.value?.id)
+  
   if (centerIndex < 0) return currentContent ? [currentContent] : []
 
   // 固定窗口：当前阅读章节为中心，前后各 2 章
   const startIdx = Math.max(0, centerIndex - 2)
   const endIdx = Math.min(toc.length - 1, centerIndex + 2)
+
+  // 计算当前窗口内的章节ID集合
+  const windowChapterIds = new Set()
+  for (let i = startIdx; i <= endIdx; i++) {
+    windowChapterIds.add(toc[i].id)
+  }
+
+  // 清理窗口外的过期缓存，避免内存泄漏
+  for (const cachedId of prefetchedChapters.value.keys()) {
+    if (!windowChapterIds.has(cachedId)) {
+      prefetchedChapters.value.delete(cachedId)
+    }
+  }
 
   // 收集需要预取的章节ID（当前章节除外且未缓存）
   const chapterIdsToLoad = []
@@ -457,11 +472,14 @@ function handleProgressChange(value) {
 // 翻页模式处理
 async function handlePageChanged(event) {
   const suppressing = typeof pageComposable.isSuppressSave === 'function' && pageComposable.isSuppressSave()
+  
   const result = pageComposable.handlePageChanged(event)
   progressComposable.currentPageIndex.value = pageComposable.currentPageIndex.value
   
   // 分页过程中（抑制保存阶段）不更新章节状态，避免跳回首章
-  if (suppressing) return
+  if (suppressing) {
+    return
+  }
   
   // 多章节模式下，只有章节变化时才保存进度
   if (multiChapterMode.value && result?.chapterId) {
@@ -520,7 +538,6 @@ async function handleNeedMoreChapters(event) {
   
   // 这里暂时不做动态追加，因为需要重新分页
   // 未来可以优化为动态追加面板
-  console.log('Need more chapters:', event.direction)
 }
 
 // 翻页模式到达边界时的处理
@@ -540,6 +557,7 @@ async function handleReachEdge(event) {
     const anchorChapterId = pageComposable.activeChapterId.value || readerStore.currentChapterId
     const anchorBoundary = anchorChapterId ? pageComposable.getChapterBoundary(anchorChapterId) : null
     let currentPercent = pageComposable.calculateChapterProgress(anchorChapterId)
+    
     // 边缘预载时无法计算进度或即将越界时，使用方向性默认值，保持当前页不向前跳
     if (!Number.isFinite(currentPercent)) {
       currentPercent = event?.direction === 'NEXT' ? 100 : 0
@@ -557,17 +575,39 @@ async function handleReachEdge(event) {
       if (!firstBoundary?.prev_id) {
         message.info('已经是第一章了')
       } else {
-        // 预取上一章内容并追加分页，保持当前章节位置不变
+        // 预取上一章内容
         await prefetchChapterForPageMode(firstBoundary.prev_id)
-        await paginateMultipleChaptersForPageMode(currentPercent, anchorChapterId)
+        
+        // 预取完成后，获取当前最新的位置信息（用户可能在预取过程中继续翻页）
+        const freshAnchorChapterId = pageComposable.activeChapterId.value || readerStore.currentChapterId
+        const freshPosition = pageComposable.getChapterRelativePosition(freshAnchorChapterId)
+        
+        // 使用当前最新位置计算进度
+        let finalPercent = 0
+        if (freshPosition) {
+          const { relativeIndex, totalPages } = freshPosition
+          finalPercent = totalPages > 1 ? (relativeIndex / (totalPages - 1)) * 100 : 0
+        }
+        await paginateMultipleChaptersForPageMode(finalPercent, freshAnchorChapterId)
       }
     } else if (event?.direction === 'NEXT') {
       if (!lastBoundary?.next_id) {
         message.info('已经是最后一章了')
       } else {
-        // 预取下一章内容并追加分页，保持当前章节位置不变
+        // 预取下一章内容
         await prefetchChapterForPageMode(lastBoundary.next_id)
-        await paginateMultipleChaptersForPageMode(currentPercent, anchorChapterId)
+        
+        // 预取完成后，获取当前最新的位置信息（用户可能在预取过程中继续翻页）
+        const freshAnchorChapterId = pageComposable.activeChapterId.value || readerStore.currentChapterId
+        const freshPosition = pageComposable.getChapterRelativePosition(freshAnchorChapterId)
+        
+        // 使用当前最新位置计算进度
+        let finalPercent = 100
+        if (freshPosition) {
+          const { relativeIndex, totalPages } = freshPosition
+          finalPercent = totalPages > 1 ? (relativeIndex / (totalPages - 1)) * 100 : 100
+        }
+        await paginateMultipleChaptersForPageMode(finalPercent, freshAnchorChapterId)
       }
     }
     return

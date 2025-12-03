@@ -384,6 +384,29 @@ export function useReaderPage(options = {}) {
   }
 
   /**
+   * 获取当前章节内的相对页码偏移信息（用于在重新分页时保持位置）
+   * @param {string} chapterId - 章节ID，默认使用当前活跃章节
+   * @returns {{ relativeIndex: number, totalPages: number, atEnd: boolean, atStart: boolean } | null}
+   */
+  function getChapterRelativePosition(chapterId = null) {
+    const targetChapterId = chapterId || activeChapterId.value
+    if (!targetChapterId) return null
+    
+    const boundary = chapterBoundaries.value[targetChapterId]
+    if (!boundary) return null
+    
+    const chapterPageCount = boundary.endPage - boundary.startPage + 1
+    const relativeIndex = currentPageIndex.value - boundary.startPage
+    
+    return {
+      relativeIndex: Math.max(0, Math.min(relativeIndex, chapterPageCount - 1)),
+      totalPages: chapterPageCount,
+      atEnd: relativeIndex >= chapterPageCount - 1,
+      atStart: relativeIndex <= 0
+    }
+  }
+
+  /**
    * 跳转到指定章节
    */
   async function moveToChapter(chapterId, percent = 0) {
@@ -431,6 +454,7 @@ export function useReaderPage(options = {}) {
     
     // 更新当前活跃章节
     const newChapterId = getChapterIdByPageIndex(event.index)
+    const oldActiveChapterId = activeChapterId.value
     if (newChapterId && newChapterId !== activeChapterId.value) {
       activeChapterId.value = newChapterId
     }
@@ -438,7 +462,7 @@ export function useReaderPage(options = {}) {
     return {
       pageIndex: event.index,
       chapterId: newChapterId,
-      chapterChanged: newChapterId !== activeChapterId.value
+      chapterChanged: newChapterId !== oldActiveChapterId
     }
   }
 
@@ -503,6 +527,7 @@ export function useReaderPage(options = {}) {
     getChapterIdByPageIndex,
     getChapterBoundary,
     calculateChapterProgress,
+    getChapterRelativePosition,
     moveToChapter,
     moveToPageByPercent,
     handlePageChanged,
