@@ -83,7 +83,7 @@ function isChapterCached(chapterId) {
 
 function notifyDownloadingIfNeeded(chapterId) {
   if (!chapterId || isChapterCached(chapterId)) return
-  message.info('后端正在下载新章节，请稍等')
+  message.info('后端正在下载新章节，请稍等', { duration: 3000 })
   refreshCacheStatusDebounced(0)
 }
 
@@ -572,6 +572,13 @@ async function handleNeedMoreChapters(event) {
 
 // 翻页模式到达边界时的处理
 async function handleReachEdge(event) {
+  console.log('[ReaderView] handleReachEdge called:', {
+    direction: event?.direction,
+    isPageMode: isPageMode.value,
+    isLoadingChapter: chapterComposable.isLoadingChapter.value,
+    multiChapterMode: multiChapterMode.value
+  })
+  
   if (!isPageMode.value) return
   if (chapterComposable.isLoadingChapter.value) return
   
@@ -609,8 +616,9 @@ async function handleReachEdge(event) {
         // 预取上一章内容
         await prefetchChapterForPageMode(firstBoundary.prev_id)
         
-        // 预取完成后，获取当前最新的位置信息（用户可能在预取过程中继续翻页）
-        const freshAnchorChapterId = pageComposable.activeChapterId.value || readerStore.currentChapterId
+        // 预取完成后，使用第一个加载的章节作为锚点（而不是当前阅读章节）
+        // 这样可以确保新预取的章节被包含在分页窗口内
+        const freshAnchorChapterId = firstChapterId
         const freshPosition = pageComposable.getChapterRelativePosition(freshAnchorChapterId)
         
         // 使用当前最新位置计算进度
@@ -629,8 +637,9 @@ async function handleReachEdge(event) {
         // 预取下一章内容
         await prefetchChapterForPageMode(lastBoundary.next_id)
         
-        // 预取完成后，获取当前最新的位置信息（用户可能在预取过程中继续翻页）
-        const freshAnchorChapterId = pageComposable.activeChapterId.value || readerStore.currentChapterId
+        // 预取完成后，使用最后加载的章节作为锚点（而不是当前阅读章节）
+        // 这样可以确保新预取的章节被包含在分页窗口内
+        const freshAnchorChapterId = lastChapterId
         const freshPosition = pageComposable.getChapterRelativePosition(freshAnchorChapterId)
         
         // 使用当前最新位置计算进度

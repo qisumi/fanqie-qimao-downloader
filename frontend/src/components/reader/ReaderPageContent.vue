@@ -40,13 +40,62 @@ let lastEdgeTime = 0
 // 当前页面索引（用于计算当前章节）
 const currentPageIdx = ref(0)
 
+// 内部缓存的页面数据，避免在 Flicking 动画期间更新
+const internalPageChunks = ref([])
+// 是否正在动画中
+const isAnimating = ref(false)
+// 待更新的页面数据
+let pendingPageChunks = null
+
+// 安全过滤页面数据，确保 Flicking 子节点有效
+function filterValidChunks(chunks) {
+  if (!Array.isArray(chunks)) return []
+  return chunks.filter(chunk => {
+    // chunk 必须是有效数组且每个元素都有效
+    if (!Array.isArray(chunk) || chunk.length === 0) return false
+    // 确保 chunk 中没有 undefined/null 元素
+    return chunk.every(item => item !== undefined && item !== null)
+  })
+}
+
+// 同步外部 pageChunks 到内部缓存
+watch(() => props.pageChunks, (newChunks) => {
+  const filtered = filterValidChunks(newChunks)
+  
+  if (isAnimating.value) {
+    // 动画中，暂存更新
+    console.log('[ReaderPageContent] Animation in progress, deferring pageChunks update')
+    pendingPageChunks = filtered
+  } else {
+    // 非动画状态，直接更新
+    internalPageChunks.value = filtered
+  }
+}, { immediate: true })
+
 // 过滤掉异常值，确保 Flicking 子节点有效
 const safePageChunks = computed(() => {
-  if (!Array.isArray(props.pageChunks)) return []
-  return props.pageChunks
-    .filter(chunk => Array.isArray(chunk)) // 只保留数组页
-    .map(chunk => chunk || []) // 避免 undefined/null
+  // 二次校验，确保在渲染时数据是安全的
+  return filterValidChunks(internalPageChunks.value)
 })
+
+// Flicking 组件的 key，用于在数据结构大幅变化时强制重新创建组件
+// 使用稳定的 key 策略：只基于章节数量，避免在追加章节时频繁重建
+// 注意：章节内容变化时不改变 key，让 Flicking 自己处理面板更新
+const flickingKeyCounter = ref(0)
+const flickingKey = computed(() => {
+  return `flicking-${flickingKeyCounter.value}`
+})
+
+// 监听章节数量变化，仅当数量减少或清空时才重建
+// （追加章节时不需要重建，Flicking 可以动态处理新增面板）
+let lastChapterCount = 0
+watch(() => Object.keys(props.chapterBoundaries).length, (newCount) => {
+  // 只有当章节数从多变少（比如切换书籍）时才重建
+  if (newCount < lastChapterCount || (lastChapterCount > 0 && newCount === 0)) {
+    flickingKeyCounter.value++
+  }
+  lastChapterCount = newCount
+}, { immediate: true })
 
 // 计算当前页面所属的章节信息
 const currentPageChapterInfo = computed(() => {
@@ -91,7 +140,44 @@ const displayPageInfo = computed(() => {
   return `${relativeIndex} / ${chapterPageCount}`
 })
 
+// Flicking ready 事件：组件初始化完成
+function handleReady() {
+  console.log('[ReaderPageContent] handleReady called, flickingRef:', {
+    exists: !!flickingRef.value,
+    initialized: flickingRef.value?.initialized,
+    index: flickingRef.value?.index
+  })
+  if (flickingRef.value?.index !== undefined) {
+    currentPageIdx.value = flickingRef.value.index
+  }
+}
+
+// 动画开始
+function handleMoveStart() {
+  isAnimating.value = true
+}
+
+// 动画结束
+function handleMoveEnd() {
+  isAnimating.value = false
+  // 如果有待更新的数据，使用 nextTick 确保当前渲染周期完成后再应用
+  if (pendingPageChunks !== null) {
+    console.log('[ReaderPageContent] Applying deferred pageChunks update')
+    const chunksToApply = pendingPageChunks
+    pendingPageChunks = null
+    // 使用 nextTick 避免在 Flicking 内部状态更新期间修改数据
+    nextTick(() => {
+      internalPageChunks.value = filterValidChunks(chunksToApply)
+    })
+  }
+}
+
 function handleChanged(event) {
+  console.log('[ReaderPageContent] handleChanged:', {
+    eventIndex: event.index,
+    prevIndex: currentPageIdx.value,
+    flickingInitialized: flickingRef.value?.initialized
+  })
   const prevPageIdx = currentPageIdx.value
   currentPageIdx.value = event.index
   
@@ -166,16 +252,29 @@ function checkAndEmitNeedMoreChapters(pageIndex) {
 }
 
 function handleReachEdge(event) {
+  console.log('[ReaderPageContent] handleReachEdge called:', {
+    direction: event?.direction,
+    isInitialized: isInitialized.value,
+    timeSinceLastEdge: Date.now() - lastEdgeTime
+  })
+  
   // 未初始化完成时不触发
-  if (!isInitialized.value) return
+  if (!isInitialized.value) {
+    console.log('[ReaderPageContent] handleReachEdge: skipped (not initialized)')
+    return
+  }
   
   // 防抖：避免短时间内重复触发
   const now = Date.now()
-  if (now - lastEdgeTime < 500) return
+  if (now - lastEdgeTime < 500) {
+    console.log('[ReaderPageContent] handleReachEdge: skipped (debounced)')
+    return
+  }
   lastEdgeTime = now
   
   // 多章节模式下，边缘事件仅用于提示（不再自动切章）
   // 因为章节已经预加载到 pageChunks 中，滑动是连续的
+  console.log('[ReaderPageContent] handleReachEdge: emitting reach-edge')
   emit('reach-edge', event)
 }
 
@@ -187,19 +286,33 @@ function resetInitState() {
 // 暴露给父组件
 defineExpose({ resetInitState })
 
-// 监听 pageChunks 变化，同步更新 currentPageIdx
-watch(() => props.pageChunks, async () => {
+// 监听内部 pageChunks 变化，同步更新 currentPageIdx
+watch(internalPageChunks, async () => {
+  console.log('[ReaderPageContent] internalPageChunks changed:', {
+    length: internalPageChunks.value?.length,
+    flickingExists: !!flickingRef.value,
+    flickingInitialized: flickingRef.value?.initialized
+  })
   // 当 pageChunks 更新后，等待 DOM 更新，然后从 flickingRef 获取当前索引
   await nextTick()
-  if (flickingRef.value?.index !== undefined) {
+  // 确保 Flicking 实例存在且已初始化
+  if (flickingRef.value?.initialized && flickingRef.value?.index !== undefined) {
+    console.log('[ReaderPageContent] internalPageChunks watcher: updating currentPageIdx to', flickingRef.value.index)
     currentPageIdx.value = flickingRef.value.index
   }
 }, { deep: false })
 
 // 监听 flickingRef 的初始化
 watch(flickingRef, async (newRef) => {
-  if (newRef?.index !== undefined) {
+  console.log('[ReaderPageContent] flickingRef changed:', {
+    exists: !!newRef,
+    initialized: newRef?.initialized,
+    index: newRef?.index
+  })
+  // 确保 Flicking 实例已初始化
+  if (newRef?.initialized && newRef?.index !== undefined) {
     await nextTick()
+    console.log('[ReaderPageContent] flickingRef watcher: updating currentPageIdx to', newRef.index)
     currentPageIdx.value = newRef.index
   }
 })
@@ -227,22 +340,28 @@ onBeforeUnmount(() => {
   <div class="page-flicking" :class="{ 'mobile-page': isMobile }" ref="containerRef">
     <template v-if="safePageChunks.length">
       <Flicking
+        :key="flickingKey"
         ref="flickingRef"
-        :key="safePageChunks.length" 
         :options="{
           align: 'prev',
           circular: false,
           autoResize: true,
           bounce: 10,
           duration: 180,
-          renderOnlyVisible: safePageChunks.length > 20
+          renderOnlyVisible: false,
+          moveType: 'strict',
+          threshold: 40,
+          preventDefaultOnDrag: true
         }"
+        @ready="handleReady"
+        @move-start="handleMoveStart"
+        @move-end="handleMoveEnd"
         @changed="handleChanged"
         @reach-edge="handleReachEdge"
       >
         <div
           v-for="(page, idx) in safePageChunks"
-          :key="idx"
+          :key="`page-${idx}`"
           class="page-panel"
           :style="pagePanelStyle"
         >
@@ -250,12 +369,12 @@ onBeforeUnmount(() => {
             <div class="page-text">
               <p
                 v-for="(item, lineIdx) in page"
-                :key="lineIdx"
+                :key="`line-${lineIdx}`"
                 class="paragraph"
-                :class="{ 'chapter-title-line': item.isTitle }"
-                :style="item.isTitle ? {} : paragraphStyle"
+                :class="{ 'chapter-title-line': item?.isTitle }"
+                :style="item?.isTitle ? {} : { ...paragraphStyle, textIndent: item?.isContinuation ? '0' : paragraphStyle.textIndent }"
               >
-                {{ item.text || item }}
+                {{ item?.text || item || '' }}
               </p>
             </div>
           </div>

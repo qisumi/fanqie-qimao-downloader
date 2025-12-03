@@ -86,11 +86,9 @@ export function useReaderPage(options = {}) {
     const singleLineHeight = testLine.getBoundingClientRect().height
     measureContainer.removeChild(testLine)
     
-    // 安全边距：动态计算，基于实际行高
-    // - 预留约 0.5 倍行高，应对亚像素渲染误差和跨页段落
-    // - 测量时已移除最后一段底部边距
-    const lineBasedMargin = singleLineHeight * 0.5
-    return Math.max(2, Math.ceil(lineBasedMargin))
+    // 调试：临时将安全边距设为0
+    console.log('[useReaderPage] measureActualLineHeight:', { singleLineHeight, paragraphSpacing })
+    return 0
   }
 
   // 向后兼容：基于公式估算的安全边距（用于无法实际测量时）
@@ -260,6 +258,50 @@ export function useReaderPage(options = {}) {
           return fits
         }
 
+        // 测量文本渲染后的行数
+        const measureLineCount = (textChunk, isContinuation) => {
+          const paraEl = createParagraphEl({ ...paragraph, text: textChunk, isContinuation }, true)
+          pageEl.appendChild(paraEl)
+          const lineHeight = parseFloat(temp.style.lineHeight) * parseFloat(temp.style.fontSize)
+          const paraHeight = paraEl.getBoundingClientRect().height
+          pageEl.removeChild(paraEl)
+          return Math.round(paraHeight / lineHeight)
+        }
+
+        // 在完整行边界处切割文本
+        const findLineBreakPoint = (text, isContinuation, maxChars) => {
+          if (maxChars >= text.length) return text.length
+          if (maxChars <= 0) return 0
+          
+          // 获取maxChars字符时的行数
+          const linesAtMax = measureLineCount(text.slice(0, maxChars), isContinuation)
+          
+          // 如果只有1行或更少，直接返回
+          if (linesAtMax <= 1) return maxChars
+          
+          // 二分查找：找到刚好能显示 linesAtMax-1 行的最大字符数
+          // 这确保我们在完整行的末尾切割
+          let low = 1
+          let high = maxChars
+          let lastValidBreak = 0
+          
+          while (low <= high) {
+            const mid = Math.floor((low + high) / 2)
+            const lines = measureLineCount(text.slice(0, mid), isContinuation)
+            
+            if (lines < linesAtMax) {
+              // 当前字符数产生的行数小于目标，可以尝试更多字符
+              lastValidBreak = mid
+              low = mid + 1
+            } else {
+              // 行数已达到或超过目标，需要减少字符
+              high = mid - 1
+            }
+          }
+          
+          return lastValidBreak > 0 ? lastValidBreak : maxChars
+        }
+
         const findMaxChunkForCurrentPage = (text, isContinuation) => {
           let low = 1
           let high = text.length
@@ -274,7 +316,12 @@ export function useReaderPage(options = {}) {
               high = mid - 1
             }
           }
-          return best > 0 ? text.slice(0, best) : ''
+          
+          if (best <= 0) return ''
+          
+          // 在行边界处切割，避免切在行中间
+          const lineBreakPoint = findLineBreakPoint(text, isContinuation, best)
+          return text.slice(0, lineBreakPoint > 0 ? lineBreakPoint : best)
         }
 
         const appendWithSplit = (text, isContinuation = false) => {
@@ -519,6 +566,50 @@ export function useReaderPage(options = {}) {
         return fits
       }
 
+      // 测量文本渲染后的行数
+      const measureLineCount = (textChunk, isContinuation) => {
+        const paraEl = createParagraphEl({ ...paragraph, text: textChunk, isContinuation }, true)
+        pageEl.appendChild(paraEl)
+        const lineHeight = parseFloat(temp.style.lineHeight) * parseFloat(temp.style.fontSize)
+        const paraHeight = paraEl.getBoundingClientRect().height
+        pageEl.removeChild(paraEl)
+        return Math.round(paraHeight / lineHeight)
+      }
+
+      // 在完整行边界处切割文本
+      const findLineBreakPoint = (text, isContinuation, maxChars) => {
+        if (maxChars >= text.length) return text.length
+        if (maxChars <= 0) return 0
+        
+        // 获取maxChars字符时的行数
+        const linesAtMax = measureLineCount(text.slice(0, maxChars), isContinuation)
+        
+        // 如果只有1行或更少，直接返回
+        if (linesAtMax <= 1) return maxChars
+        
+        // 二分查找：找到刚好能显示 linesAtMax-1 行的最大字符数
+        // 这确保我们在完整行的末尾切割
+        let low = 1
+        let high = maxChars
+        let lastValidBreak = 0
+        
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2)
+          const lines = measureLineCount(text.slice(0, mid), isContinuation)
+          
+          if (lines < linesAtMax) {
+            // 当前字符数产生的行数小于目标，可以尝试更多字符
+            lastValidBreak = mid
+            low = mid + 1
+          } else {
+            // 行数已达到或超过目标，需要减少字符
+            high = mid - 1
+          }
+        }
+        
+        return lastValidBreak > 0 ? lastValidBreak : maxChars
+      }
+
       const findMaxChunkForCurrentPage = (text, isContinuation) => {
         let low = 1
         let high = text.length
@@ -533,7 +624,12 @@ export function useReaderPage(options = {}) {
             high = mid - 1
           }
         }
-        return best > 0 ? text.slice(0, best) : ''
+        
+        if (best <= 0) return ''
+        
+        // 在行边界处切割，避免切在行中间
+        const lineBreakPoint = findLineBreakPoint(text, isContinuation, best)
+        return text.slice(0, lineBreakPoint > 0 ? lineBreakPoint : best)
       }
 
       const appendWithSplit = (text, isContinuation = false) => {
@@ -799,12 +895,13 @@ export function useReaderPage(options = {}) {
   function safeMoveTo(targetIndex, duration = 200) {
     moveQueue = moveQueue.then(async () => {
       const flicking = flickingRef.value
-      if (!flicking) return
+      // 确保 Flicking 实例存在且已完成初始化
+      if (!flicking || !flicking.initialized) return
       try {
         await flicking.moveTo(targetIndex, duration)
       } catch (error) {
         // 忽略 Flicking 正在动画中的异常，避免未捕获报错
-        if (process?.env?.NODE_ENV !== 'production') {
+        if (import.meta.env?.DEV) {
           console.debug('safeMoveTo skipped:', error?.message || error)
         }
       }
