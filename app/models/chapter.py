@@ -3,7 +3,7 @@
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 
@@ -24,7 +24,7 @@ class Chapter(Base):
     content_path = Column(String)  # 存储路径
     download_status = Column(String, default="pending")  # pending, completed, failed
     downloaded_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # 关系
     book = relationship("Book", back_populates="chapters")

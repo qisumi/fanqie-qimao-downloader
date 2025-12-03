@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
 from sqlalchemy import func
@@ -135,7 +135,7 @@ class DownloadTaskMixin(DownloadServiceBase):
         
         self._cancelled_tasks.add(task_id)
         task.status = "cancelled"
-        task.completed_at = datetime.utcnow()
+        task.completed_at = datetime.now(timezone.utc)
         
         book = self.db.query(Book).filter(Book.id == task.book_id).first()
         if book and book.download_status == "downloading":

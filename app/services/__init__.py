@@ -17,6 +17,7 @@ from app.services.download_service import (
 )
 from app.services.epub_service import EPUBService
 from app.services.user_service import UserService
+from app.services.reader_service import ReaderService
 
 __all__ = [
     "StorageService",
@@ -27,4 +28,5 @@ __all__ = [
     "TaskCancelledError",
     "EPUBService",
     "UserService",
+    "ReaderService",
 ]

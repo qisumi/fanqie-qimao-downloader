@@ -202,6 +202,11 @@ async function deleteBook() {
 function handleSelectSegment(segment) {
   rangeSelectorRef.value?.selectSegment(segment)
 }
+
+function openReader() {
+  if (!book.value?.id) return
+  router.push({ name: 'reader', params: { bookId: book.value.id } })
+}
 </script>
 
 <template>
@@ -225,6 +230,7 @@ function handleSelectSegment(segment) {
           :generating="generating"
           @download="startDownload"
           @update="startUpdate"
+          @read="openReader"
           @generate-epub="generateEpub"
           @download-epub="downloadEpub"
           @delete="deleteBook"

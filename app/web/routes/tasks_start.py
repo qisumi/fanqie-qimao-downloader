@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
@@ -72,8 +73,7 @@ async def _run_download_task(
                     book.download_status = "pending"
             if task and task.status == "running":
                 task.status = "cancelled"
-                from datetime import datetime
-                task.completed_at = datetime.utcnow()
+                task.completed_at = datetime.now(timezone.utc)
             db.commit()
         except Exception as update_error:
             logger.error(f"Failed to update status after cancel: {update_error}")
@@ -111,8 +111,8 @@ async def _run_download_task(
 async def start_download(
     book_id: str = Path(..., description="书籍UUID"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    start_chapter: int = Query(0, ge=0, description="起始章节索引，默认从第0章开始", example=0),
-    end_chapter: Optional[int] = Query(None, ge=0, description="结束章节索引（包含），留空表示下载到最后一章", example=None),
+    start_chapter: int = Query(0, ge=0, description="起始章节索引，默认从第0章开始"),
+    end_chapter: Optional[int] = Query(None, ge=0, description="结束章节索引（包含），留空表示下载到最后一章"),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """

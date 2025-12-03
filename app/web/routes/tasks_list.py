@@ -24,10 +24,10 @@ router = APIRouter()
     }
 )
 async def list_tasks(
-    book_id: Optional[str] = Query(None, description="按书籍UUID筛选", example="123e4567-e89b-12d3-a456-426614174000"),
-    status: Optional[str] = Query(None, description="按状态筛选", regex="^(pending|running|completed|failed|cancelled)$", example="completed"),
-    page: int = Query(0, ge=0, description="页码", example=0),
-    limit: int = Query(20, ge=1, le=100, description="每页数量", example=20),
+    book_id: Optional[str] = Query(None, description="按书籍UUID筛选"),
+    status: Optional[str] = Query(None, description="按状态筛选", pattern="^(pending|running|completed|failed|cancelled)$"),
+    page: int = Query(0, ge=0, description="页码"),
+    limit: int = Query(20, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
 ) -> TaskListResponse:
     """

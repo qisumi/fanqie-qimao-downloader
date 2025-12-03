@@ -17,6 +17,7 @@ from app.web.routes import (
     books_crud,
     books_epub,
     books_maintenance,
+    books_reader,
     books_search,
     books_status,
 )
@@ -31,6 +32,7 @@ for sub_router in (
     books_status.router,
     books_maintenance.router,
     books_epub.router,
+    books_reader.router,
 ):
     router.include_router(sub_router)
 

@@ -46,9 +46,9 @@ router = APIRouter()
     }
 )
 async def search_books(
-    q: str = Query(..., description="搜索关键词", min_length=1, max_length=100, example="第一序列"),
-    platform: str = Query("fanqie", description="平台: fanqie 或 qimao", regex="^(fanqie|qimao)$"),
-    page: int = Query(0, ge=0, description="页码 (从0开始)", example=0),
+    q: str = Query(..., description="搜索关键词", min_length=1, max_length=100),
+    platform: str = Query("fanqie", description="平台: fanqie 或 qimao"),
+    page: int = Query(0, ge=0, description="页码 (从0开始)"),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """

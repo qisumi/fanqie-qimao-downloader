@@ -331,21 +331,26 @@ class RainAPIClient(ABC):
         except json.JSONDecodeError as e:
             raise InvalidResponseError(f"JSON解析失败: {e}", response_text)
         
+        if not isinstance(data, dict):
+            raise InvalidResponseError(
+                f"API响应格式无效，期望 JSON 对象，实际为 {type(data).__name__}",
+                response_text,
+            )
+        
         # 检查错误响应
-        if isinstance(data, dict):
-            message = data.get("message", "")
+        message = data.get("message", "")
+        
+        # 检查是否为错误响应
+        if message == "ERROR":
+            error_content = ""
+            if "data" in data and isinstance(data["data"], dict):
+                error_content = data["data"].get("content", "")
             
-            # 检查是否为错误响应
-            if message == "ERROR":
-                error_content = ""
-                if "data" in data and isinstance(data["data"], dict):
-                    error_content = data["data"].get("content", "")
-                
-                # 检测配额超限
-                if "上限" in error_content or "quota" in error_content.lower():
-                    raise QuotaExceededError(self.platform.value)
-                
-                raise APIError(error_content or "API返回错误", code="API_ERROR")
+            # 检测配额超限
+            if "上限" in error_content or "quota" in error_content.lower():
+                raise QuotaExceededError(self.platform.value)
+            
+            raise APIError(error_content or "API返回错误", code="API_ERROR")
         
         return data
     

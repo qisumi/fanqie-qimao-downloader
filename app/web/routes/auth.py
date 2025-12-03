@@ -15,7 +15,7 @@ router = APIRouter()
 
 class LoginRequest(BaseModel):
     """登录请求模型"""
-    password: str = Field(..., description="登录密码", min_length=1, example="your_password")
+    password: str = Field(..., description="登录密码", min_length=1)
     
     model_config = ConfigDict(
         json_schema_extra={

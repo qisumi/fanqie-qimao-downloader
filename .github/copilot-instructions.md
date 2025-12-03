@@ -240,6 +240,22 @@ pytest tests/test_e2e/ -v           # 端到端测试
 - **封面URL**: 使用 `FanqieAPI.replace_cover_url()` 获取高质量封面
 - **EPUB编码**: 使用 `set_content(html.encode('utf-8'))`
 
+## 最新修改摘要
+
+下面是对仓库中近期可观察到修改点的简要总结（基于当前工作区文件结构）：
+- **服务/路由拆分**: 后端服务模块已按功能拆分到 `app/services/` 与 `app/web/routes/`，实现了更清晰的职责划分，便于维护与扩展。
+- **PWA 与前端更新**: 前端包含 PWA 支持（`frontend/public/manifest.json`、`frontend/src/sw.js`）和相关前端组件/组合式 API，用于离线与更新提示。
+- **端到端与单元测试覆盖**: 仓库包含 `tests/test_e2e/` 与 `tests/test_api/` 等测试目录，覆盖 API 路由与 E2E 场景。
+- **构建与部署脚本**: 包含 `Dockerfile`、`docker-compose.yml` 与 `scripts/build_frontend_and_migrate.py`，方便容器化部署与前端构建 + 数据库迁移的自动化流程。
+- **数据库迁移演进**: `alembic/versions/` 中包含多次迁移（例如添加封面 URL、调整配额模型），表明模型在迭代中已做多次架构变更。
+- **启动与管理**: 项目根目录含 `start.py` （开发/启动入口脚本）以及 `init_db.py`，便于初始化和本地运行。
+
+如果你希望我：
+- 将这些修改点写入仓库的 `CHANGELOG.md` 或生成一份更正式的发布说明，我可以继续完成；
+- 或者我可以直接为你创建一个 Git 提交并推送（需要你授权并提供分支/提交信息），也可以运行测试以验证改动。
+
+（摘要基于当前工作区文件结构与显式文件；如果你需要更精确的“最近提交”级别变更摘要，请授权我查看 Git 日志或提供额外上下文。）
+
 ## WebSocket (`app/web/`)
 
 ### 连接管理器 (`websocket.py`)

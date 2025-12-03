@@ -393,14 +393,31 @@ class QimaoAPI(RainAPIClient):
         Returns:
             书籍列表
         """
+        if not isinstance(response, dict):
+            raise InvalidResponseError(
+                "搜索响应格式错误，期望 JSON 对象",
+                str(response),
+            )
+        
         books_raw = []
         
         # 七猫搜索结果在 data.books 中
         if response.get("data"):
             books_raw = response["data"].get("books", [])
         
+        if not isinstance(books_raw, list):
+            raise InvalidResponseError(
+                "搜索结果 data.books 格式错误，期望数组",
+                str(response),
+            )
+        
         books = []
         for item in books_raw:
+            if not isinstance(item, dict):
+                raise InvalidResponseError(
+                    "搜索结果项格式错误，期望对象",
+                    str(item),
+                )
             # 转换封面URL
             cover_url = self.replace_cover_url(item.get("image_link", ""))
             

@@ -32,6 +32,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
+  'read',
   'download', 
   'update', 
   'generate-epub', 
@@ -158,6 +159,18 @@ const progressPercent = computed(() => {
     
     <!-- 操作按钮区域 -->
     <div class="action-buttons" :class="{ 'mobile': isMobile }">
+      <n-button 
+        tertiary
+        type="success" 
+        :size="isMobile ? 'medium' : 'large'"
+        class="action-btn"
+        @click="emit('read')"
+      >
+        <template #icon>
+          <n-icon><BookOutline /></n-icon>
+        </template>
+        在线阅读
+      </n-button>
       <n-button 
         type="primary" 
         :size="isMobile ? 'medium' : 'large'"

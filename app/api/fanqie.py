@@ -470,7 +470,11 @@ class FanqieAPI(RainAPIClient):
         Returns:
             书籍列表
         """
-        books_raw = []
+        if not isinstance(response, dict):
+            logger.warning("Fanqie search response is not a dict, got %s", type(response).__name__)
+            return []
+        
+        books_raw: List[Any] = []
         
         # 检查 search_tabs 格式
         search_tabs = response.get("search_tabs")
@@ -482,11 +486,29 @@ class FanqieAPI(RainAPIClient):
         
         # 如果 search_tabs 为空或无效，使用 data 字段
         if not books_raw:
-            books_raw = response.get("data", [])
+            raw_data = response.get("data", [])
+            if isinstance(raw_data, list):
+                books_raw = raw_data
+            elif isinstance(raw_data, dict):
+                # 某些返回会把列表包在 data.data 或 data.books 中
+                if isinstance(raw_data.get("data"), list):
+                    books_raw = raw_data.get("data")  # type: ignore[assignment]
+                elif isinstance(raw_data.get("books"), list):
+                    books_raw = raw_data.get("books")  # type: ignore[assignment]
+                else:
+                    # 将单个对象包装为列表，避免抛 502
+                    logger.warning("Fanqie search data is dict, wrapping into list; keys=%s", list(raw_data.keys()))
+                    books_raw = [raw_data]
+            else:
+                logger.warning("Fanqie search data is unexpected type: %s", type(raw_data).__name__)
+                books_raw = []
         
         # 解析书籍数据
         books = []
         for item in books_raw:
+            if not isinstance(item, dict):
+                logger.warning("Skip invalid search item type: %s", type(item).__name__)
+                continue
             # 某些响应格式中书籍数据在 book_data 数组中
             book_data = item
             if "book_data" in item and isinstance(item["book_data"], list):

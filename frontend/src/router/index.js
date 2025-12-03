@@ -39,6 +39,12 @@ const routes = [
     meta: { title: '设置' }
   },
   {
+    path: '/reader/:bookId',
+    name: 'reader',
+    component: () => import('@/views/ReaderView.vue'),
+    meta: { title: '在线阅读', readerLayout: true }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/LoginView.vue'),

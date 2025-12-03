@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 from sqlalchemy import func
@@ -11,7 +11,7 @@ from app.api.base import ChapterNotFoundError, NetworkError
 from app.models.book import Book
 from app.models.chapter import Chapter
 from app.models.task import DownloadTask
-from app.services.download_service_base import DownloadServiceBase
+from app.services.download_service_base import DownloadServiceBase, QuotaReachedError
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class DownloadOperationMixin(DownloadServiceBase):
             
             book.download_status = "downloading"
             task.status = "running"
-            task.started_at = datetime.utcnow()
+            task.started_at = datetime.now(timezone.utc)
             
             chapters = self._get_pending_chapters(book_uuid, task_type, start_chapter, end_chapter, skip_completed)
             task.total_chapters = len(chapters)
@@ -73,7 +73,7 @@ class DownloadOperationMixin(DownloadServiceBase):
             
             if not chapters:
                 task.status = "completed"
-                task.completed_at = datetime.utcnow()
+                task.completed_at = datetime.now(timezone.utc)
                 self.db.commit()
                 return task
             
@@ -94,7 +94,7 @@ class DownloadOperationMixin(DownloadServiceBase):
                 task.status = "completed"
                 book.download_status = "completed"
             
-            task.completed_at = datetime.utcnow()
+            task.completed_at = datetime.now(timezone.utc)
             
             completed_count = self.db.query(func.count(Chapter.id)).filter(
                 Chapter.book_id == book_uuid,
@@ -123,7 +123,7 @@ class DownloadOperationMixin(DownloadServiceBase):
         except Exception as e:
             task.status = "failed"
             task.error_message = str(e)
-            task.completed_at = datetime.utcnow()
+            task.completed_at = datetime.now(timezone.utc)
             book.download_status = "failed"
             self.db.commit()
             
@@ -252,7 +252,7 @@ class DownloadOperationMixin(DownloadServiceBase):
                 
                 chapter.content_path = content_path
                 chapter.download_status = "completed"
-                chapter.downloaded_at = datetime.utcnow()
+                chapter.downloaded_at = datetime.now(timezone.utc)
                 self.db.commit()
                 
                 logger.debug(f"Downloaded chapter: {chapter.title} ({word_count} words)")
@@ -320,6 +320,73 @@ class DownloadOperationMixin(DownloadServiceBase):
         logger.info(f"Reset {count} failed chapters for retry")
         
         return count
+
+    async def download_chapter_with_retry(
+        self,
+        book_uuid: str,
+        chapter_uuid: str,
+        retries: int = 3,
+    ) -> bool:
+        """
+        下载单个章节（带重试）
+
+        Args:
+            book_uuid: 书籍UUID
+            chapter_uuid: 章节UUID
+            retries: 重试次数
+
+        Returns:
+            bool: 是否成功下载
+        """
+        book = self.db.query(Book).filter(Book.id == book_uuid).first()
+        if not book:
+            raise ValueError("书籍不存在")
+
+        chapter = self.db.query(Chapter).filter(
+            Chapter.id == chapter_uuid,
+            Chapter.book_id == book_uuid,
+        ).first()
+        if not chapter:
+            raise ValueError("章节不存在")
+
+        # 若章节标记完成但缺文件，重置状态
+        if chapter.download_status == "completed" and chapter.content_path:
+            content = self.storage.get_chapter_content(chapter.content_path)
+            if content:
+                return True
+            chapter.download_status = "pending"
+            chapter.content_path = None
+            self.db.commit()
+
+        last_error: Optional[str] = None
+
+        for attempt in range(1, retries + 1):
+            if not self.rate_limiter.can_download(book.platform):
+                remaining = self.rate_limiter.get_remaining(book.platform)
+                raise QuotaReachedError(book.platform, remaining=remaining)
+
+            result = await self._download_single_chapter(book, chapter)
+            if result >= 0:
+                try:
+                    self.rate_limiter.record_download(book.platform, word_count=result)
+                except Exception:
+                    logger.exception("Record download words failed")
+
+                completed_count = self.db.query(func.count(Chapter.id)).filter(
+                    Chapter.book_id == book_uuid,
+                    Chapter.download_status == "completed",
+                ).scalar() or 0
+                book.downloaded_chapters = completed_count
+                self.db.commit()
+                return True
+
+            last_error = f"下载失败，已尝试 {attempt}/{retries}"
+            chapter.download_status = "pending"
+            self.db.commit()
+
+        if last_error:
+            logger.error(last_error)
+        return False
 
 
 __all__ = ["DownloadOperationMixin"]

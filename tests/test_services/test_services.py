@@ -13,7 +13,7 @@ import uuid
 import asyncio
 import pytest
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # 设置测试环境
@@ -72,8 +72,8 @@ def sample_book():
         total_chapters=100,
         downloaded_chapters=0,
         download_status="pending",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 

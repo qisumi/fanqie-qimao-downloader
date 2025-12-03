@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 for sub_router in (
-    tasks_list.router,
     tasks_quota.router,
+    tasks_list.router,
     tasks_start.router,
     tasks_control.router,
 ):

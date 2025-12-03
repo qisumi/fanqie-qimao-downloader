@@ -55,8 +55,8 @@ router = APIRouter()
     }
 )
 async def add_book(
-    platform: str = Path(..., description="平台名称", regex="^(fanqie|qimao)$", example="fanqie"),
-    book_id: str = Path(..., description="平台上的书籍ID", example="7384886245497586234"),
+    platform: str = Path(..., description="平台名称"),
+    book_id: str = Path(..., description="平台上的书籍ID"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -131,11 +131,11 @@ async def add_book(
     }
 )
 async def list_books(
-    platform: Optional[str] = Query(None, description="按平台筛选", regex="^(fanqie|qimao)$", example="fanqie"),
-    status: Optional[str] = Query(None, description="按下载状态筛选", regex="^(pending|downloading|completed|failed|partial)$", example="completed"),
-    search: Optional[str] = Query(None, description="搜索书名或作者", max_length=100, example="第一序列"),
-    page: int = Query(0, ge=0, description="页码", example=0),
-    limit: int = Query(20, ge=1, le=100, description="每页数量", example=20),
+    platform: Optional[str] = Query(None, description="按平台筛选", pattern="^(fanqie|qimao)$"),
+    status: Optional[str] = Query(None, description="按下载状态筛选", pattern="^(pending|downloading|completed|failed|partial)$"),
+    search: Optional[str] = Query(None, description="搜索书名或作者", max_length=100),
+    page: int = Query(0, ge=0, description="页码"),
+    limit: int = Query(20, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
 ) -> BookListResponse:
     """
@@ -207,7 +207,7 @@ async def list_books(
     }
 )
 async def get_book(
-    book_id: str = Path(..., description="书籍UUID", example="123e4567-e89b-12d3-a456-426614174000"),
+    book_id: str = Path(..., description="书籍UUID"),
     db: Session = Depends(get_db),
 ) -> BookDetailResponse:
     """

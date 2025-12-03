@@ -22,8 +22,9 @@ onMounted(() => {
 // Naive UI 主题
 const naiveTheme = computed(() => themeStore.isDark ? darkTheme : null)
 
+const isReaderRoute = computed(() => route.name === 'reader' || route.meta.readerLayout)
 // 登录页不显示侧边栏
-const showSidebar = computed(() => route.name !== 'login')
+const showSidebar = computed(() => route.name !== 'login' && !isReaderRoute.value)
 
 // 移动端侧边栏抽屉
 const isMobile = ref(false)
@@ -72,8 +73,13 @@ provide('closeDrawer', closeDrawer)
           <!-- PWA 管理组件 -->
           <PWAManager />
           
+          <!-- 阅读器全屏布局 -->
+          <template v-if="isReaderRoute">
+            <router-view />
+          </template>
+          
           <!-- 登录页面独立布局 -->
-          <template v-if="!showSidebar">
+          <template v-else-if="!showSidebar">
             <router-view />
           </template>
           
