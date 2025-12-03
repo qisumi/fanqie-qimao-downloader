@@ -286,6 +286,7 @@ onBeforeUnmount(() => {
 
 .page-flicking.mobile-page {
   padding: 0;
+  min-height: 100dvh;
 }
 
 .page-panel {
@@ -302,8 +303,8 @@ onBeforeUnmount(() => {
 }
 
 .page-flicking.mobile-page .page-panel {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100dvh; /* 使用动态视口高度，适应移动端浏览器 UI */
   max-width: none;
   margin: 0;
   border-radius: 0;
@@ -323,7 +324,7 @@ onBeforeUnmount(() => {
 }
 
 .page-flicking.mobile-page .page-panel-body {
-  padding: 48px 20px 8px; /* 上方避开工具栏，底部缩小 */
+  padding: 16px 20px calc(48px + env(safe-area-inset-bottom, 0px)); /* 底部留出空间给页码和章节名信息栏以及安全区 */
 }
 
 .page-text {
@@ -355,14 +356,13 @@ onBeforeUnmount(() => {
 /* 底部固定信息栏 */
 .page-footer-info {
   position: absolute;
-  bottom: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 6px 16px;
-  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   font-size: 11px;
   color: #999;
   background: transparent;

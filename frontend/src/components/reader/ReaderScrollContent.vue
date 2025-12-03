@@ -3,8 +3,7 @@
  * 滚动模式内容组件
  */
 import { ref, defineExpose } from 'vue'
-import { NAlert, NEmpty, NSkeleton, NSpin, NIcon, NButton } from 'naive-ui'
-import { TimeOutline } from '@vicons/ionicons5'
+import { NAlert, NEmpty, NSkeleton, NSpin, NButton } from 'naive-ui'
 
 // 暴露滚动容器 ref
 const scrollContainerRef = ref(null)
@@ -69,13 +68,6 @@ function registerChapterRef(id, el) {
           :data-chapter-id="section.data.id"
           :ref="el => registerChapterRef(section.data.id, el)"
         >
-          <!-- 章节字数信息（章节名已包含"第X章"，无需重复显示） -->
-          <div class="chapter-meta">
-            <span class="meta-pill">
-              <n-icon :size="14"><TimeOutline /></n-icon>
-              <span>{{ section.data.word_count ? `${Math.round(section.data.word_count / 1000)}k` : '未知' }} 字</span>
-            </span>
-          </div>
           <div v-if="section.data.title" class="chapter-heading-block">
             <div class="chapter-heading-sub">{{ currentBookTitle }}</div>
             <h1 class="chapter-heading">{{ section.data.title }}</h1>
@@ -110,7 +102,7 @@ function registerChapterRef(id, el) {
 
 <style scoped>
 .chapter-scroll {
-  max-height: calc(100vh - 40px);
+  max-height: 100%;
   overflow-y: auto;
   padding: 16px;
   box-sizing: border-box;
@@ -120,10 +112,9 @@ function registerChapterRef(id, el) {
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  padding: 16px 14px 24px;
-  /* 移动端需要固定高度才能滚动，使用 100vh 减去工具栏和底部控制栏的高度 */
-  max-height: calc(100vh - 120px);
-  min-height: calc(100vh - 200px);
+  padding: 16px 14px;
+  /* 移动端使用100%高度，不预留工具栏/底部控制栏空间 */
+  max-height: 100%;
   overflow-y: auto;
 }
 
@@ -139,13 +130,6 @@ function registerChapterRef(id, el) {
 
 .chapter-block + .chapter-block {
   padding-top: 12px;
-}
-
-.chapter-meta {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 16px;
 }
 
 .chapter-heading-block {
@@ -165,17 +149,6 @@ function registerChapterRef(id, el) {
   letter-spacing: 0.02em;
   color: inherit;
   font-weight: 800;
-}
-
-.meta-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(24, 160, 88, 0.08);
-  color: #1d7c4f;
-  font-size: 12px;
 }
 
 .chapter-text {

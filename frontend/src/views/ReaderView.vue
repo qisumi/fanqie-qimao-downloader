@@ -1079,6 +1079,8 @@ watch(
 .reader-view.is-mobile {
   padding: 0;
   overflow: hidden;
+  height: 100vh;
+  min-height: unset;
 }
 
 .reader-body {
@@ -1091,8 +1093,9 @@ watch(
 
 .reader-view.is-mobile .reader-body {
   margin-top: 0;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .reader-content {
@@ -1103,13 +1106,13 @@ watch(
   border-radius: 0;
   box-shadow: none;
   overflow: hidden;
-  min-height: 60vh;
   overflow-anchor: none;
 }
 
 .reader-view.is-mobile .reader-content {
   height: 100%;
   max-width: none;
+  overflow: hidden;
 }
 
 .reader-content.mobile-content {
@@ -1123,7 +1126,7 @@ watch(
   }
 
   .reader-content {
-    min-height: 100vh;
+    height: 100%;
   }
 }
 </style>

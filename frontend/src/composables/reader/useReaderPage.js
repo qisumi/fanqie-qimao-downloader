@@ -86,8 +86,9 @@ export function useReaderPage(options = {}) {
     const width = containerWidth.value || window.innerWidth
     const height = containerHeight.value || window.innerHeight
     const isMobile = window.innerWidth < 768
-    const vPadding = isMobile ? 110 : 100
-    const hPadding = isMobile ? 50 : 140
+    // 预留足够的垂直空间：上/下内边距 + 底部信息栏 + 移动端安全区
+    const vPadding = isMobile ? 104 : 60
+    const hPadding = isMobile ? 40 : 100
     const availableHeight = Math.max(200, height - vPadding)
     const availableWidth = Math.max(200, width - hPadding)
 
@@ -259,8 +260,9 @@ export function useReaderPage(options = {}) {
     const width = containerWidth.value || window.innerWidth
     const height = containerHeight.value || window.innerHeight
     const isMobile = window.innerWidth < 768
-    const vPadding = isMobile ? 110 : 100
-    const hPadding = isMobile ? 50 : 140
+    // 预留足够的垂直空间：上/下内边距 + 底部信息栏 + 移动端安全区
+    const vPadding = isMobile ? 104 : 60
+    const hPadding = isMobile ? 40 : 100
     const availableHeight = Math.max(200, height - vPadding)
     const availableWidth = Math.max(200, width - hPadding)
 
