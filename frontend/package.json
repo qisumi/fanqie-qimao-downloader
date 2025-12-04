@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "Vue 3 + Naive UI frontend for FanqieQimaoDownloader",
   "type": "module",
   "scripts": {
