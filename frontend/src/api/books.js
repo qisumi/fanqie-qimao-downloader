@@ -2,7 +2,7 @@ import api from './index'
 
 /**
  * 搜索书籍
- * @param {string} platform - fanqie | qimao
+ * @param {string} platform - fanqie | qimao | biquge
  * @param {string} keyword - 搜索关键词
  * @param {number} page - 页码
  */
@@ -14,7 +14,7 @@ export function searchBooks(platform, keyword, page = 0) {
 
 /**
  * 添加书籍到书库
- * @param {string} platform - fanqie | qimao
+ * @param {string} platform - fanqie | qimao | biquge
  * @param {string} bookId - 平台书籍ID
  */
 export function addBook(platform, bookId) {
@@ -89,4 +89,3 @@ export function generateEpub(id) {
 export function getEpubDownloadUrl(id) {
   return `/api/books/${id}/epub/download`
 }
-

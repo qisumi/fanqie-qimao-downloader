@@ -131,7 +131,7 @@ class EPUBService:
     def _set_metadata(self, epub_book: epub.EpubBook, book: Book):
         """设置EPUB元数据"""
         # 唯一标识符
-        epub_book.set_identifier(f"fanqie-qimao-{book.id}")
+        epub_book.set_identifier(f"fanqie-qimao-downloader-{book.platform}-{book.id}")
         
         # 标题
         epub_book.set_title(book.title)

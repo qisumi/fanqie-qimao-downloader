@@ -35,9 +35,12 @@ const progress = computed(() => {
 })
 
 const platformTag = computed(() => {
-  return props.book.platform === 'fanqie' 
-    ? { color: '#ff6b35', label: '番茄' }
-    : { color: '#2080f0', label: '七猫' }
+  const map = {
+    fanqie: { color: '#ff6b35', label: '番茄' },
+    qimao: { color: '#2080f0', label: '七猫' },
+    biquge: { color: '#18a058', label: '笔趣阁' }
+  }
+  return map[props.book.platform] || { color: '#909399', label: props.book.platform || '未知' }
 })
 
 const statusTag = computed(() => {

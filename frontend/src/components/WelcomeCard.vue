@@ -9,9 +9,9 @@ const emit = defineEmits(['search'])
   <div class="welcome-card animate-fade-in">
     <div class="welcome-content">
       <div class="welcome-text">
-        <h1 class="welcome-title">欢迎使用番茄七猫下载器</h1>
+        <h1 class="welcome-title">欢迎使用番茄·七猫·笔趣阁下载器</h1>
         <p class="welcome-desc">
-          支持番茄小说、七猫小说的批量下载和 EPUB 导出
+          支持番茄小说、七猫小说、笔趣阁的批量下载和 EPUB 导出
         </p>
       </div>
       <n-button 

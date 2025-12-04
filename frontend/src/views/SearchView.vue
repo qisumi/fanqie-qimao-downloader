@@ -24,7 +24,8 @@ const addingBook = ref(null)
 
 const platformOptions = [
   { label: '番茄小说', value: 'fanqie' },
-  { label: '七猫小说', value: 'qimao' }
+  { label: '七猫小说', value: 'qimao' },
+  { label: '笔趣阁', value: 'biquge' }
 ]
 
 const searchResults = computed(() => bookStore.searchResults)
@@ -39,6 +40,9 @@ async function handleSearch() {
   
   currentPage.value = 0
   await bookStore.searchBooks(platform.value, keyword.value.trim(), 0)
+  if (!bookStore.searchLoading && bookStore.searchResults.length === 0) {
+    message.info('未找到相关书籍，换个关键词试试～')
+  }
 }
 
 async function loadMore() {
@@ -65,7 +69,7 @@ async function addToLibrary(book) {
     <!-- 搜索区域 -->
     <div class="search-header">
       <h2 class="page-title">搜索书籍</h2>
-      <p class="page-desc">在番茄小说和七猫小说中搜索你想要的书籍</p>
+      <p class="page-desc">在番茄小说、七猫小说和笔趣阁中搜索你想要的书籍</p>
       
       <div class="search-form">
         <!-- 移动端竖排布局 -->

@@ -42,10 +42,15 @@ const emit = defineEmits([
 
 const isMobile = inject('isMobile', { value: false })
 
+const statistics = computed(() => props.book.statistics || {})
+
 function getPlatformTag(platform) {
-  return platform === 'fanqie' 
-    ? { type: 'warning', label: '番茄小说' }
-    : { type: 'info', label: '七猫小说' }
+  const map = {
+    fanqie: { type: 'warning', label: '番茄小说' },
+    qimao: { type: 'info', label: '七猫小说' },
+    biquge: { type: 'success', label: '笔趣阁' }
+  }
+  return map[platform] || { type: 'default', label: platform || '未知平台' }
 }
 
 function getStatusTag(status) {
@@ -71,6 +76,7 @@ function getStatusColor(status) {
 
 const progressDownloaded = computed(() => {
   return props.taskProgress?.downloaded 
+    ?? statistics.value.completed_chapters
     ?? props.book.task_downloaded_chapters 
     ?? props.book.downloaded_chapters 
     ?? 0
@@ -78,6 +84,7 @@ const progressDownloaded = computed(() => {
 
 const progressTotal = computed(() => {
   return props.taskProgress?.total 
+    ?? statistics.value.total_chapters 
     ?? props.book.task_total_chapters 
     ?? props.book.total_chapters 
     ?? 0
@@ -299,6 +306,10 @@ const progressPercent = computed(() => {
 
 .platform-badge.qimao {
   background: linear-gradient(135deg, #2080f0 0%, #409eff 100%);
+}
+
+.platform-badge.biquge {
+  background: linear-gradient(135deg, #0f9d58 0%, #34a853 100%);
 }
 
 /* 信息区域 */

@@ -167,9 +167,39 @@ class TestReaderRoutes:
         data = resp.json()
         assert data["book_id"] == seed_data["book_id"]
         assert len(data["chapters"]) == 2
+        assert data["total"] == 2
+        assert data["page"] == 1
+        assert data["pages"] == 1
         ids = {c["id"] for c in data["chapters"]}
         assert seed_data["chapter1_id"] in ids
         assert seed_data["chapter2_id"] in ids
+
+    def test_get_toc_with_pagination(self, client, seed_data):
+        # 限制每页1条，验证分页与has_more
+        resp = client.get(
+            f"/api/books/{seed_data['book_id']}/toc",
+            params={"user_id": seed_data["user_id"], "limit": 1, "page": 1},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 2
+        assert data["pages"] == 2
+        assert data["has_more"] is True
+        assert len(data["chapters"]) == 1
+        first_id = data["chapters"][0]["id"]
+
+        # 请求第二页，应包含另一章，has_more 为 False
+        resp2 = client.get(
+            f"/api/books/{seed_data['book_id']}/toc",
+            params={"user_id": seed_data["user_id"], "limit": 1, "page": 2},
+        )
+        assert resp2.status_code == 200
+        data2 = resp2.json()
+        assert data2["page"] == 2
+        assert data2["has_more"] is False
+        assert len(data2["chapters"]) == 1
+        second_id = data2["chapters"][0]["id"]
+        assert first_id != second_id
 
     def test_get_chapter_content_ready(self, client, seed_data):
         resp = client.get(

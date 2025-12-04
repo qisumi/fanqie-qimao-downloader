@@ -1,6 +1,6 @@
 """API客户端模块
 
-提供 Rain API V3 的番茄/七猫小说 API 封装
+提供番茄/七猫/笔趣阁的 API 封装
 """
 
 from app.api.base import (
@@ -19,12 +19,14 @@ from app.api.base import (
 )
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
+from app.api.biquge import BiqugeAPI
 
 __all__ = [
     # 客户端类
     "RainAPIClient",
     "FanqieAPI",
     "QimaoAPI",
+    "BiqugeAPI",
     # 枚举类型
     "Platform",
     "APIType",

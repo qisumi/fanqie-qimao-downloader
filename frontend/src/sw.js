@@ -394,7 +394,7 @@ async function clearAllCaches() {
 // 缓存文件标注和说明
 const CACHE_DOCUMENTATION = {
   version: SW_VERSION,
-  description: '番茄七猫小说下载器 PWA 缓存配置',
+  description: '番茄·七猫·笔趣阁小说下载器 PWA 缓存配置',
   caches: {
     'fonts-cache-v2': {
       description: '字体文件缓存',

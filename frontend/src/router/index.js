@@ -65,7 +65,7 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   // 更新页面标题
-  document.title = to.meta.title ? `${to.meta.title} - 番茄七猫下载器` : '番茄七猫下载器'
+  document.title = to.meta.title ? `${to.meta.title} - 番茄·七猫·笔趣阁下载器` : '番茄·七猫·笔趣阁下载器'
   
   const userStore = useUserStore()
   

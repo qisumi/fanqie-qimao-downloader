@@ -38,13 +38,15 @@ class BookServiceAddMixin(BookServiceBase):
         async with self._get_api_client(platform) as api:
             logger.info(f"Fetching book detail: platform={platform}, book_id={book_id}")
             detail = await api.get_book_detail(book_id)
+            platform_book_id = detail.get("book_id", book_id)
+            source_book_id = detail.get("source_book_id", book_id)
             
             book_uuid = str(uuid.uuid4())
             cover_url = detail.get("cover_url", "")
             book = Book(
                 id=book_uuid,
                 platform=platform,
-                book_id=book_id,
+                book_id=platform_book_id,
                 title=detail.get("book_name", ""),
                 author=detail.get("author", ""),
                 cover_url=cover_url,
@@ -69,7 +71,7 @@ class BookServiceAddMixin(BookServiceBase):
             
             if fetch_chapters:
                 logger.info(f"Fetching chapter list for book: {book.title}")
-                chapter_list = await api.get_chapter_list(book_id)
+                chapter_list = await api.get_chapter_list(source_book_id)
                 
                 book.total_chapters = chapter_list.get("total_chapters", 0)
                 

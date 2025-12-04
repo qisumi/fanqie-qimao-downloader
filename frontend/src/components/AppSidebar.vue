@@ -73,9 +73,9 @@ function handleMenuSelect(key) {
   <div class="sidebar">
     <!-- Logo -->
     <div class="logo" :class="{ 'logo-collapsed': collapsed }">
-      <div class="logo-icon">📚</div>
+      <div class="logo-icon">书</div>
       <transition name="fade">
-        <span v-if="!collapsed" class="logo-text">番茄七猫</span>
+        <span v-if="!collapsed" class="logo-text">番茄·七猫·笔趣阁</span>
       </transition>
     </div>
     

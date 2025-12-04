@@ -5,8 +5,7 @@
 import {
   NButton,
   NIcon,
-  NSlider,
-  NProgress
+  NSlider
 } from 'naive-ui'
 import {
   BookmarkOutline,
@@ -93,23 +92,6 @@ import { computed } from 'vue'
       :format-tooltip="(v) => `${Math.round(v)}%`"
       @update:value="$emit('progress-change', $event)"
     />
-    <div class="progress-actions">
-      <n-button size="medium" secondary :disabled="!currentChapter?.prev_id || isLoadingChapter" @click="$emit('prev')">
-        上一章
-      </n-button>
-      <div class="progress-line">
-        <n-progress
-          type="line"
-          :percentage="Math.min(100, Math.max(0, displayPercent))"
-          :show-indicator="false"
-          :height="8"
-          indicator-placement="inside"
-        />
-      </div>
-      <n-button size="medium" type="primary" :disabled="!currentChapter?.next_id || isLoadingChapter" @click="$emit('next')">
-        下一章
-      </n-button>
-    </div>
   </footer>
 </template>
 
@@ -174,29 +156,12 @@ import { computed } from 'vue'
   font-weight: 700;
   color: #18a058;
 }
-
-.progress-actions {
-  display: grid;
-  grid-template-columns: 120px 1fr 120px;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.reader-footer.mobile-footer .progress-actions {
-  grid-template-columns: 1fr;
-}
-
 .reader-footer.mobile-footer .progress-head {
   align-items: flex-start;
 }
 
 .reader-footer.mobile-footer .aux-actions {
   justify-content: space-between;
-}
-
-.progress-line {
-  width: 100%;
 }
 
 .progress-line :deep(.n-progress) {

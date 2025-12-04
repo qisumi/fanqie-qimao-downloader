@@ -24,7 +24,7 @@ class RateLimiter:
     速率限制器
     
     基于数据库 DailyQuota 表实现每日下载配额管理:
-    - 每个平台 (fanqie/qimao) 每天有独立的配额
+    - 每个平台 (fanqie/qimao/biquge) 每天有独立的配额
     - 默认每日限制 2000万字
     - 支持同步和异步两种使用方式
     
@@ -70,7 +70,7 @@ class RateLimiter:
         检查是否可以下载 (同步)
         
         Args:
-            platform: 平台名称 (fanqie/qimao)
+            platform: 平台名称 (fanqie/qimao/biquge)
             
         Returns:
             True 如果今日字数配额未用尽
@@ -196,7 +196,7 @@ class RateLimiter:
         检查是否可以下载 (异步)
         
         Args:
-            platform: 平台名称 (fanqie/qimao)
+            platform: 平台名称 (fanqie/qimao/biquge)
             
         Returns:
             True 如果今日字数配额未用尽

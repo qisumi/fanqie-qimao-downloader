@@ -41,7 +41,7 @@ class TaskType(str, Enum):
 class BookCreate(BaseModel):
     """添加书籍请求"""
     
-    platform: str = Field(..., description="平台 (fanqie/qimao)")
+    platform: str = Field(..., description="平台 (fanqie/qimao/biquge)")
     book_id: str = Field(..., description="平台书籍ID")
     download_cover: bool = Field(default=True, description="是否下载封面")
     fetch_chapters: bool = Field(default=True, description="是否获取章节列表")
@@ -49,8 +49,8 @@ class BookCreate(BaseModel):
     @field_validator("platform")
     @classmethod
     def validate_platform(cls, v):
-        if v not in ("fanqie", "qimao"):
-            raise ValueError("platform must be 'fanqie' or 'qimao'")
+        if v not in ("fanqie", "qimao", "biquge"):
+            raise ValueError("platform must be 'fanqie', 'qimao' or 'biquge'")
         return v
 
 
@@ -185,6 +185,11 @@ class ReaderTocResponse(BaseModel):
 
     book_id: str = Field(..., description="书籍UUID")
     chapters: List[ReaderTocChapter] = Field(default=[], description="章节列表")
+    total: int = Field(default=0, description="章节总数")
+    page: int = Field(default=1, description="当前页(1-based)")
+    limit: int = Field(default=50, description="每页数量")
+    pages: int = Field(default=0, description="总页数")
+    has_more: bool = Field(default=False, description="是否还有更多章节可加载")
 
 
 class ChapterContentResponse(BaseModel):
@@ -364,6 +369,7 @@ class AllQuotaResponse(BaseModel):
     
     fanqie: QuotaResponse = Field(..., description="番茄配额")
     qimao: QuotaResponse = Field(..., description="七猫配额")
+    biquge: QuotaResponse = Field(..., description="笔趣阁配额")
 
 
 # ============ 用户相关 Schemas ============
@@ -459,15 +465,15 @@ class SystemStats(BaseModel):
 class SearchRequest(BaseModel):
     """搜索请求"""
     
-    platform: str = Field(..., description="平台 (fanqie/qimao)")
+    platform: str = Field(..., description="平台 (fanqie/qimao/biquge)")
     keyword: str = Field(..., min_length=1, description="搜索关键词")
     page: int = Field(default=0, ge=0, description="页码")
     
     @field_validator("platform")
     @classmethod
     def validate_platform(cls, v):
-        if v not in ("fanqie", "qimao"):
-            raise ValueError("platform must be 'fanqie' or 'qimao'")
+        if v not in ("fanqie", "qimao", "biquge"):
+            raise ValueError("platform must be 'fanqie', 'qimao' or 'biquge'")
         return v
 
 

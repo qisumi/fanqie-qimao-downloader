@@ -10,7 +10,6 @@ from app.schemas.service_schemas import (
     BookListResponse,
     BookResponse,
     BookStatistics,
-    ChapterResponse,
 )
 from app.services import BookService, StorageService
 from app.utils.database import get_db
@@ -66,11 +65,11 @@ async def add_book(
     根据平台和书籍ID从API获取书籍详情，下载封面，获取章节列表，
     并将书籍添加到数据库。
     
-    - **platform**: 平台名称 (fanqie/qimao)
+    - **platform**: 平台名称 (fanqie/qimao/biquge)
     - **book_id**: 平台上的书籍ID
     """
-    if platform not in ("fanqie", "qimao"):
-        raise HTTPException(status_code=400, detail="平台必须是 fanqie 或 qimao")
+    if platform not in ("fanqie", "qimao", "biquge"):
+        raise HTTPException(status_code=400, detail="平台必须是 fanqie、qimao 或 biquge")
     
     try:
         storage = StorageService()
@@ -131,7 +130,7 @@ async def add_book(
     }
 )
 async def list_books(
-    platform: Optional[str] = Query(None, description="按平台筛选", pattern="^(fanqie|qimao)$"),
+    platform: Optional[str] = Query(None, description="按平台筛选", pattern="^(fanqie|qimao|biquge)$"),
     status: Optional[str] = Query(None, description="按下载状态筛选", pattern="^(pending|downloading|completed|failed|partial)$"),
     search: Optional[str] = Query(None, description="搜索书名或作者", max_length=100),
     page: int = Query(0, ge=0, description="页码"),
@@ -143,7 +142,7 @@ async def list_books(
     
     支持按平台、状态筛选，以及按书名/作者搜索。
     
-    - **platform**: 平台筛选 (fanqie/qimao)
+    - **platform**: 平台筛选 (fanqie/qimao/biquge)
     - **status**: 状态筛选 (pending/downloading/completed/failed)
     - **search**: 书名或作者关键词
     - **page**: 页码，从0开始
@@ -199,7 +198,7 @@ async def list_books(
     "/{book_id}",
     response_model=BookDetailResponse,
     summary="获取书籍详情",
-    response_description="返回书籍信息、章节列表和统计数据",
+    response_description="返回书籍信息和统计数据",
     responses={
         200: {"description": "获取成功"},
         404: {"description": "书籍不存在"},
@@ -213,7 +212,7 @@ async def get_book(
     """
     获取书籍详情
     
-    返回书籍信息、章节列表和统计数据。
+    返回书籍信息和统计数据（不再返回章节列表，需章节内容可使用阅读相关接口）。
     
     - **book_id**: 书籍UUID
     """
@@ -221,13 +220,12 @@ async def get_book(
         storage = StorageService()
         book_service = BookService(db=db, storage=storage)
         
-        result = book_service.get_book_with_chapters(book_id)
+        result = book_service.get_book_overview(book_id)
         
         if not result:
             raise HTTPException(status_code=404, detail="书籍不存在")
         
         book = result["book"]
-        chapters = result["chapters"]
         stats = result["statistics"]
         
         book_response = BookResponse(
@@ -249,22 +247,6 @@ async def get_book(
             updated_at=book.updated_at,
         )
         
-        chapter_responses = []
-        for ch in chapters:
-            chapter_responses.append(ChapterResponse(
-                id=ch.id,
-                book_id=ch.book_id,
-                item_id=ch.item_id,
-                title=ch.title,
-                volume_name=ch.volume_name,
-                chapter_index=ch.chapter_index,
-                word_count=ch.word_count,
-                content_path=ch.content_path,
-                download_status=ch.download_status or "pending",
-                downloaded_at=ch.downloaded_at,
-                created_at=ch.created_at,
-            ))
-        
         statistics = BookStatistics(
             total_chapters=stats.get("total_chapters", 0),
             completed_chapters=stats.get("completed_chapters", 0),
@@ -280,7 +262,7 @@ async def get_book(
         
         return BookDetailResponse(
             book=book_response,
-            chapters=chapter_responses,
+            chapters=[],
             statistics=statistics,
         )
         

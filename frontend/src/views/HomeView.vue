@@ -30,13 +30,14 @@ const stats = computed(() => {
   // 已完成的书籍数量
   const completedBooks = data.books_by_status?.completed || 0
   
-  // 今日已用字数（番茄+七猫）
+  // 今日已用字数（番茄+七猫+笔趣阁）
   const fanqieDownloaded = data.quota?.fanqie?.downloaded || 0
   const qimaoDownloaded = data.quota?.qimao?.downloaded || 0
-  const todayWords = fanqieDownloaded + qimaoDownloaded
+  const biqugeDownloaded = data.quota?.biquge?.downloaded || 0
+  const todayWords = fanqieDownloaded + qimaoDownloaded + biqugeDownloaded
   
   // 每日限制
-  const dailyLimit = data.quota?.fanqie?.limit || 20000000
+  const dailyLimit = data.quota?.fanqie?.limit || data.quota?.qimao?.limit || data.quota?.biquge?.limit || 20000000
   
   return {
     total_books: data.total_books || 0,

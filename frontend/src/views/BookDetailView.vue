@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { 
-  NButton, NIcon, NSpin, NAlert,
+import {
+  NButton, NIcon, NSpin, NAlert, NSkeleton,
   useMessage
 } from 'naive-ui'
 import { 
@@ -31,30 +31,54 @@ const generating = ref(false)
 const downloadLoading = ref(false)
 const updateLoading = ref(false)
 const book = computed(() => bookStore.currentBook)
+const chapterSummaryLoading = ref(false)
+const chapterSummaryLoaded = ref(false)
+const showChapterSummarySkeleton = computed(
+  () => chapterSummaryLoading.value && !chapterSummaryLoaded.value
+)
 
 // 章节热力图数据
 const chapterSummary = ref({ segments: [] })
+let lastChapterSummaryFetch = 0
 
 // 章节范围选择器引用
 const rangeSelectorRef = ref(null)
 
 // 当前任务进度（优先使用任务范围内的章节数）
 const taskProgress = computed(() => {
-  const downloaded = book.value?.task_downloaded_chapters ?? book.value?.downloaded_chapters ?? 0
-  const total = book.value?.task_total_chapters ?? book.value?.total_chapters ?? 0
+  const stats = book.value?.statistics
+  const downloaded = book.value?.task_downloaded_chapters 
+    ?? stats?.completed_chapters 
+    ?? book.value?.downloaded_chapters 
+    ?? 0
+  const total = book.value?.task_total_chapters 
+    ?? stats?.total_chapters 
+    ?? book.value?.total_chapters 
+    ?? 0
   const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
   return { downloaded, total, percent }
 })
 
 // 加载章节状态摘要
-async function loadChapterSummary() {
+async function loadChapterSummary(options = {}) {
+  const { force = false } = options
   if (!book.value) return
+
+  const now = Date.now()
+  const shouldThrottle = !force && chapterSummaryLoaded.value && now - lastChapterSummaryFetch < 1500
+  if (chapterSummaryLoading.value || shouldThrottle) return
+
+  chapterSummaryLoading.value = true
+  lastChapterSummaryFetch = now
   try {
     const data = await getChapterSummary(book.value.id)
     chapterSummary.value = data || { segments: [] }
+    chapterSummaryLoaded.value = true
   } catch (error) {
     console.error('Failed to load chapter summary:', error)
     chapterSummary.value = { segments: [] }
+  } finally {
+    chapterSummaryLoading.value = false
   }
 }
 
@@ -80,7 +104,7 @@ const { wsConnected } = useBookWebSocket({
     }
     // 刷新书籍信息
     bookStore.fetchBook(route.params.id)
-    loadChapterSummary()
+    loadChapterSummary({ force: true })
   },
   onError: (data) => {
     message.error(data.error_message || '发生错误')
@@ -92,7 +116,7 @@ onMounted(async () => {
   try {
     await bookStore.fetchBook(route.params.id)
     if (book.value) {
-      await loadChapterSummary()
+      await loadChapterSummary({ force: true })
     }
   } catch (error) {
     message.error('加载书籍详情失败')
@@ -138,7 +162,7 @@ async function startUpdate() {
   try {
     await bookStore.refreshBook(book.value.id)
     message.success('书籍信息已更新')
-    await loadChapterSummary()
+    await loadChapterSummary({ force: true })
   } catch (error) {
     message.error(error.response?.data?.detail || '刷新书籍信息失败')
   } finally {
@@ -250,22 +274,34 @@ function openReader() {
           ({{ taskProgress.percent }}%)
         </n-alert>
 
-        <!-- 章节下载状态热力图 -->
-        <ChapterHeatmap
-          :segments="chapterSummary.segments"
-          :start-chapter="rangeSelectorRef?.startChapter || 1"
-          :end-chapter="rangeSelectorRef?.endChapter || book.total_chapters"
-          @select-segment="handleSelectSegment"
-        />
+        <!-- 章节下载状态 - 骨架屏 + 懒加载 -->
+        <template v-if="showChapterSummarySkeleton">
+          <div class="section-card">
+            <n-skeleton height="140px" :sharp="false" />
+          </div>
+          <div class="section-card">
+            <n-skeleton text :repeat="3" :sharp="false" />
+          </div>
+        </template>
+        <template v-else>
+          <n-spin :show="chapterSummaryLoading">
+            <ChapterHeatmap
+              :segments="chapterSummary.segments"
+              :start-chapter="rangeSelectorRef?.startChapter || 1"
+              :end-chapter="rangeSelectorRef?.endChapter || book.total_chapters"
+              @select-segment="handleSelectSegment"
+            />
 
-        <!-- 章节范围选择器 -->
-        <ChapterRangeSelector
-          ref="rangeSelectorRef"
-          :total-chapters="book.total_chapters"
-          :downloading="book.download_status === 'downloading'"
-          :loading="downloadLoading"
-          @download="downloadSelectedRange"
-        />
+            <!-- 章节范围选择器 -->
+            <ChapterRangeSelector
+              ref="rangeSelectorRef"
+              :total-chapters="book.total_chapters"
+              :downloading="book.download_status === 'downloading'"
+              :loading="downloadLoading"
+              @download="downloadSelectedRange"
+            />
+          </n-spin>
+        </template>
 
         <!-- 简介 -->
         <div v-if="book.intro" class="section-card">

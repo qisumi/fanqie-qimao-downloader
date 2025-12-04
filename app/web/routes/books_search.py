@@ -40,14 +40,14 @@ router = APIRouter()
                 }
             }
         },
-        400: {"description": "参数错误，平台必须是 fanqie 或 qimao"},
+        400: {"description": "参数错误，平台必须是 fanqie、qimao 或 biquge"},
         502: {"description": "API请求失败，上游服务不可用"},
         500: {"description": "服务器内部错误"}
     }
 )
 async def search_books(
     q: str = Query(..., description="搜索关键词", min_length=1, max_length=100),
-    platform: str = Query("fanqie", description="平台: fanqie 或 qimao"),
+    platform: str = Query("fanqie", description="平台: fanqie/qimao/biquge"),
     page: int = Query(0, ge=0, description="页码 (从0开始)"),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -57,11 +57,11 @@ async def search_books(
     调用API搜索指定平台的书籍，返回搜索结果列表。
     
     - **q**: 搜索关键词
-    - **platform**: 平台名称 (fanqie/qimao)
+    - **platform**: 平台名称 (fanqie/qimao/biquge)
     - **page**: 页码，从0开始
     """
-    if platform not in ("fanqie", "qimao"):
-        raise HTTPException(status_code=400, detail="平台必须是 fanqie 或 qimao")
+    if platform not in ("fanqie", "qimao", "biquge"):
+        raise HTTPException(status_code=400, detail="平台必须是 fanqie、qimao 或 biquge")
     
     try:
         storage = StorageService()

@@ -18,6 +18,9 @@ httpx>=0.25.0
 # 异步文件IO
 aiofiles>=23.0.0
 
+# HTML解析
+beautifulsoup4>=4.12.0
+
 # 图片处理
 pillow>=10.0.0
 

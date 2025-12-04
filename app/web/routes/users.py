@@ -133,7 +133,7 @@ async def delete_user(
 )
 async def list_user_books(
     user_id: str = Path(..., description="用户ID"),
-    platform: Optional[str] = Query(None, description="按平台筛选", pattern="^(fanqie|qimao)$"),
+    platform: Optional[str] = Query(None, description="按平台筛选", pattern="^(fanqie|qimao|biquge)$"),
     status: Optional[str] = Query(None, description="按下载状态筛选", pattern="^(pending|downloading|completed|failed|partial)$"),
     search: Optional[str] = Query(None, description="搜索书名或作者", max_length=100),
     page: int = Query(0, ge=0, description="页码"),

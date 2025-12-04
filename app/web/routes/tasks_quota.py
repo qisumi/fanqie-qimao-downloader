@@ -20,10 +20,10 @@ async def get_quota(
     """
     获取指定平台的配额使用情况
     
-    - **platform**: 平台名称 (fanqie/qimao)
+    - **platform**: 平台名称 (fanqie/qimao/biquge)
     """
-    if platform not in ("fanqie", "qimao"):
-        raise HTTPException(status_code=400, detail="平台必须是 fanqie 或 qimao")
+    if platform not in ("fanqie", "qimao", "biquge"):
+        raise HTTPException(status_code=400, detail="平台必须是 fanqie、qimao 或 biquge")
     
     try:
         storage = StorageService()

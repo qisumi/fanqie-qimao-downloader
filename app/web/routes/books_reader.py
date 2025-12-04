@@ -46,6 +46,9 @@ def _ensure_book(reader_service: ReaderService, book_id: str):
 async def get_reader_toc(
     book_id: str = Path(..., description="书籍UUID"),
     user_id: str = Query(..., description="用户ID"),
+    page: int = Query(1, ge=1, description="页码(1-based)"),
+    limit: int = Query(50, ge=1, le=500, description="每页数量"),
+    anchor_id: Optional[str] = Query(None, description="希望包含的章节ID（根据该章节所在页返回数据）"),
     db: Session = Depends(get_db),
 ):
     user_service = UserService(db=db)
@@ -54,12 +57,20 @@ async def get_reader_toc(
     storage = StorageService()
     reader_service = ReaderService(db=db, storage=storage)
 
-    toc = reader_service.get_toc(book_id)
+    toc = reader_service.get_toc(book_id, page=page, limit=limit, anchor_id=anchor_id)
     if not toc:
         raise HTTPException(status_code=404, detail="书籍不存在")
 
     chapters = [ReaderTocChapter(**item) for item in toc["chapters"]]
-    return ReaderTocResponse(book_id=book_id, chapters=chapters)
+    return ReaderTocResponse(
+        book_id=book_id,
+        chapters=chapters,
+        total=toc.get("total", len(chapters)),
+        page=toc.get("page", page),
+        limit=toc.get("limit", limit),
+        pages=toc.get("pages", 0),
+        has_more=toc.get("has_more", False),
+    )
 
 
 @router.get(

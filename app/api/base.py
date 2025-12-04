@@ -114,6 +114,7 @@ class Platform(str, Enum):
     """支持的平台"""
     FANQIE = "fanqie"
     QIMAO = "qimao"
+    BIQUGE = "biquge"
 
 
 class APIType(int, Enum):
@@ -158,7 +159,7 @@ class RainAPIClient(ABC):
         Args:
             api_key: API密钥，默认从配置读取
             base_url: API基础URL，默认从配置读取
-            platform: 平台类型 (fanqie/qimao)
+            platform: 平台类型 (fanqie/qimao/biquge)
             timeout: 请求超时时间(秒)，默认从配置读取
             max_retries: 最大重试次数，默认从配置读取
         """

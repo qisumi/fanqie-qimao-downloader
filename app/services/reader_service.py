@@ -75,15 +75,44 @@ class ReaderService:
 
         return prev_id, next_id
 
-    def get_toc(self, book_id: str) -> Optional[Dict[str, Any]]:
-        """获取书籍目录（轻量字段）"""
+    def get_toc(
+        self,
+        book_id: str,
+        page: int = 1,
+        limit: int = 50,
+        anchor_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """获取书籍目录（轻量字段，支持分页）
+
+        Args:
+            book_id: 书籍UUID
+            page: 页码（1-based）
+            limit: 每页数量
+            anchor_id: 希望包含的章节ID（用于根据章节定位页码）
+        """
         book = self._get_book(book_id)
         if not book:
             return None
 
-        chapters = self.db.query(Chapter).filter(
-            Chapter.book_id == book_id
-        ).order_by(Chapter.chapter_index).all()
+        page = max(1, page)
+        limit = max(1, min(limit, 500))
+
+        base_query = self.db.query(Chapter).filter(Chapter.book_id == book_id)
+        total = base_query.count()
+
+        # 如果指定了 anchor_id，根据章节位置重算页码，确保返回的数据包含该章节
+        if anchor_id:
+            anchor = self._get_chapter(book_id, anchor_id)
+            if anchor and anchor.chapter_index is not None:
+                page = max(1, (anchor.chapter_index - 1) // limit + 1)
+
+        offset = (page - 1) * limit
+        chapters = (
+            base_query.order_by(Chapter.chapter_index)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
 
         toc_items = [
             {
@@ -100,6 +129,11 @@ class ReaderService:
         return {
             "book": book,
             "chapters": toc_items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": (total + limit - 1) // limit if limit else 0,
+            "has_more": offset + len(toc_items) < total,
         }
 
     # ========= 章节内容 =========

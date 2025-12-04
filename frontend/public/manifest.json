@@ -1,7 +1,7 @@
 {
-  "name": "番茄七猫小说下载器",
-  "short_name": "番茄七猫",
-  "description": "支持番茄小说和七猫小说的批量下载和EPUB导出工具",
+  "name": "番茄·七猫·笔趣阁小说下载器",
+  "short_name": "番茄七猫笔趣阁",
+  "description": "支持番茄小说、七猫小说、笔趣阁的批量下载和EPUB导出工具",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -12,9 +12,9 @@
   "categories": ["books", "utilities", "productivity"],
   
   "pwa": {
-    "name": "番茄七猫小说下载器",
-    "short_name": "番茄七猫",
-    "description": "支持番茄小说和七猫小说的批量下载和EPUB导出工具",
+    "name": "番茄·七猫·笔趣阁小说下载器",
+    "short_name": "番茄七猫笔趣阁",
+    "description": "支持番茄小说、七猫小说、笔趣阁的批量下载和EPUB导出工具",
     "background_color": "#ffffff",
     "theme_color": "#18a058",
     "display": "standalone",
@@ -92,7 +92,7 @@
     {
       "name": "搜索书籍",
       "short_name": "搜索",
-      "description": "搜索番茄或七猫小说",
+      "description": "搜索番茄、七猫或笔趣阁小说",
       "url": "/search",
       "icons": [{"src": "/static/images/icon-192.png", "sizes": "192x192"}]
     },
@@ -117,14 +117,14 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "番茄七猫小说下载器 - 桌面版"
+      "label": "番茄·七猫·笔趣阁小说下载器 - 桌面版"
     },
     {
       "src": "/static/images/screenshot-narrow.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "番茄七猫小说下载器 - 移动版"
+      "label": "番茄·七猫·笔趣阁小说下载器 - 移动版"
     }
   ],
   "related_applications": [],

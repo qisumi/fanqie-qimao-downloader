@@ -3,9 +3,12 @@ import api from './index'
 /**
  * 获取目录
  */
-export function getToc(bookId, userId) {
+export function getToc(bookId, userId, { page = 1, limit, anchorId } = {}) {
+  const params = { user_id: userId, page }
+  if (limit) params.limit = limit
+  if (anchorId) params.anchor_id = anchorId
   return api.get(`/books/${bookId}/toc`, {
-    params: { user_id: userId }
+    params
   })
 }
 

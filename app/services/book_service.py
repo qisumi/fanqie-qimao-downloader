@@ -12,6 +12,7 @@ import logging
 
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
+from app.api.biquge import BiqugeAPI
 from app.services.book_service_add import BookServiceAddMixin
 from app.services.book_service_base import BookServiceBase
 from app.services.book_service_delete import BookServiceDeleteMixin
@@ -34,4 +35,5 @@ __all__ = [
     "BookService",
     "FanqieAPI",
     "QimaoAPI",
+    "BiqugeAPI",
 ]

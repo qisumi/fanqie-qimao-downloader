@@ -52,6 +52,7 @@ class DownloadQuotaMixin(DownloadServiceBase):
         return {
             "fanqie": self.rate_limiter.get_usage("fanqie"),
             "qimao": self.rate_limiter.get_usage("qimao"),
+            "biquge": self.rate_limiter.get_usage("biquge"),
         }
 
 

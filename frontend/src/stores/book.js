@@ -14,7 +14,7 @@ export const useBookStore = defineStore('book', () => {
   
   // 按平台分组
   const booksByPlatform = computed(() => {
-    const grouped = { fanqie: [], qimao: [] }
+    const grouped = { fanqie: [], qimao: [], biquge: [] }
     books.value.forEach(book => {
       if (grouped[book.platform]) {
         grouped[book.platform].push(book)
@@ -60,12 +60,10 @@ export const useBookStore = defineStore('book', () => {
     loading.value = true
     try {
       const response = await bookApi.getBook(id)
-      // 后端返回 {book: {...}, chapters: [...], statistics: {...}}
-      // 合并 book 和 statistics 信息
+      // 后端返回 {book: {...}, statistics: {...}}，不再附带完整章节列表
       const data = response.data
       currentBook.value = {
         ...data.book,
-        chapters: data.chapters || [],
         statistics: data.statistics || {}
       }
       return currentBook.value

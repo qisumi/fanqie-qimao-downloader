@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.base import Platform
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
+from app.api.biquge import BiqugeAPI
 from app.services.storage_service import StorageService
 from app.utils.rate_limiter import RateLimiter
 from app.config import settings
@@ -58,12 +59,14 @@ class DownloadServiceBase:
         self._cancelled_tasks = DownloadServiceBase._shared_cancelled_tasks
         self._progress_callbacks = DownloadServiceBase._shared_progress_callbacks
     
-    def _get_api_client(self, platform: str) -> Union[FanqieAPI, QimaoAPI]:
+    def _get_api_client(self, platform: str) -> Union[FanqieAPI, QimaoAPI, BiqugeAPI]:
         """根据平台获取API客户端"""
         if platform == Platform.FANQIE.value or platform == "fanqie":
             return FanqieAPI()
         if platform == Platform.QIMAO.value or platform == "qimao":
             return QimaoAPI()
+        if platform == Platform.BIQUGE.value or platform == "biquge":
+            return BiqugeAPI()
         raise ValueError(f"Unsupported platform: {platform}")
 
 

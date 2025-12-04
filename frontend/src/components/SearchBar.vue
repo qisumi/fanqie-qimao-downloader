@@ -24,7 +24,8 @@ const localPlatform = computed({
 
 const platformOptions = [
   { label: '番茄小说', value: 'fanqie' },
-  { label: '七猫小说', value: 'qimao' }
+  { label: '七猫小说', value: 'qimao' },
+  { label: '笔趣阁', value: 'biquge' }
 ]
 
 function handleSearch() {

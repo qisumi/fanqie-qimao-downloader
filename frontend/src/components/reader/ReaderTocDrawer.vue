@@ -15,14 +15,20 @@ const props = defineProps({
   toc: { type: Array, default: () => [] },
   currentChapterId: { type: String, default: '' },
   currentBookTitle: { type: String, default: '' },
-  cachedChapters: { type: Array, default: () => [] }
+  cachedChapters: { type: Array, default: () => [] },
+  total: { type: Number, default: 0 },
+  hasMoreNext: { type: Boolean, default: false },
+  hasMorePrev: { type: Boolean, default: false },
+  loading: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['update:visible', 'select-chapter'])
+const emit = defineEmits(['update:visible', 'select-chapter', 'load-more-next', 'load-more-prev'])
 
 const cachedSet = computed(() => new Set(props.cachedChapters || []))
 const tocListRef = ref(null)
 const activeItemRef = ref(null)
+const waitingLoadMore = ref(false)
+const waitingLoadPrev = ref(false)
 
 function handleClose() {
   emit('update:visible', false)
@@ -52,6 +58,27 @@ function scrollToActiveChapter() {
   container.scrollTop = Math.max(0, target)
 }
 
+function handleScroll() {
+  const container = tocListRef.value
+  if (!container) return
+
+  const threshold = 120
+
+  if (props.hasMoreNext && !props.loading && !waitingLoadMore.value) {
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
+      waitingLoadMore.value = true
+      emit('load-more-next')
+    }
+  }
+
+  if (props.hasMorePrev && !props.loading && !waitingLoadPrev.value) {
+    if (container.scrollTop <= threshold) {
+      waitingLoadPrev.value = true
+      emit('load-more-prev')
+    }
+  }
+}
+
 watch(
   () => props.visible,
   async (visible) => {
@@ -73,6 +100,16 @@ watch(
     }
   }
 )
+
+watch(
+  () => props.loading,
+  (loading) => {
+    if (!loading) {
+      waitingLoadMore.value = false
+      waitingLoadPrev.value = false
+    }
+  }
+)
 </script>
 
 <template>
@@ -88,11 +125,14 @@ watch(
       <div class="toc-header">
         <div class="toc-title">
           <span>目录</span>
-          <span class="toc-count">{{ toc.length }} 章</span>
+          <span class="toc-count">{{ total || toc.length }} 章</span>
         </div>
         <div class="toc-subtitle">{{ currentBookTitle }}</div>
+        <div class="toc-tip" v-if="hasMorePrev">
+          上滑继续加载更早的章节
+        </div>
       </div>
-      <div class="toc-list" ref="tocListRef">
+      <div class="toc-list" ref="tocListRef" @scroll="handleScroll">
         <!-- 章节标题已包含"第X章"信息，无需额外显示索引 -->
         <div
           v-for="chapter in toc"
@@ -109,6 +149,13 @@ watch(
             </div>
             <div class="toc-name">{{ chapter.title || '未命名章节' }}</div>
           </div>
+        </div>
+        <div class="toc-load-more" v-if="hasMoreNext || loading">
+          <span v-if="loading">加载中...</span>
+          <span v-else>下滑加载更多章节</span>
+        </div>
+        <div class="toc-end" v-else>
+          已加载全部章节
         </div>
       </div>
     </n-drawer-content>
@@ -139,6 +186,12 @@ watch(
   margin-top: 6px;
   color: var(--text-color-secondary, #666);
   font-size: 13px;
+}
+
+.toc-tip {
+  margin-top: 4px;
+  color: var(--text-color-tertiary, #999);
+  font-size: 12px;
 }
 
 .toc-list {
@@ -180,5 +233,13 @@ watch(
   flex: 1;
   color: var(--text-color-primary, #333);
   font-weight: 600;
+}
+
+.toc-load-more,
+.toc-end {
+  padding: 12px 16px;
+  text-align: center;
+  color: var(--text-color-tertiary, #888);
+  font-size: 13px;
 }
 </style>

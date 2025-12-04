@@ -22,8 +22,13 @@ const emit = defineEmits(['add'])
 
 const isMobile = inject('isMobile', { value: false })
 
-function getPlatformLabel(value) {
-  return value === 'fanqie' ? '番茄小说' : '七猫小说'
+function getPlatformTag(value) {
+  const map = {
+    fanqie: { label: '番茄小说', type: 'warning' },
+    qimao: { label: '七猫小说', type: 'info' },
+    biquge: { label: '笔趣阁', type: 'success' }
+  }
+  return map[value] || { label: value, type: 'default' }
 }
 
 function getIntroText() {
@@ -57,12 +62,12 @@ function getIntroText() {
       <div class="book-header">
         <span class="book-title">{{ book.book_name || book.title }}</span>
         <n-tag 
-          :type="platform === 'fanqie' ? 'warning' : 'info'" 
+          :type="getPlatformTag(platform).type" 
           size="small"
           :bordered="false"
           class="platform-tag"
         >
-          {{ getPlatformLabel(platform) }}
+          {{ getPlatformTag(platform).label }}
         </n-tag>
       </div>
       

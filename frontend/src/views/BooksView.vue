@@ -28,7 +28,8 @@ const activeTab = ref('public')
 const platformOptions = [
   { label: '全部平台', value: null },
   { label: '番茄小说', value: 'fanqie' },
-  { label: '七猫小说', value: 'qimao' }
+  { label: '七猫小说', value: 'qimao' },
+  { label: '笔趣阁', value: 'biquge' }
 ]
 
 const statusOptions = [

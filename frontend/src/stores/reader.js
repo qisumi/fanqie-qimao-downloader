@@ -7,6 +7,7 @@ const SETTINGS_KEY = 'reader-settings'
 const DEVICE_ID_KEY = 'reader-device-id'
 const LAST_BOOK_KEY = 'reader-last-book'
 const READING_MODE_KEY = 'reader-reading-mode'
+const DEFAULT_TOC_PAGE_SIZE = 50
 
 function loadFromStorage(key, fallback) {
   try {
@@ -63,6 +64,15 @@ export const useReaderStore = defineStore('reader', () => {
 
   const bookId = ref(null)
   const toc = ref([])
+  const tocTotal = ref(0)
+  const tocPages = ref(0)
+  const tocLimit = ref(DEFAULT_TOC_PAGE_SIZE)
+  const tocMinPage = ref(null)
+  const tocMaxPage = ref(null)
+  const tocHasMoreNext = ref(false)
+  const tocHasMorePrev = ref(false)
+  const tocLoading = ref(false)
+  const tocLoadedPages = ref(new Set())
   const currentChapterId = ref(null)
   const currentChapter = ref(null)
   const chapterContent = ref({ status: 'idle' })
@@ -91,15 +101,92 @@ export const useReaderStore = defineStore('reader', () => {
     persistReadingMode(settings.value.readingMode)
   }
 
+  function resetTocState() {
+    toc.value = []
+    tocTotal.value = 0
+    tocPages.value = 0
+    tocLimit.value = DEFAULT_TOC_PAGE_SIZE
+    tocMinPage.value = null
+    tocMaxPage.value = null
+    tocHasMoreNext.value = false
+    tocHasMorePrev.value = false
+    tocLoadedPages.value = new Set()
+  }
+
+  function mergeToc(chapters = []) {
+    if (!Array.isArray(chapters) || !chapters.length) return
+    const cache = new Map(toc.value.map(ch => [ch.id, ch]))
+    chapters.forEach(ch => {
+      const prev = cache.get(ch.id) || {}
+      cache.set(ch.id, { ...prev, ...ch })
+    })
+    toc.value = Array.from(cache.values()).sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+  }
+
   function setBookContext(id) {
     bookId.value = id
+    resetTocState()
     localStorage.setItem(LAST_BOOK_KEY, id || '')
   }
 
-  async function fetchToc(targetBookId = bookId.value) {
+  async function fetchToc(
+    targetBookId = bookId.value,
+    { page, anchorChapterId, limit, force } = {}
+  ) {
     if (!targetBookId || !currentUserId.value) return
-    const response = await readerApi.getToc(targetBookId, currentUserId.value)
-    toc.value = response.data.chapters || []
+    const pageSet = tocLoadedPages.value
+    const requestPage = page
+      || (pageSet.size ? Math.max(...pageSet) + 1 : 1)
+    if (tocLoading.value) return
+    if (!force && page && pageSet.has(page)) return
+    tocLoading.value = true
+    try {
+      const response = await readerApi.getToc(targetBookId, currentUserId.value, {
+        page: requestPage,
+        limit: limit || tocLimit.value,
+        anchorId: anchorChapterId
+      })
+      const data = response.data || {}
+      mergeToc(data.chapters || [])
+
+      const currentPage = data.page || requestPage
+      tocLimit.value = data.limit || tocLimit.value || DEFAULT_TOC_PAGE_SIZE
+      tocTotal.value = data.total ?? tocTotal.value ?? toc.value.length
+      const pages = data.pages
+        || (tocTotal.value && tocLimit.value ? Math.ceil(tocTotal.value / tocLimit.value) : tocPages.value)
+      tocPages.value = pages
+
+      // 更新已加载页范围
+      pageSet.add(currentPage)
+      tocMinPage.value = tocMinPage.value === null ? currentPage : Math.min(tocMinPage.value, currentPage)
+      tocMaxPage.value = tocMaxPage.value === null ? currentPage : Math.max(tocMaxPage.value, currentPage)
+
+      tocHasMoreNext.value = pages ? (tocMaxPage.value < pages) : Boolean(data.has_more)
+      tocHasMorePrev.value = tocMinPage.value > 1
+    } catch (error) {
+      console.warn('Failed to fetch TOC', error)
+    } finally {
+      tocLoading.value = false
+    }
+  }
+
+  async function loadMoreTocDown() {
+    if (tocLoading.value) return
+    if (!tocHasMoreNext.value && tocPages.value && tocMaxPage.value === tocPages.value) return
+    const nextPage = tocPages.value ? Math.min(tocPages.value, (tocMaxPage.value || 0) + 1) : (tocMaxPage.value || 1) + 1
+    await fetchToc(bookId.value, { page: nextPage })
+  }
+
+  async function loadMoreTocUp() {
+    if (tocLoading.value) return
+    if (!tocHasMorePrev.value || tocMinPage.value === 1) return
+    const prevPage = Math.max(1, (tocMinPage.value || 2) - 1)
+    await fetchToc(bookId.value, { page: prevPage })
+  }
+
+  async function ensureChapterInToc(chapterId) {
+    if (!chapterId || toc.value.some(ch => ch.id === chapterId)) return
+    await fetchToc(bookId.value, { anchorChapterId: chapterId, force: true })
   }
 
   async function fetchProgress() {
@@ -153,6 +240,8 @@ export const useReaderStore = defineStore('reader', () => {
         prev_id: response.data.prev_id,
         next_id: response.data.next_id,
       }
+      // 目录异步补齐，避免阻塞阅读
+      ensureChapterInToc(currentChapterId.value)?.catch((err) => console.warn('ensure toc failed', err))
       return response.data
     } catch (err) {
       console.error('Load chapter failed', err)
@@ -165,9 +254,15 @@ export const useReaderStore = defineStore('reader', () => {
 
   async function initReader(targetBookId, opts = {}) {
     setBookContext(targetBookId)
-    await fetchToc(targetBookId)
     const saved = await fetchProgress()
-    const startChapterId = opts.chapterId || saved?.chapter_id || toc.value[0]?.id
+    const anchorChapterId = opts.chapterId || saved?.chapter_id
+
+    // 若没有锚点，先拉取最小目录页以获取首章ID
+    if (!anchorChapterId && !toc.value.length) {
+      // 使用默认分页大小加载首章，避免后续分页基于 limit=1 导致只拿到少量章节
+      await fetchToc(targetBookId)
+    }
+    const startChapterId = anchorChapterId || toc.value[0]?.id
     if (startChapterId) {
       await loadChapter(startChapterId, { format: opts.format || 'html' })
     }
@@ -176,6 +271,8 @@ export const useReaderStore = defineStore('reader', () => {
       chapterContent.value.offset_px = saved.offset_px
       chapterContent.value.percent = saved.percent
     }
+    // 目录后台拉取（不阻塞阅读）
+    fetchToc(targetBookId)?.catch((err) => console.warn('background toc fetch failed', err))
     await refreshCacheStatus()
     await fetchBookmarks()
     await fetchHistory()
@@ -261,6 +358,13 @@ export const useReaderStore = defineStore('reader', () => {
   return {
     bookId,
     toc,
+    tocTotal,
+    tocPages,
+    tocLimit,
+    tocHasMore: tocHasMoreNext,
+    tocHasMoreNext,
+    tocHasMorePrev,
+    tocLoading,
     currentChapterId,
     currentChapter,
     chapterContent,
@@ -275,6 +379,9 @@ export const useReaderStore = defineStore('reader', () => {
     currentUserId,
     initReader,
     fetchToc,
+    loadMoreToc: loadMoreTocDown,
+    loadMoreTocDown,
+    loadMoreTocUp,
     loadChapter,
     saveProgress,
     fetchBookmarks,

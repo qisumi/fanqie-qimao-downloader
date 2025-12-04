@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
+from app.api.biquge import BiqugeAPI
 from app.api.base import ChapterNotFoundError, NetworkError
 from app.models.book import Book
 from app.models.chapter import Chapter
@@ -204,6 +205,8 @@ class DownloadOperationMixin(DownloadServiceBase):
         async with self._get_api_client(book.platform) as api:
             if book.platform == "qimao":
                 api.set_current_book_id(book.book_id)
+            if book.platform == "biquge":
+                api.set_current_book_id(book.book_id)
             
             async def download_with_limit(chapter: Chapter):
                 async with semaphore:
@@ -232,7 +235,7 @@ class DownloadOperationMixin(DownloadServiceBase):
     
     async def _download_single_chapter_with_api(
         self,
-        api: Union[FanqieAPI, QimaoAPI],
+        api: Union[FanqieAPI, QimaoAPI, BiqugeAPI],
         book: Book,
         chapter: Chapter,
     ) -> int:
@@ -289,6 +292,8 @@ class DownloadOperationMixin(DownloadServiceBase):
         """下载单个章节（独立创建 API 连接）"""
         async with self._get_api_client(book.platform) as api:
             if book.platform == "qimao":
+                api.set_current_book_id(book.book_id)
+            if book.platform == "biquge":
                 api.set_current_book_id(book.book_id)
             
             return await self._download_single_chapter_with_api(api, book, chapter)

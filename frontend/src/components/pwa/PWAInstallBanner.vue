@@ -15,7 +15,7 @@ const emit = defineEmits(['install', 'dismiss'])
           </n-icon>
         </div>
         <div class="install-text">
-          <div class="install-title">安装番茄七猫下载器</div>
+          <div class="install-title">安装番茄·七猫·笔趣阁下载器</div>
           <div class="install-desc">添加到主屏幕，获得更好的体验</div>
         </div>
         <div class="install-actions">

@@ -101,6 +101,7 @@ async def get_stats(
         # 构建配额响应
         fanqie_quota = all_quota.get("fanqie", {})
         qimao_quota = all_quota.get("qimao", {})
+        biquge_quota = all_quota.get("biquge", {})
         
         # 使用配置中的每日字数限制作为默认值
         default_limit = settings.daily_word_limit
@@ -121,6 +122,14 @@ async def get_stats(
                 limit=qimao_quota.get("limit", default_limit),
                 remaining=qimao_quota.get("remaining", default_limit),
                 percentage=qimao_quota.get("percentage", 0.0),
+            ),
+            biquge=QuotaResponse(
+                date=biquge_quota.get("date", ""),
+                platform="biquge",
+                downloaded=biquge_quota.get("downloaded", 0),
+                limit=biquge_quota.get("limit", default_limit),
+                remaining=biquge_quota.get("remaining", default_limit),
+                percentage=biquge_quota.get("percentage", 0.0),
             ),
         )
         
@@ -229,6 +238,7 @@ async def get_quota_stats(
         
         fanqie_quota = all_quota.get("fanqie", {})
         qimao_quota = all_quota.get("qimao", {})
+        biquge_quota = all_quota.get("biquge", {})
         
         return AllQuotaResponse(
             fanqie=QuotaResponse(
@@ -246,6 +256,14 @@ async def get_quota_stats(
                 limit=qimao_quota.get("limit", 200),
                 remaining=qimao_quota.get("remaining", 200),
                 percentage=qimao_quota.get("percentage", 0.0),
+            ),
+            biquge=QuotaResponse(
+                date=biquge_quota.get("date", ""),
+                platform="biquge",
+                downloaded=biquge_quota.get("downloaded", 0),
+                limit=biquge_quota.get("limit", 200),
+                remaining=biquge_quota.get("remaining", 200),
+                percentage=biquge_quota.get("percentage", 0.0),
             ),
         )
         

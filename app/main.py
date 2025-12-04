@@ -1,5 +1,5 @@
 """
-FanqieQimaoDownloader - 番茄七猫小说下载器
+FanqieQimaoDownloader - 番茄七猫笔趣阁小说下载器
 FastAPI Web应用入口
 """
 

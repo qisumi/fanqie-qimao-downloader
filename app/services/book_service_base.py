@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.base import Platform
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
+from app.api.biquge import BiqugeAPI
 from app.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class BookServiceBase:
         self.db = db
         self.storage = storage or StorageService()
     
-    def _get_api_client(self, platform: str) -> Union[FanqieAPI, QimaoAPI]:
+    def _get_api_client(self, platform: str) -> Union[FanqieAPI, QimaoAPI, BiqugeAPI]:
         """
         根据平台获取API客户端
         
@@ -35,7 +36,9 @@ class BookServiceBase:
             return book_service.FanqieAPI()
         if platform == Platform.QIMAO.value or platform == "qimao":
             return book_service.QimaoAPI()
+        if platform == Platform.BIQUGE.value or platform == "biquge":
+            return book_service.BiqugeAPI()
         raise ValueError(f"Unsupported platform: {platform}")
 
 
-__all__ = ["BookServiceBase", "FanqieAPI", "QimaoAPI"]
+__all__ = ["BookServiceBase", "FanqieAPI", "QimaoAPI", "BiqugeAPI"]

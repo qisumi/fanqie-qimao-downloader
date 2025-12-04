@@ -107,7 +107,7 @@ export class PWAInstall {
                         <i class="fas fa-download text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-sm font-medium">安装番茄七猫下载器</p>
+                        <p class="text-sm font-medium">安装番茄·七猫·笔趣阁下载器</p>
                         <p class="text-xs opacity-90">离线使用，更快体验</p>
                     </div>
                 </div>

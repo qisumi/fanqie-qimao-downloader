@@ -25,7 +25,7 @@ const route = useRoute()
 const userStore = useUserStore()
 const themeStore = useThemeStore()
 
-const pageTitle = computed(() => route.meta.title || '番茄七猫下载器')
+const pageTitle = computed(() => route.meta.title || '番茄·七猫·笔趣阁下载器')
 const userInitial = computed(() => {
   if (userStore.currentUsername) {
     return userStore.currentUsername[0].toUpperCase()

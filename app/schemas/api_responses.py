@@ -29,6 +29,7 @@ class PlatformType(str, Enum):
     """平台类型"""
     FANQIE = "fanqie"
     QIMAO = "qimao"
+    BIQUGE = "biquge"
 
 
 # ============ 搜索相关模型 ============

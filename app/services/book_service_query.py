@@ -66,6 +66,18 @@ class BookServiceQueryMixin(BookServiceBase):
             "pages": pages,
         }
     
+    def get_book_overview(self, book_uuid: str) -> Optional[Dict[str, Any]]:
+        """仅返回书籍信息和统计数据的轻量级详情。"""
+        book = self.get_book(book_uuid)
+        if not book:
+            return None
+        
+        statistics = self.get_book_statistics(book_uuid)
+        return {
+            "book": book,
+            "statistics": statistics,
+        }
+    
     def get_book_with_chapters(self, book_uuid: str) -> Optional[Dict[str, Any]]:
         book = self.get_book(book_uuid)
         if not book:

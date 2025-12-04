@@ -50,8 +50,8 @@ async function handleLogin() {
     <!-- 登录卡片 -->
     <div class="login-card">
       <div class="login-header">
-        <div class="logo-icon">📚</div>
-        <h1 class="login-title">番茄七猫下载器</h1>
+        <div class="logo-icon">书</div>
+        <h1 class="login-title">番茄·七猫·笔趣阁下载器</h1>
         <p class="login-subtitle">请输入访问密码以继续</p>
       </div>
       
@@ -87,7 +87,7 @@ async function handleLogin() {
       </n-form>
       
       <div class="login-footer">
-        <span class="footer-text">支持番茄小说 & 七猫小说下载</span>
+        <span class="footer-text">支持番茄小说、七猫小说、笔趣阁下载</span>
       </div>
     </div>
   </div>
