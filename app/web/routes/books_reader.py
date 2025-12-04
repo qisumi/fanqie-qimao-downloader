@@ -106,12 +106,12 @@ async def get_chapter_content(
     "/{book_id}/reader/progress",
     response_model=ReaderProgressResponse,
     responses={204: {"description": "暂无进度"}},
-    summary="获取阅读进度",
+    summary="获取阅读进度（跨设备同步）",
 )
 async def get_reader_progress(
     book_id: str = Path(..., description="书籍UUID"),
     user_id: str = Query(..., description="用户ID"),
-    device_id: str = Query(..., description="设备ID"),
+    device_id: Optional[str] = Query(None, description="设备ID（可选，不传则获取跨设备同步进度）"),
     db: Session = Depends(get_db),
 ):
     user_service = UserService(db=db)
@@ -173,12 +173,12 @@ async def upsert_reader_progress(
 
 @router.delete(
     "/{book_id}/reader/progress",
-    summary="清空指定设备进度",
+    summary="清空阅读进度（跨设备同步）",
 )
 async def clear_reader_progress(
     book_id: str = Path(..., description="书籍UUID"),
     user_id: str = Query(..., description="用户ID"),
-    device_id: str = Query(..., description="设备ID"),
+    device_id: Optional[str] = Query(None, description="设备ID（可选，不传则清空所有设备进度）"),
     db: Session = Depends(get_db),
 ):
     user_service = UserService(db=db)
@@ -187,10 +187,48 @@ async def clear_reader_progress(
     reader_service = ReaderService(db=db, storage=storage)
     _ensure_book(reader_service, book_id)
 
-    deleted = reader_service.clear_progress(user_id=user_id, book_id=book_id, device_id=device_id)
-    if not deleted:
-        return {"success": False, "message": "未找到进度"}
-    return {"success": True, "message": "已清空进度"}
+    if device_id:
+        # 清空指定设备的进度（向后兼容）
+        deleted = reader_service.clear_progress(user_id=user_id, book_id=book_id, device_id=device_id)
+        if not deleted:
+            return {"success": False, "message": "未找到进度"}
+        return {"success": True, "message": "已清空指定设备进度"}
+    else:
+        # 清空所有设备进度（跨设备同步）
+        all_progress = reader_service.get_all_device_progress(user_id=user_id, book_id=book_id)
+        for progress in all_progress:
+            reader_service.db.delete(progress)
+        reader_service.db.commit()
+        return {"success": True, "message": f"已清空所有设备进度，共{len(all_progress)}条记录"}
+
+
+@router.get(
+    "/{book_id}/reader/progress/devices",
+    response_model=List[ReaderProgressResponse],
+    summary="获取所有设备进度记录",
+)
+async def get_all_device_progress(
+    book_id: str = Path(..., description="书籍UUID"),
+    user_id: str = Query(..., description="用户ID"),
+    db: Session = Depends(get_db),
+):
+    user_service = UserService(db=db)
+    _ensure_user(user_service, user_id)
+    storage = StorageService()
+    reader_service = ReaderService(db=db, storage=storage)
+    _ensure_book(reader_service, book_id)
+
+    progress_list = reader_service.get_all_device_progress(user_id=user_id, book_id=book_id)
+    return [
+        ReaderProgressResponse(
+            chapter_id=progress.chapter_id,
+            offset_px=progress.offset_px,
+            percent=progress.percent,
+            device_id=progress.device_id,
+            updated_at=progress.updated_at,
+        )
+        for progress in progress_list
+    ]
 
 
 @router.get(

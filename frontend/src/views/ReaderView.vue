@@ -12,6 +12,7 @@ import { useUserStore } from '@/stores/user'
 import { useBookStore } from '@/stores/book'
 import { getEpubDownloadUrl } from '@/api/books'
 import { useThemeStore } from '@/stores/theme'
+import themeColorManager from '@/utils/themeColorManager'
 
 // Composables
 import {
@@ -270,6 +271,7 @@ async function prefetchChaptersForPageMode(anchorChapterId = null) {
 
 /**
  * 翻页模式：执行多章节分页
+ * 修复：避免不必要的重新分页，优化进度恢复体验
  */
 async function paginateMultipleChaptersForPageMode(targetPercent = 0, anchorChapterId = null) {
   const anchorId = anchorChapterId || pageComposable.activeChapterId.value || chapterComposable.currentChapter.value?.id
@@ -277,10 +279,19 @@ async function paginateMultipleChaptersForPageMode(targetPercent = 0, anchorChap
   const currentChapterId = anchorId || chapterComposable.currentChapter.value?.id
   
   multiChapterMode.value = chapters.length > 1
-  pageComposable.paginateMultipleChapters(chapters, currentChapterId, targetPercent)
   
-  progressComposable.pageChunks.value = pageComposable.pageChunks.value
-  progressComposable.currentPageIndex.value = pageComposable.currentPageIndex.value
+  // 修复：分页前设置抑制保存，避免在分页过程中触发不必要的进度保存
+  pageComposable.setSuppressSave(true)
+  
+  try {
+    pageComposable.paginateMultipleChapters(chapters, currentChapterId, targetPercent)
+    
+    progressComposable.pageChunks.value = pageComposable.pageChunks.value
+    progressComposable.currentPageIndex.value = pageComposable.currentPageIndex.value
+  } finally {
+    // 确保分页完成后恢复保存状态
+    pageComposable.setSuppressSave(false)
+  }
 }
 
 // 初始化
@@ -374,10 +385,11 @@ function updateScrollProgress(shouldSave = true) {
 function handleScroll() {
   if (initializing.value || chapterComposable.isLoadingChapter.value) return
   if (isScrollMode.value) {
+    // 先更新活跃章节，保证保存的 offset/percent 与当前章节一致
+    const chapterChanged = scrollComposable.updateActiveChapterByScroll()
     updateScrollProgress(true)
     scrollComposable.maybeAutoLoadPrevChapter()
     scrollComposable.maybeAutoLoadNextChapter()
-    const chapterChanged = scrollComposable.updateActiveChapterByScroll()
     // 章节切换后裁剪已加载章节，保留当前章节附近的章节，避免内存泄漏
     if (chapterChanged) {
       chapterComposable.pruneLoadedAroundCurrent(contentRef)
@@ -487,6 +499,13 @@ function handleProgressChange(value) {
 
 // 翻页模式处理
 async function handlePageChanged(event) {
+  // 初始化渲染时 ReaderPageContent 会触发一次 prevIndex 为 -1 的事件
+  // 此时需要保持分页时计算出的锚点，不要让默认的第 0 页覆盖服务器恢复的进度
+  if (event?.prevIndex === -1) {
+    progressComposable.currentPageIndex.value = pageComposable.currentPageIndex.value
+    return
+  }
+
   const suppressing = typeof pageComposable.isSuppressSave === 'function' && pageComposable.isSuppressSave()
   
   const result = pageComposable.handlePageChanged(event)
@@ -519,6 +538,7 @@ async function handlePageChanged(event) {
       // 同一章节内，计算章节内进度并保存
       const chapterPercent = pageComposable.calculateChapterProgress(result.chapterId)
       progressComposable.scrollPercent.value = chapterPercent
+      // 修复：使用百分比而不是像素偏移，确保进度记录准确反映当前页面
       progressComposable.queueSaveProgress(0, chapterPercent)
     }
   } else {
@@ -549,22 +569,24 @@ async function handleChapterChanged(event) {
   // 保存进度
   progressComposable.queueSaveProgress(0, 0)
 
-  // 检查是否需要移动窗口：当进入窗口边缘章节且后续章节未在窗口内时
-  // 这样后续章节会提前加载到窗口内，实现真正的无缝翻页
+  // 修复：只在进度恢复期间或明确需要时才重新分页，避免不必要的章节跳转
+  // 检查是否需要移动窗口：只在进入边缘章节且后续章节未加载时
   const loadedChapterIds = pageComposable.loadedChapterIds.value
   if (loadedChapterIds.length >= 3) {
     const chapterIndexInWindow = loadedChapterIds.indexOf(chapterId)
     
     // 检查是否需要向后移动窗口
-    const isNearEnd = chapterIndexInWindow >= loadedChapterIds.length - 2
+    const isNearEnd = chapterIndexInWindow >= loadedChapterIds.length - 1  // 修正边界条件
     const nextChapterNotInWindow = boundary.next_id && !loadedChapterIds.includes(boundary.next_id)
     
-    // 检查是否需要向前移动窗口
-    const isNearStart = chapterIndexInWindow <= 1
+    // 检查是否需要向前移动窗口  
+    const isNearStart = chapterIndexInWindow <= 0  // 修正边界条件
     const prevChapterNotInWindow = boundary.prev_id && !loadedChapterIds.includes(boundary.prev_id)
     
-    // 只有当边缘章节的相邻章节不在窗口内时才移动窗口
-    if ((isNearEnd && nextChapterNotInWindow) || (isNearStart && prevChapterNotInWindow)) {
+    // 只有当真正需要加载新章节时才移动窗口（从边缘章节进入下一个未加载的章节）
+    const shouldMoveWindow = (isNearEnd && nextChapterNotInWindow) || (isNearStart && prevChapterNotInWindow)
+    
+    if (shouldMoveWindow) {
       // 等待翻页动画完成后再处理，避免动画卡顿
       setTimeout(async () => {
         // 计算当前在章节内的相对进度
@@ -819,11 +841,28 @@ function goBack() {
   router.push({ name: 'book-detail', params: { id: route.params.bookId } })
 }
 
+// 设置状态栏颜色
+function updateThemeColorForReading() {
+  const isDark = themeStore.isDark || readerSettings.value.background === 'dark'
+  const bg = readerSettings.value.background
+  const map = { paper: '#f7f3e8', green: '#e9f5ec', dark: '#0f0f11' }
+  const backgroundColor = map[bg] || (isDark ? '#0f0f11' : '#f7f3e8')
+  
+  themeColorManager.setReaderThemeColor({
+    backgroundColor,
+    isDark
+  })
+}
+
 // 生命周期
 onMounted(() => {
   handleResize()
   window.addEventListener('resize', handleResize)
   document.addEventListener('fullscreenchange', onFullscreenChange)
+  
+  // 设置阅读页面状态栏颜色
+  updateThemeColorForReading()
+  
   initPage()
 })
 
@@ -836,6 +875,9 @@ onBeforeUnmount(() => {
   clearTimeout(cacheRefreshTimer)
   epubComposable.disposeEpub()
   ttsComposable.stopTts()
+  
+  // 恢复默认状态栏颜色
+  themeColorManager.restoreDefaultThemeColor()
 })
 
 // Watchers
@@ -881,6 +923,22 @@ watch(
       const currentPercent = pageComposable.calculateChapterProgress()
       await paginateMultipleChaptersForPageMode(currentPercent)
     }
+  }
+)
+
+// 监听阅读背景变化，更新状态栏颜色
+watch(
+  () => readerSettings.value.background,
+  () => {
+    updateThemeColorForReading()
+  }
+)
+
+// 监听系统主题变化，更新状态栏颜色
+watch(
+  () => themeStore.isDark,
+  () => {
+    updateThemeColorForReading()
   }
 )
 

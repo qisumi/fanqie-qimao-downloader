@@ -14,12 +14,35 @@ export default defineConfig({
       injectManifest: {
         globDirectory: 'dist',
         globPatterns: [
-          '**/*.{js,css,html,png,svg,ico,woff,woff2}'
+          // 核心应用文件
+          'index.html',
+          '**/*.{js,css}',
+          
+          // 静态资源文件 - PWA关键资源
+          '**/*.{png,svg,ico,woff,woff2,ttf}',
+          
+          // 应用资源文件
+          'manifest.json',
+          'offline.html',
+          
+          // 排除过大的文件
+          '!**/*.{mp4,mp3,avi,mov}', // 排除音视频大文件
         ],
-        // 排除 offline.html，因为我们在 sw.js 中手动添加
-        globIgnores: ['offline.html'],
-        // 排除过大的文件
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+        globIgnores: [
+          'offline.html', // 在sw.js中手动处理
+          '**/*.map', // 排除源码映射文件
+        ],
+        // 设置缓存文件大小限制
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB
+        // 为预缓存设置特殊规则
+        additionalPrecacheEntries: [
+          // 手动指定的预缓存资源
+          { url: '/', revision: null },
+          { url: '/manifest.json', revision: null },
+          { url: '/offline.html', revision: null },
+          { url: '/favicon.svg', revision: null },
+          { url: '/寒蝉半圆体.ttf', revision: null },
+        ]
       },
       manifest: false,
       injectRegister: null,

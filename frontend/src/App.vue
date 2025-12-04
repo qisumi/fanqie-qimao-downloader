@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, provide, onMounted, onUnmounted } from 'vue'
+import { computed, ref, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { 
   NConfigProvider, NMessageProvider, NDialogProvider, NNotificationProvider,
@@ -10,6 +10,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import PWAManager from '@/components/PWAManager.vue'
 import { useThemeStore } from '@/stores/theme'
+import themeColorManager from '@/utils/themeColorManager'
 
 const route = useRoute()
 const themeStore = useThemeStore()
@@ -17,7 +18,19 @@ const themeStore = useThemeStore()
 // 初始化主题
 onMounted(() => {
   themeStore.init()
+  // 初始化时设置默认状态栏颜色
+  if (!isReaderRoute.value) {
+    themeColorManager.setPageThemeColor()
+  }
 })
+
+// 监听路由变化，设置状态栏颜色
+watch(() => route.name, (routeName) => {
+  if (routeName !== 'reader') {
+    // 非阅读页面，使用默认状态栏颜色
+    themeColorManager.setPageThemeColor()
+  }
+}, { immediate: true })
 
 // Naive UI 主题
 const naiveTheme = computed(() => themeStore.isDark ? darkTheme : null)

@@ -31,18 +31,7 @@ export function useReaderScroll(options = {}) {
     const savedPx = chapterContent?.offset_px
     const savedPercent = targetPercent ?? chapterContent?.percent
 
-    if (isMobile?.value) {
-      const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0)
-      if (Number.isFinite(targetPercent)) {
-        window.scrollTo(0, (Math.max(0, Math.min(100, targetPercent)) / 100) * maxScroll)
-      } else if (Number.isFinite(savedPx) && savedPx > 0) {
-        window.scrollTo(0, Math.min(savedPx, maxScroll))
-      } else if (Number.isFinite(savedPercent) && savedPercent > 0 && maxScroll > 0) {
-        window.scrollTo(0, (savedPercent / 100) * maxScroll)
-      } else {
-        window.scrollTo(0, 0)
-      }
-    } else {
+    if (container) {
       const maxScroll = Math.max(container.scrollHeight - container.clientHeight, 0)
       if (Number.isFinite(targetPercent)) {
         container.scrollTop = (Math.max(0, Math.min(100, targetPercent)) / 100) * maxScroll
@@ -52,6 +41,17 @@ export function useReaderScroll(options = {}) {
         container.scrollTop = (savedPercent / 100) * maxScroll
       } else {
         container.scrollTop = 0
+      }
+    } else {
+      const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0)
+      if (Number.isFinite(targetPercent)) {
+        window.scrollTo(0, (Math.max(0, Math.min(100, targetPercent)) / 100) * maxScroll)
+      } else if (Number.isFinite(savedPx) && savedPx > 0) {
+        window.scrollTo(0, Math.min(savedPx, maxScroll))
+      } else if (Number.isFinite(savedPercent) && savedPercent > 0 && maxScroll > 0) {
+        window.scrollTo(0, (savedPercent / 100) * maxScroll)
+      } else {
+        window.scrollTo(0, 0)
       }
     }
     setSuppressSave?.(false)
@@ -66,14 +66,14 @@ export function useReaderScroll(options = {}) {
     let scrollHeight = 0
     let clientHeight = 0
 
-    if (isMobile?.value) {
-      scrollTop = window.scrollY || document.documentElement.scrollTop
-      scrollHeight = document.documentElement.scrollHeight
-      clientHeight = window.innerHeight
-    } else {
+    if (container) {
       scrollTop = container.scrollTop
       scrollHeight = container.scrollHeight
       clientHeight = container.clientHeight
+    } else {
+      scrollTop = window.scrollY || document.documentElement.scrollTop
+      scrollHeight = document.documentElement.scrollHeight
+      clientHeight = window.innerHeight
     }
 
     // 计算当前章节的进度
@@ -100,15 +100,15 @@ export function useReaderScroll(options = {}) {
     const activeEl = chapterRefs?.get(currentChapterId)
     if (!activeEl) return
 
-    if (isMobile?.value) {
-      const maxScroll = Math.max(activeEl.scrollHeight - window.innerHeight, 0)
-      window.scrollTo({
+    if (container) {
+      const maxScroll = Math.max(activeEl.scrollHeight - container.clientHeight, 0)
+      container.scrollTo({
         top: activeEl.offsetTop + (value / 100) * maxScroll,
         behavior: 'smooth'
       })
     } else {
-      const maxScroll = Math.max(activeEl.scrollHeight - container.clientHeight, 0)
-      container.scrollTo({
+      const maxScroll = Math.max(activeEl.scrollHeight - window.innerHeight, 0)
+      window.scrollTo({
         top: activeEl.offsetTop + (value / 100) * maxScroll,
         behavior: 'smooth'
       })
@@ -124,22 +124,22 @@ export function useReaderScroll(options = {}) {
     let viewTop = 0
     let viewBottom = 0
 
-    if (isMobile?.value) {
-      viewTop = window.scrollY || document.documentElement.scrollTop
-      viewBottom = viewTop + window.innerHeight
-    } else {
+    if (container) {
       viewTop = container.scrollTop
       viewBottom = viewTop + container.clientHeight
+    } else {
+      viewTop = window.scrollY || document.documentElement.scrollTop
+      viewBottom = viewTop + window.innerHeight
     }
 
     const top = el.offsetTop
     const bottom = top + el.offsetHeight
     const inside = viewTop <= top && viewBottom >= bottom
     if (!inside) {
-      if (isMobile?.value) {
-        window.scrollTo({ top, behavior: 'auto' })
-      } else {
+      if (container) {
         container.scrollTo({ top, behavior: 'auto' })
+      } else {
+        window.scrollTo({ top, behavior: 'auto' })
       }
     }
   }

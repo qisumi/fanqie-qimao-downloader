@@ -27,8 +27,18 @@ export function getChapterContent(bookId, chapterId, { userId, format = 'html', 
  * 进度
  */
 export function getProgress(bookId, { userId, deviceId }) {
+  const params = { user_id: userId }
+  if (deviceId) {
+    params.device_id = deviceId
+  }
   return api.get(`/books/${bookId}/reader/progress`, {
-    params: { user_id: userId, device_id: deviceId }
+    params
+  })
+}
+
+export function getAllDeviceProgress(bookId, userId) {
+  return api.get(`/books/${bookId}/reader/progress/devices`, {
+    params: { user_id: userId }
   })
 }
 
@@ -39,8 +49,12 @@ export function saveProgress(bookId, payload, { userId }) {
 }
 
 export function clearProgress(bookId, { userId, deviceId }) {
+  const params = { user_id: userId }
+  if (deviceId) {
+    params.device_id = deviceId
+  }
   return api.delete(`/books/${bookId}/reader/progress`, {
-    params: { user_id: userId, device_id: deviceId }
+    params
   })
 }
 

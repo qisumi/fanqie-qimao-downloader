@@ -4,14 +4,19 @@
  */
 
 /* ===== 阅读字体引入 ===== */
-/* 霞鹜文楷屏幕阅读版 - 适合屏幕阅读的楷体 */
-@import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css');
+/* 霞鹜文楷屏幕阅读版 - 适合屏幕阅读的楷体 (使用稳定CDN) */
+@import url('https://npm.elemecdn.com/lxgw-wenkai-screen-webfont/style.css');
 /* 思源宋体 - 适合屏幕阅读的宋体 (使用国内镜像) */
 @import url('https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@400;500;600&display=swap');
 /* 思源黑体 - 适合屏幕阅读的黑体 (使用国内镜像) */
 @import url('https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
-/* 小赖字体 - 适合阅读的圆体风格 */
-@import url('https://cdn.jsdelivr.net/npm/xlai-webfont@1.0.0/style.css');
+/* 寒蝉半圆体 - 本地圆体字体 (提供优雅的圆体风格) */
+@font-face {
+  font-family: '寒蝉半圆体';
+  src: url('/寒蝉半圆体.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
 
 :root {
   /* ===== 主色调 ===== */

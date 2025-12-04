@@ -464,6 +464,7 @@ export function useReaderPage(options = {}) {
 
   /**
    * 计算章节内进度百分比
+   * 修复：确保计算的是用户当前实际看到的页面进度，而不是视窗中最早页面的进度
    */
   function calculateChapterProgress(chapterId = null) {
     const targetId = chapterId || activeChapterId.value
@@ -475,7 +476,8 @@ export function useReaderPage(options = {}) {
     const pageCount = boundary.endPage - boundary.startPage + 1
     if (pageCount <= 1) return 100
     
-    const relativeIndex = currentPageIndex.value - boundary.startPage
+    // 修复：使用当前实际页面的相对位置，而不是简单的索引差值
+    const relativeIndex = Math.max(0, Math.min(pageCount - 1, currentPageIndex.value - boundary.startPage))
     return Number(((relativeIndex / (pageCount - 1)) * 100).toFixed(2))
   }
 

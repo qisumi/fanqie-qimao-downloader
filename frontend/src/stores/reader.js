@@ -105,15 +105,26 @@ export const useReaderStore = defineStore('reader', () => {
   async function fetchProgress() {
     if (!bookId.value || !currentUserId.value) return null
     try {
+      // 默认获取跨设备同步进度（不传device_id）
       const response = await readerApi.getProgress(bookId.value, {
         userId: currentUserId.value,
-        deviceId: deviceId.value,
       })
       return response.data
     } catch (error) {
       // 204 无内容直接跳过
       if (error.response?.status === 204) return null
       throw error
+    }
+  }
+
+  async function fetchAllDeviceProgress() {
+    if (!bookId.value || !currentUserId.value) return []
+    try {
+      const response = await readerApi.getAllDeviceProgress(bookId.value, currentUserId.value)
+      return response.data || []
+    } catch (error) {
+      console.warn('Failed to fetch all device progress', error)
+      return []
     }
   }
 
@@ -209,7 +220,7 @@ export const useReaderStore = defineStore('reader', () => {
     if (index !== -1) bookmarks.value.splice(index, 1)
   }
 
-  async function fetchHistory(limit = 50) {
+  async function fetchHistory(limit = 1) {
     if (!bookId.value || !currentUserId.value) return
     const response = await readerApi.listHistory(bookId.value, currentUserId.value, limit)
     history.value = response.data || []

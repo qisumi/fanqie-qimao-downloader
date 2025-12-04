@@ -22,7 +22,9 @@ export function useReaderProgress(options = {}) {
   const pageProgress = computed(() => {
     if (!pageChunks.value.length) return 0
     if (pageChunks.value.length === 1) return 100
-    return Number(((currentPageIndex.value / Math.max(pageChunks.value.length - 1, 1)) * 100).toFixed(2))
+    // 修复：确保使用当前实际页面的索引来计算进度
+    const safeIndex = Math.max(0, Math.min(currentPageIndex.value, pageChunks.value.length - 1))
+    return Number(((safeIndex / Math.max(pageChunks.value.length - 1, 1)) * 100).toFixed(2))
   })
 
   const displayPercent = computed(() => {
@@ -73,7 +75,9 @@ export function useReaderProgress(options = {}) {
   function updatePageProgress(shouldSave = true) {
     if (!pageChunks.value.length) return
     if (shouldSave && !suppressSave) {
-      queueSaveProgress(currentPageIndex.value * 1000, pageProgress.value)
+      // 修复：使用实际的当前页面位置，而不是简单的索引偏移
+      const currentPercent = pageProgress.value
+      queueSaveProgress(0, currentPercent)  // 使用百分比而非像素偏移，更准确
     }
   }
 
@@ -99,7 +103,8 @@ export function useReaderProgress(options = {}) {
       return { offsetPx: container?.scrollTop || 0, percent }
     }
     if (isPageMode?.value) {
-      return { offsetPx: currentPageIndex.value * 1000, percent: pageProgress.value }
+      // 修复：翻页模式使用百分比而不是像素偏移，更准确反映实际进度
+      return { offsetPx: 0, percent: pageProgress.value }
     }
     return { offsetPx: 0, percent: epubPercent.value || percent }
   }

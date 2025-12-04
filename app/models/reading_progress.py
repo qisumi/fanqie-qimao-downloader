@@ -15,8 +15,9 @@ class ReadingProgress(Base):
 
     __tablename__ = "reading_progress"
     __table_args__ = (
-        UniqueConstraint("book_id", "user_id", "device_id", name="uq_reading_progress_book_user_device"),
+        UniqueConstraint("book_id", "user_id", name="uq_reading_progress_book_user"),
         Index("ix_reading_progress_user_book", "user_id", "book_id"),
+        Index("ix_reading_progress_device", "device_id"),
     )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))

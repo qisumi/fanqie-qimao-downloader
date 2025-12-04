@@ -10,6 +10,46 @@
   "theme_color": "#18a058",
   "lang": "zh-CN",
   "categories": ["books", "utilities", "productivity"],
+  
+  "pwa": {
+    "name": "番茄七猫小说下载器",
+    "short_name": "番茄七猫",
+    "description": "支持番茄小说和七猫小说的批量下载和EPUB导出工具",
+    "background_color": "#ffffff",
+    "theme_color": "#18a058",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "start_url": "/"
+  },
+  
+  "cache_on_server": {
+    "description": "缓存配置说明",
+    "static_resources": {
+      "description": "静态资源缓存策略",
+      "strategies": {
+        "css_js": "CacheFirst - 长期缓存",
+        "images": "CacheFirst - 30天缓存", 
+        "fonts": "CacheFirst - 永久缓存",
+        "api": "NetworkFirst - 网络优先"
+      },
+      "max_cache_size": {
+        "css_js": "50MB",
+        "images": "200MB", 
+        "fonts": "20MB",
+        "api_data": "100MB"
+      }
+    },
+    "offline_support": {
+      "description": "离线支持功能",
+      "features": [
+        "查看已缓存书籍列表",
+        "阅读已下载章节内容", 
+        "浏览应用界面",
+        "离线状态检测"
+      ]
+    }
+  },
   "icons": [
     {
       "src": "/favicon.svg",

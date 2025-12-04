@@ -259,12 +259,25 @@ class ReaderService:
             logger.debug("Event loop unavailable, skip prefetch")
 
     # ========= 进度 =========
-    def get_progress(self, user_id: str, book_id: str, device_id: str) -> Optional[ReadingProgress]:
+    def get_progress(self, user_id: str, book_id: str, device_id: Optional[str] = None) -> Optional[ReadingProgress]:
+        """获取阅读进度，device_id为None时获取跨设备同步进度"""
+        query = self.db.query(ReadingProgress).filter(
+            ReadingProgress.user_id == user_id,
+            ReadingProgress.book_id == book_id,
+        )
+        if device_id:
+            query = query.filter(ReadingProgress.device_id == device_id)
+        else:
+            # 不指定设备ID时，获取最新的跨设备同步进度
+            query = query.order_by(ReadingProgress.updated_at.desc())
+        return query.first()
+    
+    def get_all_device_progress(self, user_id: str, book_id: str) -> List[ReadingProgress]:
+        """获取用户在该书籍的所有设备进度记录"""
         return self.db.query(ReadingProgress).filter(
             ReadingProgress.user_id == user_id,
             ReadingProgress.book_id == book_id,
-            ReadingProgress.device_id == device_id,
-        ).first()
+        ).order_by(ReadingProgress.updated_at.desc()).all()
 
     def upsert_progress(
         self,
@@ -275,20 +288,26 @@ class ReaderService:
         offset_px: int,
         percent: float,
     ) -> ReadingProgress:
+        """更新跨设备同步阅读进度"""
         if percent < 0:
             percent = 0.0
         if percent > 100:
             percent = 100.0
 
-        progress = self.get_progress(user_id, book_id, device_id)
+        # 跨设备同步：更新统一的进度记录（不区分设备）
+        progress = self.get_progress(user_id, book_id)
         now = datetime.now(timezone.utc)
 
         if progress:
+            # 更新现有进度
             progress.chapter_id = chapter_id
             progress.offset_px = offset_px
             progress.percent = percent
             progress.updated_at = now
+            # 仍然记录当前设备ID，用于统计
+            progress.device_id = device_id
         else:
+            # 创建新的跨设备同步进度
             progress = ReadingProgress(
                 user_id=user_id,
                 book_id=book_id,
@@ -300,6 +319,7 @@ class ReaderService:
             )
             self.db.add(progress)
 
+        # 同时记录到历史表（保留设备信息用于分析）
         history = ReadingHistory(
             user_id=user_id,
             book_id=book_id,
