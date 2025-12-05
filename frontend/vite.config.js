@@ -18,30 +18,26 @@ export default defineConfig({
           'index.html',
           '**/*.{js,css}',
           
-          // 静态资源文件 - PWA关键资源
-          '**/*.{png,svg,ico,woff,woff2,ttf}',
+          // 静态资源文件 - PWA关键资源（排除大字体文件）
+          '**/*.{png,svg,ico,woff,woff2}',
           
           // 应用资源文件
           'manifest.json',
-          'offline.html',
-          
-          // 排除过大的文件
-          '!**/*.{mp4,mp3,avi,mov}', // 排除音视频大文件
         ],
         globIgnores: [
-          'offline.html', // 在sw.js中手动处理
           '**/*.map', // 排除源码映射文件
+          '**/*.ttf', // 排除大字体文件，改为运行时缓存
         ],
-        // 设置缓存文件大小限制
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB
+        // 增加缓存文件大小限制以适应更多资源
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
         // 为预缓存设置特殊规则
-        additionalPrecacheEntries: [
-          // 手动指定的预缓存资源
+        additionalManifestEntries: [
+          // 手动指定的预缓存资源（排除大字体文件）
           { url: '/', revision: null },
           { url: '/manifest.json', revision: null },
           { url: '/offline.html', revision: null },
           { url: '/favicon.svg', revision: null },
-          { url: '/寒蝉半圆体.ttf', revision: null },
+          // 字体文件改为运行时缓存，不预缓存
         ]
       },
       manifest: false,

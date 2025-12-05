@@ -85,8 +85,7 @@ precacheAndRoute([
   { url: '/static/images/icon-192.png', revision: SW_VERSION },
   { url: '/static/images/icon-512.png', revision: SW_VERSION },
   
-  // 字体文件
-  { url: '/寒蝉半圆体.ttf', revision: SW_VERSION }
+  // 字体文件改为运行时缓存，不预缓存（文件过大）
 ]);
 
 // 缓存文件类型检测工具函数
@@ -126,9 +125,9 @@ function getFileCategory(url) {
   return 'other';
 }
 
-// 字体文件 - 缓存优先策略 (最长缓存时间)
+// 字体文件 - 缓存优先策略 (最长缓存时间，支持大字体文件)
 registerRoute(
-  ({request}) => request.destination === 'font',
+  ({request}) => request.destination === 'font' || request.url.includes('.ttf'),
   new CacheFirst({
     cacheName: 'fonts-cache-v2',
     plugins: [

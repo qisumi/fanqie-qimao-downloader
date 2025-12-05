@@ -108,6 +108,12 @@ function registerChapterRef(id, el) {
   padding: 0px 16px;
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+
+.chapter-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .chapter-scroll.mobile-scroll {
@@ -115,7 +121,7 @@ function registerChapterRef(id, el) {
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  padding: 16px;
+  padding: 12px 10px;
   max-height: 100%;
   overflow-y: auto;
 }
