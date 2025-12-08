@@ -1,11 +1,11 @@
-# FanqieQimaoDownloader
+# Qisumi的书库
 
 [![Version](https://img.shields.io/badge/version-1.6.3-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.6.3)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
-基于 Rain API V3 的番茄小说和七猫小说下载工具，支持批量下载和EPUB导出。
+基于 Rain API V3 的番茄小说、七猫小说和笔趣阁下载工具，支持批量下载和EPUB导出。
 
 ## ✨ 功能特性
 

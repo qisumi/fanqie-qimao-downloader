@@ -75,6 +75,10 @@ class RateLimiter:
         Returns:
             True 如果今日字数配额未用尽
         """
+        # 笔趣阁平台不受配额限制
+        if platform == "biquge":
+            return True
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
@@ -100,6 +104,11 @@ class RateLimiter:
         Returns:
             今日已下载总字数
         """
+        # 笔趣阁平台不受配额限制，直接返回0（表示不记录）
+        if platform == "biquge":
+            logger.debug(f"笔趣阁平台下载不计入配额: {word_count} 字")
+            return 0
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
@@ -136,6 +145,10 @@ class RateLimiter:
         Returns:
             剩余可下载字数
         """
+        # 笔趣阁平台不受配额限制，返回一个很大的数
+        if platform == "biquge":
+            return 1_000_000_000  # 10亿字
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
@@ -167,6 +180,18 @@ class RateLimiter:
                 "percentage": 2.5
             }
         """
+        # 笔趣阁平台不受配额限制，返回无限配额
+        if platform == "biquge":
+            today = date.today()
+            return {
+                "date": today.isoformat(),
+                "platform": platform,
+                "downloaded": 0,
+                "limit": 1_000_000_000,  # 10亿字，表示无限
+                "remaining": 1_000_000_000,
+                "percentage": 0.0,
+            }
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
@@ -201,6 +226,10 @@ class RateLimiter:
         Returns:
             True 如果今日字数配额未用尽
         """
+        # 笔趣阁平台不受配额限制
+        if platform == "biquge":
+            return True
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
@@ -230,6 +259,11 @@ class RateLimiter:
         Returns:
             今日已下载总字数
         """
+        # 笔趣阁平台不受配额限制，直接返回0（表示不记录）
+        if platform == "biquge":
+            logger.debug(f"笔趣阁平台下载不计入配额: {word_count} 字")
+            return 0
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
@@ -270,6 +304,10 @@ class RateLimiter:
         Returns:
             剩余可下载字数
         """
+        # 笔趣阁平台不受配额限制，返回一个很大的数
+        if platform == "biquge":
+            return 1_000_000_000  # 10亿字
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
@@ -296,8 +334,20 @@ class RateLimiter:
             platform: 平台名称
             
         Returns:
-            同 get_usage()
+             同 get_usage()
         """
+        # 笔趣阁平台不受配额限制，返回无限配额
+        if platform == "biquge":
+            today = date.today()
+            return {
+                "date": today.isoformat(),
+                "platform": platform,
+                "downloaded": 0,
+                "limit": 1_000_000_000,  # 10亿字，表示无限
+                "remaining": 1_000_000_000,
+                "percentage": 0.0,
+            }
+        
         if self.db is None:
             raise RuntimeError("数据库会话未设置")
         
