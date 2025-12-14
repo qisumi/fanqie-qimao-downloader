@@ -149,3 +149,49 @@ async def check_new_chapters(
     except Exception as e:
         logger.error(f"Check new chapters error: {e}")
         raise HTTPException(status_code=500, detail=f"检查新章节失败: {str(e)}")
+
+
+@router.post("/{book_id}/refresh-metadata")
+async def refresh_book_metadata(
+    book_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    刷新书籍元数据和章节信息（不下载内容）
+    
+    仅更新书籍的元数据信息和章节列表，不下载章节内容。
+    
+    - **book_id**: 书籍UUID
+    """
+    try:
+        storage = StorageService()
+        book_service = BookService(db=db, storage=storage)
+        
+        book = book_service.get_book(book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="书籍不存在")
+        
+        # 刷新书籍元数据
+        await book_service.refresh_book_metadata(book_id)
+        
+        # 检查并添加新章节到数据库（但不下载内容）
+        new_chapters_count = await book_service.add_new_chapters(book_id)
+        
+        # 重新获取更新后的书籍信息
+        updated_book = book_service.get_book(book_id)
+        
+        return {
+            "success": True,
+            "message": f"《{updated_book.title}》信息已更新，发现{new_chapters_count}个新章节",
+            "book_id": book_id,
+            "new_chapters_count": new_chapters_count,
+            "total_chapters": updated_book.total_chapters,
+            "last_chapter_title": updated_book.last_chapter_title,
+            "last_update_time": updated_book.last_update_time.isoformat() if updated_book.last_update_time else None,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Refresh book metadata error: {e}")
+        raise HTTPException(status_code=500, detail=f"刷新书籍信息失败: {str(e)}")

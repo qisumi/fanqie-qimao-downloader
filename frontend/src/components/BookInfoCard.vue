@@ -228,7 +228,7 @@ function handleDownloadSelect(key) {
         <template #icon>
           <n-icon><RefreshOutline /></n-icon>
         </template>
-        检查更新
+        刷新信息
       </n-button>
       
       <!-- 生成文件功能已移除，直接使用下载按钮 -->

@@ -46,6 +46,14 @@ export function refreshBook(id) {
 }
 
 /**
+ * 刷新书籍元数据和章节信息（不下载内容）
+ * @param {string} id - 书籍UUID
+ */
+export function refreshBookMetadata(id) {
+  return api.post(`/books/${id}/refresh-metadata`)
+}
+
+/**
  * 获取书籍状态（轻量级，用于轮询）
  * @param {string} id - 书籍UUID
  */

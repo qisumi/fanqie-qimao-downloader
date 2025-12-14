@@ -11,7 +11,7 @@ import {
 import { useBookStore } from '@/stores/book'
 import { useTaskStore } from '@/stores/task'
 import { useUserStore } from '@/stores/user'
-import { getEpubDownloadUrl, getTxtDownloadUrl, getChapterSummary, downloadEpub as apiDownloadEpub, getEpubStatus, downloadTxt as apiDownloadTxt, getTxtStatus } from '@/api/books'
+import { getEpubDownloadUrl, getTxtDownloadUrl, getChapterSummary, downloadEpub as apiDownloadEpub, getEpubStatus, downloadTxt as apiDownloadTxt, getTxtStatus, refreshBookMetadata } from '@/api/books'
 import { useBookWebSocket } from '@/composables/useBookWebSocket'
 
 // 子组件
@@ -162,17 +162,12 @@ async function downloadSelectedRange({ startIndex, endIndex }) {
 async function startUpdate() {
   updateLoading.value = true
   try {
-    const result = await taskStore.startUpdate(book.value.id)
+    const result = await refreshBookMetadata(book.value.id)
     
-    if (result.hasNewChapters) {
-      message.success(result.message || `发现${result.newChaptersCount}个新章节，更新任务已启动`)
-      bookStore.updateCurrentBookProgress({ download_status: 'downloading' })
-    } else {
-      message.success(result.message || '已是最新版本')
-      // 即使没有新章节，也刷新一下书籍信息以确保显示最新的章节数
-      await bookStore.fetchBook(book.value.id)
-      await loadChapterSummary({ force: true })
-    }
+    message.success(result.message || '书籍信息已更新')
+    // 刷新书籍信息和章节摘要
+    await bookStore.fetchBook(book.value.id)
+    await loadChapterSummary({ force: true })
   } catch (error) {
     message.error(error.response?.data?.detail || '更新失败')
   } finally {
