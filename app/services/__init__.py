@@ -5,6 +5,7 @@
 - BookService: 书籍管理服务
 - DownloadService: 下载管理服务
 - EPUBService: EPUB生成服务
+- TXTService: TXT生成服务
 """
 
 from app.services.storage_service import StorageService
@@ -16,6 +17,7 @@ from app.services.download_service import (
     TaskCancelledError,
 )
 from app.services.epub_service import EPUBService
+from app.services.txt_service import TXTService
 from app.services.user_service import UserService
 from app.services.reader_service import ReaderService
 
@@ -27,6 +29,7 @@ __all__ = [
     "QuotaReachedError",
     "TaskCancelledError",
     "EPUBService",
+    "TXTService",
     "UserService",
     "ReaderService",
 ]

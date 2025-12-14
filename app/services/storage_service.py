@@ -43,6 +43,7 @@ class StorageService:
         self,
         books_path: Optional[Path] = None,
         epubs_path: Optional[Path] = None,
+        txts_path: Optional[Path] = None,
     ):
         """
         初始化存储服务
@@ -50,9 +51,11 @@ class StorageService:
         Args:
             books_path: 书籍存储目录，默认使用配置
             epubs_path: EPUB存储目录，默认使用配置
+            txts_path: TXT存储目录，默认使用配置
         """
         self.books_path = books_path or settings.books_path
         self.epubs_path = epubs_path or settings.epubs_path
+        self.txts_path = txts_path or settings.txts_path
         
         # 确保目录存在
         self._ensure_directories()
@@ -61,6 +64,7 @@ class StorageService:
         """确保必要的目录存在"""
         self.books_path.mkdir(parents=True, exist_ok=True)
         self.epubs_path.mkdir(parents=True, exist_ok=True)
+        self.txts_path.mkdir(parents=True, exist_ok=True)
     
     # ============ 路径管理 ============
     
@@ -85,6 +89,12 @@ class StorageService:
         # 清理文件名中的非法字符
         safe_title = self._sanitize_filename(book_title)
         return self.epubs_path / f"{safe_title}_{book_uuid[:8]}.epub"
+    
+    def get_txt_path(self, book_title: str, book_uuid: str) -> Path:
+        """获取TXT文件路径"""
+        # 清理文件名中的非法字符
+        safe_title = self._sanitize_filename(book_title)
+        return self.txts_path / f"{safe_title}_{book_uuid[:8]}.txt"
     
     def _sanitize_filename(self, filename: str) -> str:
         """清理文件名，移除非法字符"""
@@ -361,6 +371,35 @@ class StorageService:
         """检查EPUB是否存在"""
         return self.get_epub_path(book_title, book_uuid).exists()
     
+    def delete_txt(self, book_title: str, book_uuid: str) -> bool:
+        """
+        删除TXT文件
+        
+        Args:
+            book_title: 书籍标题
+            book_uuid: 书籍UUID
+        
+        Returns:
+            是否成功删除
+        """
+        txt_path = self.get_txt_path(book_title, book_uuid)
+        
+        if not txt_path.exists():
+            logger.warning(f"TXT file not found: {txt_path}")
+            return False
+        
+        try:
+            txt_path.unlink()
+            logger.info(f"Deleted TXT: {txt_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete TXT: {e}")
+            return False
+    
+    def txt_exists(self, book_title: str, book_uuid: str) -> bool:
+        """检查TXT是否存在"""
+        return self.get_txt_path(book_title, book_uuid).exists()
+    
     # ============ 存储统计 ============
     
     def get_storage_stats(self) -> Dict[str, Any]:
@@ -409,17 +448,30 @@ class StorageService:
                     epubs_count += 1
                     epubs_size += epub_file.stat().st_size
         
-        total_size = books_size + epubs_size
+        # 统计TXT目录
+        txts_count = 0
+        txts_size = 0
+        
+        if self.txts_path.exists():
+            for txt_file in self.txts_path.glob("*.txt"):
+                if txt_file.is_file():
+                    txts_count += 1
+                    txts_size += txt_file.stat().st_size
+        
+        total_size = books_size + epubs_size + txts_size
         
         return {
             "books_count": books_count,
             "epubs_count": epubs_count,
+            "txts_count": txts_count,
             "total_chapters": total_chapters,
             "books_size_bytes": books_size,
             "epubs_size_bytes": epubs_size,
+            "txts_size_bytes": txts_size,
             "total_size_bytes": total_size,
             "books_size_mb": round(books_size / (1024 * 1024), 2),
             "epubs_size_mb": round(epubs_size / (1024 * 1024), 2),
+            "txts_size_mb": round(txts_size / (1024 * 1024), 2),
             "total_size_mb": round(total_size / (1024 * 1024), 2),
         }
     

@@ -30,6 +30,14 @@ export function startDownload(bookId, startChapter, endChapter) {
 }
 
 /**
+ * 启动书籍更新任务（检查并下载新章节）
+ * @param {string} bookId - 书籍UUID
+ */
+export function startUpdate(bookId) {
+  return api.post(`/tasks/${bookId}/update`)
+}
+
+/**
  * 取消任务
  * @param {string} taskId - 任务ID
  */

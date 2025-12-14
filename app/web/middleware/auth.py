@@ -6,7 +6,7 @@ import time
 from typing import Callable
 
 from fastapi import Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
@@ -92,9 +92,17 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # 检查认证状态
         if not self._is_authenticated(request):
-            # 记录原始请求路径用于登录后重定向
-            redirect_url = f"/login?next={path}"
-            return RedirectResponse(url=redirect_url, status_code=302)
+            # 对API请求返回401，对页面请求重定向
+            if path.startswith("/api/"):
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "未认证"}
+                )
+            else:
+                # 记录原始请求路径用于登录后重定向
+                redirect_url = f"/login?next={path}"
+                return RedirectResponse(url=redirect_url, status_code=302)
         
         return await call_next(request)
 

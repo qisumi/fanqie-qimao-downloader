@@ -72,6 +72,8 @@ class BookResponse(BaseModel):
     author: str = Field(default="", description="作者")
     cover_url: Optional[str] = Field(default=None, description="封面URL")
     cover_path: Optional[str] = Field(default=None, description="封面路径")
+    epub_path: Optional[str] = Field(default=None, description="EPUB文件路径")
+    txt_path: Optional[str] = Field(default=None, description="TXT文件路径")
     total_chapters: int = Field(default=0, description="总章节数")
     downloaded_chapters: int = Field(default=0, description="已下载章节数")
     word_count: Optional[int] = Field(default=None, description="字数")

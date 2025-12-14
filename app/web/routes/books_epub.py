@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.services import BookService, EPUBService, StorageService
@@ -207,6 +207,7 @@ async def get_epub_status(
 @router.get("/{book_id}/epub/download")
 async def download_epub(
     book_id: str,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ):
     """
@@ -226,17 +227,61 @@ async def download_epub(
             raise HTTPException(status_code=404, detail="书籍不存在")
         
         epub_path = storage.get_epub_path(book.title, book.id)
-        
+
+        # 如果EPUB不存在，或已存在但不包含所有已下载章节，则启动后台生成并返回202
+        result = book_service.get_book_with_chapters(book_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="书籍不存在")
+
+        chapters = result["chapters"]
+        completed_chapters = [ch for ch in chapters if ch.download_status == "completed"]
+
+        # 如果没有任何已下载章节，无法生成EPUB
+        if not completed_chapters:
+            raise HTTPException(status_code=404, detail="没有已下载的章节可生成EPUB")
+
+        # 如果文件不存在，直接排队生成并返回202
         if not epub_path.exists():
-            if book_id in _epub_tasks:
-                status = _epub_tasks[book_id]
-                if status.get("status") == "running":
-                    raise HTTPException(status_code=202, detail="EPUB正在生成中，请稍后再试")
-                elif status.get("status") == "failed":
-                    raise HTTPException(status_code=500, detail=f"EPUB生成失败: {status.get('error')}")
-            
-            raise HTTPException(status_code=404, detail="EPUB文件不存在，请先生成")
-        
+            if book_id in _epub_tasks and _epub_tasks[book_id].get("status") in ("running", "queued"):
+                return JSONResponse({"detail": "EPUB正在生成中，请稍后再试"}, status_code=202)
+
+            _epub_tasks[book_id] = {
+                "status": "queued",
+                "progress": 0,
+                "message": "EPUB生成任务已排队",
+                "file_path": None,
+                "error": None,
+            }
+
+            from app.utils.database import SessionLocal
+            background_tasks.add_task(_generate_epub_async, book_id, SessionLocal)
+
+            return JSONResponse({"detail": "EPUB生成任务已启动，请稍后再试下载"}, status_code=202, background=background_tasks)
+
+        # 文件存在，检查是否包含所有已下载章节
+        epub_service = EPUBService(db=db, storage=storage)
+        info = epub_service.get_epub_info(str(epub_path))
+        epub_chapter_count = info.get("chapter_count") if info else None
+
+        if epub_chapter_count is None or epub_chapter_count < len(completed_chapters):
+            # 需要重新生成
+            if book_id in _epub_tasks and _epub_tasks[book_id].get("status") in ("running", "queued"):
+                return JSONResponse({"detail": "EPUB正在重新生成中，请稍后再试"}, status_code=202)
+
+            _epub_tasks[book_id] = {
+                "status": "queued",
+                "progress": 0,
+                "message": "EPUB重新生成任务已排队",
+                "file_path": None,
+                "error": None,
+            }
+
+            from app.utils.database import SessionLocal
+            background_tasks.add_task(_generate_epub_async, book_id, SessionLocal)
+
+            return JSONResponse({"detail": "EPUB重新生成任务已启动，请稍后再试下载"}, status_code=202, background=background_tasks)
+
+        # 否则直接返回文件
         return FileResponse(
             path=str(epub_path),
             filename=f"{book.title}.epub",

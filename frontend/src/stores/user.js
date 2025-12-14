@@ -30,6 +30,10 @@ export const useUserStore = defineStore('user', () => {
       if (error.response?.status === 404) {
         requireAuth.value = false
         authenticated.value = true
+      } else {
+        // 网络错误或其他错误，假设需要认证但未认证
+        requireAuth.value = true
+        authenticated.value = false
       }
     } finally {
       loading.value = false

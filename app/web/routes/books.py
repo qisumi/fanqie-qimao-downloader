@@ -7,6 +7,7 @@
 - books_status: 轻量状态与章节摘要
 - books_maintenance: 删除、刷新、增量检查
 - books_epub: EPUB 生成与下载
+- books_txt: TXT 生成与下载
 """
 
 import logging
@@ -20,6 +21,7 @@ from app.web.routes import (
     books_reader,
     books_search,
     books_status,
+    books_txt,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ for sub_router in (
     books_status.router,
     books_maintenance.router,
     books_epub.router,
+    books_txt.router,
     books_reader.router,
 ):
     router.include_router(sub_router)

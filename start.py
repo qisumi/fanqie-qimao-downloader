@@ -55,7 +55,7 @@ def start_server():
 
 def main():
     """主函数"""
-    print("🚀 FanqieQimaoDownloader v1.6.1")
+    print("🚀 FanqieQimaoDownloader v1.6.5")
     print("=" * 40)
 
     # 检查当前目录

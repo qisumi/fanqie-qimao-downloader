@@ -29,6 +29,10 @@ class BookServiceUpdateMixin(BookServiceBase):
             book.creation_status = detail.get("creation_status", book.creation_status)
             book.last_chapter_title = detail.get("last_chapter_title", book.last_chapter_title)
             
+            api_total_chapters = detail.get("total_chapters")
+            if api_total_chapters is not None:
+                book.total_chapters = api_total_chapters
+            
             update_timestamp = detail.get("last_update_timestamp", 0)
             if update_timestamp:
                 try:
@@ -40,7 +44,7 @@ class BookServiceUpdateMixin(BookServiceBase):
             self.db.commit()
             self.db.refresh(book)
             
-            logger.info(f"Refreshed metadata for book: {book.title}")
+            logger.info(f"Refreshed metadata for book: {book.title}, total_chapters: {book.total_chapters}")
             return book
     
     async def check_new_chapters(self, book_uuid: str) -> List[Dict[str, Any]]:

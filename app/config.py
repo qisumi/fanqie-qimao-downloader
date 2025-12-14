@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     data_dir: str = "./data"
     books_dir: str = "./data/books"
     epubs_dir: str = "./data/epubs"
+    txts_dir: str = "./data/txts"
 
     # 下载限制
     daily_word_limit: int = 20000000  # 每日字数限制: 2000万字
@@ -76,12 +77,18 @@ class Settings(BaseSettings):
         """EPUB存储目录路径"""
         return Path(self.epubs_dir)
 
+    @property
+    def txts_path(self) -> Path:
+        """TXT存储目录路径"""
+        return Path(self.txts_dir)
+
     def ensure_directories(self):
         """确保必要的目录存在"""
         directories = [
             self.data_path,
             self.books_path,
             self.epubs_path,
+            self.txts_path,
             Path("./logs") if self.log_file else None
         ]
 

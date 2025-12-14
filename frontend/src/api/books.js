@@ -75,17 +75,53 @@ export function deleteBook(id) {
 }
 
 /**
- * 生成EPUB
- * @param {string} id - 书籍UUID
- */
-export function generateEpub(id) {
-  return api.post(`/books/${id}/epub`)
-}
-
-/**
  * 下载EPUB
  * @param {string} id - 书籍UUID
  */
 export function getEpubDownloadUrl(id) {
   return `/api/books/${id}/epub/download`
+}
+
+/**
+/**
+ * 下载TXT
+ * @param {string} id - 书籍UUID
+ */
+export function getTxtDownloadUrl(id) {
+  return `/api/books/${id}/txt/download`
+}
+// TXT 生成已从前端UI移除，保留下载接口
+
+/**
+ * 发起 EPUB 下载请求（返回 blob 或 202 状态）
+ * @param {string} id
+ */
+export function downloadEpub(id) {
+  return api.get(`/books/${id}/epub/download`, { responseType: 'blob' })
+}
+
+/**
+ * 查询 EPUB 生成状态
+ * @param {string} id
+ */
+export async function getEpubStatus(id) {
+  const resp = await api.get(`/books/${id}/epub/status`)
+  return resp.data
+}
+
+/**
+ * 发起 TXT 下载请求（返回 blob 或 202 状态）
+ * @param {string} id
+ */
+export function downloadTxt(id) {
+  return api.get(`/books/${id}/txt/download`, { responseType: 'blob' })
+}
+
+/**
+ * 查询 TXT 生成状态
+ * @param {string} id
+ */
+export async function getTxtStatus(id) {
+  const resp = await api.get(`/books/${id}/txt/status`)
+  return resp.data
 }

@@ -1,11 +1,11 @@
 <script setup>
-import { computed, inject } from 'vue'
-import { 
-  NButton, NIcon, NTag, NProgress, NImage, NPopconfirm 
+import { computed, inject, h } from 'vue'
+import {
+  NButton, NIcon, NTag, NProgress, NImage, NPopconfirm, NDropdown
 } from 'naive-ui'
-import { 
-  DownloadOutline, RefreshOutline, 
-  TrashOutline, BookOutline, DocumentOutline
+import {
+  DownloadOutline, RefreshOutline,
+  TrashOutline, BookOutline, DocumentOutline, DocumentTextOutline
 } from '@vicons/ionicons5'
 
 const props = defineProps({
@@ -33,10 +33,10 @@ const props = defineProps({
 
 const emit = defineEmits([
   'read',
-  'download', 
-  'update', 
-  'generate-epub', 
-  'download-epub', 
+  'download',
+  'update',
+  'download-epub',
+  'download-txt',
   'delete'
 ])
 
@@ -94,6 +94,33 @@ const progressPercent = computed(() => {
   if (!progressTotal.value) return 0
   return Math.round((progressDownloaded.value / progressTotal.value) * 100)
 })
+
+// 生成文件功能已移除，直接使用下载按钮
+
+// 下载文件下拉菜单选项（始终显示，后端负责在需要时异步生成）
+const downloadOptions = computed(() => {
+  return [
+    {
+      label: '下载 EPUB',
+      key: 'epub',
+      icon: () => h(NIcon, null, { default: () => h(DocumentOutline) })
+    },
+    {
+      label: '下载 TXT',
+      key: 'txt',
+      icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) })
+    }
+  ]
+})
+
+// 处理下载文件选择
+function handleDownloadSelect(key) {
+  if (key === 'epub') {
+    emit('download-epub')
+  } else if (key === 'txt') {
+    emit('download-txt')
+  }
+}
 </script>
 
 <template>
@@ -182,7 +209,6 @@ const progressPercent = computed(() => {
         type="primary" 
         :size="isMobile ? 'medium' : 'large'"
         @click="emit('download')"
-        :loading="downloadLoading"
         :disabled="book.download_status === 'downloading'"
         class="action-btn primary-btn"
       >
@@ -192,11 +218,11 @@ const progressPercent = computed(() => {
         {{ book.download_status === 'completed' ? '重新下载' : '开始下载' }}
       </n-button>
       
-      <n-button 
-        v-if="book.download_status === 'completed'"
+      <n-button
         :size="isMobile ? 'medium' : 'large'"
         @click="emit('update')"
         :loading="updateLoading"
+        :disabled="book.download_status === 'downloading'"
         class="action-btn"
       >
         <template #icon>
@@ -205,28 +231,26 @@ const progressPercent = computed(() => {
         检查更新
       </n-button>
       
-      <n-button 
-        v-if="book.download_status === 'completed'"
-        :size="isMobile ? 'medium' : 'large'"
-        @click="emit('generate-epub')"
-        :loading="generating"
-        class="action-btn"
-      >
-        <template #icon>
-          <n-icon><DocumentOutline /></n-icon>
-        </template>
-        生成 EPUB
-      </n-button>
+      <!-- 生成文件功能已移除，直接使用下载按钮 -->
       
-      <n-button 
-        v-if="book.epub_path"
-        type="success"
-        :size="isMobile ? 'medium' : 'large'"
-        @click="emit('download-epub')"
-        class="action-btn"
+      <n-dropdown
+        trigger="click"
+        :options="downloadOptions"
+        @select="handleDownloadSelect"
+        placement="bottom-start"
       >
-        下载 EPUB
-      </n-button>
+        <n-button
+          type="success"
+          :size="isMobile ? 'medium' : 'large'"
+          class="action-btn"
+          :loading="downloadLoading"
+        >
+          下载文件
+          <template #suffix>
+            <n-icon><DownloadOutline /></n-icon>
+          </template>
+        </n-button>
+      </n-dropdown>
       
       <n-popconfirm @positive-click="emit('delete')">
         <template #trigger>

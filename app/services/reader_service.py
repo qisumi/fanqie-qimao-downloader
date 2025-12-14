@@ -22,6 +22,7 @@ from app.models import (
 from app.services.book_service import BookService
 from app.services.download_service import DownloadService, QuotaReachedError
 from app.services.epub_service import EPUBService
+from app.services.txt_service import TXTService
 from app.services.storage_service import StorageService
 from app.utils.database import SessionLocal
 
@@ -42,12 +43,14 @@ class ReaderService:
         book_service: Optional[BookService] = None,
         download_service: Optional[DownloadService] = None,
         epub_service: Optional[EPUBService] = None,
+        txt_service: Optional[TXTService] = None,
     ):
         self.db = db
         self.storage = storage or StorageService()
         self.book_service = book_service or BookService(db=db, storage=self.storage)
         self.download_service = download_service or DownloadService(db=db, storage=self.storage)
         self.epub_service = epub_service or EPUBService(db=db, storage=self.storage)
+        self.txt_service = txt_service or TXTService(db=db, storage=self.storage)
 
     # ========= 基础查询 =========
     def _get_user(self, user_id: str) -> Optional[User]:
@@ -438,8 +441,10 @@ class ReaderService:
             Chapter.download_status == "completed",
         ).all()
         epub_cached = self.storage.epub_exists(book.title, book.id)
+        txt_cached = self.storage.txt_exists(book.title, book.id)
         return {
             "epub_cached": epub_cached,
+            "txt_cached": txt_cached,
             "cached_chapters": [cid[0] for cid in cached_chapters],
             "cached_at": datetime.now(timezone.utc),
         }
@@ -458,3 +463,18 @@ class ReaderService:
             raise ValueError("没有已下载的章节可生成EPUB")
 
         return self.epub_service.generate_epub(book, chapters)
+
+    def ensure_txt_cached(self, book: Book) -> str:
+        """生成或返回已有 TXT 路径"""
+        txt_path = self.storage.get_txt_path(book.title, book.id)
+        if txt_path.exists():
+            return str(txt_path)
+
+        chapters = self.db.query(Chapter).filter(
+            Chapter.book_id == book.id,
+            Chapter.download_status == "completed",
+        ).order_by(Chapter.chapter_index).all()
+        if not chapters:
+            raise ValueError("没有已下载的章节可生成TXT")
+
+        return self.txt_service.generate_txt(book, chapters)

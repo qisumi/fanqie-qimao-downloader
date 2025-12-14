@@ -329,6 +329,51 @@ export const useTaskStore = defineStore('task', () => {
   }
   
   /**
+   * 启动更新任务
+   * @param {string} bookId - 书籍UUID
+   */
+  async function startUpdate(bookId) {
+    const response = await taskApi.startUpdate(bookId)
+    const data = response.data || {}
+    const taskId = data.task_id || data.id
+    
+    // 如果没有新章节，直接返回
+    if (data.new_chapters_count === 0) {
+      return {
+        success: true,
+        message: data.message || '已是最新版本',
+        hasNewChapters: false
+      }
+    }
+    
+    // 创建完整的任务对象，API返回的是简略信息
+    const task = {
+      id: taskId,
+      book_id: data.book_id || bookId,
+      task_type: 'update',
+      status: 'pending',
+      total_chapters: 0,
+      downloaded_chapters: 0,
+      failed_chapters: 0,
+      progress: 0,
+      created_at: new Date().toISOString(),
+    }
+    
+    tasks.value.unshift(task)
+    if (taskId) {
+      connectWebSocket(taskId)
+    }
+    
+    return {
+      success: true,
+      message: data.message || '更新任务已启动',
+      task,
+      hasNewChapters: true,
+      newChaptersCount: data.new_chapters_count
+    }
+  }
+  
+  /**
    * 取消任务
    */
   async function cancelTask(taskId) {
@@ -350,6 +395,7 @@ export const useTaskStore = defineStore('task', () => {
     disconnectWebSocket,
     disconnectAll,
     startDownload,
+    startUpdate,
     cancelTask
   }
 })

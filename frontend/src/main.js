@@ -17,6 +17,9 @@ import './styles/responsive.css'
 // Create Vue app
 const app = createApp(App)
 
+// DEBUG: confirm app creation in browser console
+console.log('[dev] createApp -> created')
+
 // Use Pinia for state management
 const pinia = createPinia()
 app.use(pinia)
@@ -26,6 +29,10 @@ app.use(router)
 
 // Mount app
 app.mount('#app')
+
+// DEBUG: expose mount flag for troubleshooting
+window.__FQQD_APP_MOUNTED = true
+console.log('[dev] app.mount called')
 
 // Initialize PWA modules (optional)
 // window.pwaInstall = new PWAInstall()

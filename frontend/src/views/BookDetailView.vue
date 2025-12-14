@@ -10,7 +10,8 @@ import {
 } from '@vicons/ionicons5'
 import { useBookStore } from '@/stores/book'
 import { useTaskStore } from '@/stores/task'
-import { getEpubDownloadUrl, getChapterSummary } from '@/api/books'
+import { useUserStore } from '@/stores/user'
+import { getEpubDownloadUrl, getTxtDownloadUrl, getChapterSummary, downloadEpub as apiDownloadEpub, getEpubStatus, downloadTxt as apiDownloadTxt, getTxtStatus } from '@/api/books'
 import { useBookWebSocket } from '@/composables/useBookWebSocket'
 
 // 子组件
@@ -25,6 +26,7 @@ const router = useRouter()
 const message = useMessage()
 const bookStore = useBookStore()
 const taskStore = useTaskStore()
+const userStore = useUserStore()
 
 const loading = ref(true)
 const generating = ref(false)
@@ -160,55 +162,153 @@ async function downloadSelectedRange({ startIndex, endIndex }) {
 async function startUpdate() {
   updateLoading.value = true
   try {
-    await bookStore.refreshBook(book.value.id)
-    message.success('书籍信息已更新')
-    await loadChapterSummary({ force: true })
+    const result = await taskStore.startUpdate(book.value.id)
+    
+    if (result.hasNewChapters) {
+      message.success(result.message || `发现${result.newChaptersCount}个新章节，更新任务已启动`)
+      bookStore.updateCurrentBookProgress({ download_status: 'downloading' })
+    } else {
+      message.success(result.message || '已是最新版本')
+      // 即使没有新章节，也刷新一下书籍信息以确保显示最新的章节数
+      await bookStore.fetchBook(book.value.id)
+      await loadChapterSummary({ force: true })
+    }
   } catch (error) {
-    message.error(error.response?.data?.detail || '刷新书籍信息失败')
+    message.error(error.response?.data?.detail || '更新失败')
   } finally {
     updateLoading.value = false
   }
 }
 
-// EPUB 操作
-async function generateEpub() {
-  generating.value = true
-  try {
-    await bookStore.generateEpub(book.value.id)
-    pollEpubStatus()
-  } catch (error) {
-    message.error(error.response?.data?.detail || 'EPUB 生成失败')
-    generating.value = false
-  }
-}
+// EPUB 生成逻辑已由后端统一为自动生成，前端仅触发下载
 
-async function pollEpubStatus() {
-  const checkStatus = async () => {
-    try {
-      const response = await fetch(`/api/books/${book.value.id}/epub/status`)
-      if (response.ok) {
-        const data = await response.json()
-        if (data.status === 'completed') {
-          message.success('EPUB 生成完成！')
-          generating.value = false
-          await bookStore.fetchBook(route.params.id)
-          downloadEpub()
-        } else if (data.status === 'failed') {
-          message.error('EPUB 生成失败')
-          generating.value = false
-        } else {
-          setTimeout(checkStatus, 2000)
+async function downloadEpub() {
+  if (!book.value?.id) return
+  downloadLoading.value = true
+  try {
+    // 尝试直接请求下载（可能返回 200 文件 或 202 表示后台生成中）
+    const resp = await apiDownloadEpub(book.value.id)
+    if (resp.status === 200) {
+      // 直接下载文件
+      const blob = new Blob([resp.data], { type: resp.headers['content-type'] || 'application/epub+zip' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${book.value.title}.epub`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    // 如果返回 202，开始轮询状态接口，直到完成
+    if (resp.status === 202) {
+      message.info('EPUB正在生成，开始轮询并将在完成后自动下载')
+      const intervalMs = 2000
+      const maxAttempts = 60
+      let attempts = 0
+      while (attempts < maxAttempts) {
+        await new Promise(r => setTimeout(r, intervalMs))
+        attempts += 1
+        try {
+          const status = await getEpubStatus(book.value.id)
+          if (status.status === 'completed') {
+            // 发起最终下载请求
+            const final = await apiDownloadEpub(book.value.id)
+            if (final.status === 200) {
+              const blob = new Blob([final.data], { type: final.headers['content-type'] || 'application/epub+zip' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `${book.value.title}.epub`
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+              URL.revokeObjectURL(url)
+              message.success('EPUB 下载已开始')
+              return
+            }
+          }
+          if (status.status === 'failed') {
+            throw new Error(status.message || 'EPUB 生成失败')
+          }
+        } catch (e) {
+          // 若轮询过程中请求失败，不立刻终止，继续重试直至达到最大次数
+          console.debug('轮询 EPUB 状态出错，继续重试：', e)
         }
       }
-    } catch (error) {
-      generating.value = false
+      throw new Error('等待EPUB生成超时，请稍后重试')
     }
+  } catch (error) {
+    console.error('下载 EPUB 错误', error)
+    message.error(error.response?.data?.detail || error.message || 'EPUB 下载失败')
+  } finally {
+    downloadLoading.value = false
   }
-  setTimeout(checkStatus, 1000)
 }
 
-function downloadEpub() {
-  window.open(getEpubDownloadUrl(book.value.id), '_blank')
+// TXT 操作已移除，使用下载功能代替生成逻辑
+
+async function downloadTxt() {
+  if (!book.value?.id) return
+  downloadLoading.value = true
+  try {
+    const resp = await apiDownloadTxt(book.value.id)
+    if (resp.status === 200) {
+      const blob = new Blob([resp.data], { type: resp.headers['content-type'] || 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${book.value.title}.txt`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    if (resp.status === 202) {
+      message.info('TXT正在生成，开始轮询并将在完成后自动下载')
+      const intervalMs = 2000
+      const maxAttempts = 60
+      let attempts = 0
+      while (attempts < maxAttempts) {
+        await new Promise(r => setTimeout(r, intervalMs))
+        attempts += 1
+        try {
+          const status = await getTxtStatus(book.value.id)
+          if (status.status === 'completed') {
+            const final = await apiDownloadTxt(book.value.id)
+            if (final.status === 200) {
+              const blob = new Blob([final.data], { type: final.headers['content-type'] || 'text/plain' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `${book.value.title}.txt`
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+              URL.revokeObjectURL(url)
+              message.success('TXT 下载已开始')
+              return
+            }
+          }
+          if (status.status === 'failed') {
+            throw new Error(status.message || 'TXT 生成失败')
+          }
+        } catch (e) {
+          console.debug('轮询 TXT 状态出错，继续重试：', e)
+        }
+      }
+      throw new Error('等待TXT生成超时，请稍后重试')
+    }
+  } catch (error) {
+    console.error('下载 TXT 错误', error)
+    message.error(error.response?.data?.detail || error.message || 'TXT 下载失败')
+  } finally {
+    downloadLoading.value = false
+  }
 }
 
 // 删除书籍
@@ -255,8 +355,8 @@ function openReader() {
           @download="startDownload"
           @update="startUpdate"
           @read="openReader"
-          @generate-epub="generateEpub"
           @download-epub="downloadEpub"
+          @download-txt="downloadTxt"
           @delete="deleteBook"
         />
 

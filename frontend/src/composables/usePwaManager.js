@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useMessage, useNotification } from 'naive-ui'
 
-const SW_VERSION = '1.6.4'
+const SW_VERSION = '1.7.0'
 
 /**
  * PWA 状态与生命周期管理
@@ -125,6 +125,13 @@ export function usePwaManager() {
   }
 
   async function registerServiceWorker() {
+    // Skip service worker registration in development to avoid
+    // reload loops and unexpected caching during HMR.
+    if (import.meta.env && import.meta.env.DEV) {
+      console.log('[PWA] dev mode - skip service worker registration')
+      return
+    }
+
     if (!('serviceWorker' in navigator)) return
 
     try {

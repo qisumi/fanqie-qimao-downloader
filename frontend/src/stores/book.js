@@ -195,13 +195,7 @@ export const useBookStore = defineStore('book', () => {
     return userBookIds.value.has(bookId)
   }
   
-  /**
-   * 生成 EPUB
-   */
-  async function generateEpub(id) {
-    const response = await bookApi.generateEpub(id)
-    return response.data
-  }
+  // EPUB/TXT 生成由后端在下载时自动处理，前端仅提供下载操作
   
   /**
    * 清除搜索结果
@@ -276,7 +270,6 @@ export const useBookStore = defineStore('book', () => {
     addToUserShelf,
     removeFromUserShelf,
     isInUserShelf,
-    generateEpub,
     clearSearch,
     updateCurrentBookProgress,
     refreshBook

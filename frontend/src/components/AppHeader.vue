@@ -1,15 +1,16 @@
 <script setup>
 import { computed, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { 
+import {
   NLayoutHeader, NSpace, NButton, NIcon, NDropdown, NAvatar, NBadge, NTooltip
 } from 'naive-ui'
-import { 
+import {
   PersonOutline, LogOutOutline, SettingsOutline, MenuOutline,
   SunnyOutline, MoonOutline, DesktopOutline
 } from '@vicons/ionicons5'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore, ThemeMode } from '@/stores/theme'
+import PWAControlButton from './pwa/PWAControlButton.vue'
 
 const props = defineProps({
   isMobile: {
@@ -97,9 +98,9 @@ function handleToggleTheme() {
         <!-- 主题切换按钮 -->
         <n-tooltip trigger="hover">
           <template #trigger>
-            <n-button 
-              quaternary 
-              circle 
+            <n-button
+              quaternary
+              circle
               class="theme-btn"
               @click="handleToggleTheme"
             >
@@ -113,15 +114,18 @@ function handleToggleTheme() {
           {{ themeStore.themeLabel }}
         </n-tooltip>
         
-        <n-dropdown 
+        <!-- PWA控制按钮 -->
+        <PWAControlButton />
+        
+        <n-dropdown
           v-if="userStore.isAuthenticated && userStore.requireAuth"
-          :options="userOptions" 
+          :options="userOptions"
           @select="handleUserAction"
           trigger="click"
         >
           <n-button quaternary circle class="user-btn">
-            <n-avatar 
-              round 
+            <n-avatar
+              round
               :size="32"
               color="#18a058"
               style="font-size: 14px;"

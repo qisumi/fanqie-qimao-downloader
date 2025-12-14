@@ -14,6 +14,7 @@ import {
   NPopconfirm,
   NDivider,
   NAlert,
+  NIcon,
   useMessage
 } from 'naive-ui'
 import { PencilOutline, TrashOutline, PersonCircleOutline } from '@vicons/ionicons5'

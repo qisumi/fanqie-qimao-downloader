@@ -405,3 +405,34 @@ async def cache_epub(
     except Exception as e:
         logger.exception("Cache EPUB failed")
         raise HTTPException(status_code=500, detail=f"生成EPUB失败: {str(e)}")
+
+
+@router.post(
+    "/{book_id}/cache/txt",
+    summary="生成并下载TXT以缓存",
+)
+async def cache_txt(
+    book_id: str = Path(..., description="书籍UUID"),
+    user_id: str = Query(..., description="用户ID"),
+    db: Session = Depends(get_db),
+):
+    user_service = UserService(db=db)
+    _ensure_user(user_service, user_id)
+    storage = StorageService()
+    reader_service = ReaderService(db=db, storage=storage)
+    book = _ensure_book(reader_service, book_id)
+
+    try:
+        txt_path = reader_service.ensure_txt_cached(book)
+        return FileResponse(
+            path=txt_path,
+            filename=f"{book.title}.txt",
+            media_type="text/plain",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Cache TXT failed")
+        raise HTTPException(status_code=500, detail=f"生成TXT失败: {str(e)}")
