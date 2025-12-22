@@ -224,9 +224,8 @@ class QimaoAPI(RainAPIClient):
             "category": category,
             "creation_status": creation_status,
             "score": self._safe_float(book_data.get("score", 0)),
-            "last_chapter_title": book_data.get("last_chapter", ""),
+            "last_chapter_title": book_data.get("latest_chapter_title", ""),
             "last_update_time": update_time,
-            "last_update_timestamp": update_timestamp,
             "tags": book_data.get("tags", ""),
             "source": "七猫小说"
         }
