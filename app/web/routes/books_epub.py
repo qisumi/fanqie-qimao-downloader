@@ -219,14 +219,18 @@ async def download_epub(
     - **book_id**: 书籍UUID
     """
     try:
+        logger.info(f"请求下载EPUB: {book_id}")
+        
         storage = StorageService()
         book_service = BookService(db=db, storage=storage)
         
         book = book_service.get_book(book_id)
         if not book:
+            logger.error(f"书籍不存在: {book_id}")
             raise HTTPException(status_code=404, detail="书籍不存在")
         
         epub_path = storage.get_epub_path(book.title, book.id)
+        logger.info(f"EPUB文件路径: {epub_path}")
 
         # 如果EPUB不存在，或已存在但不包含所有已下载章节，则启动后台生成并返回202
         result = book_service.get_book_with_chapters(book_id)
@@ -235,13 +239,17 @@ async def download_epub(
 
         chapters = result["chapters"]
         completed_chapters = [ch for ch in chapters if ch.download_status == "completed"]
+        
+        logger.info(f"已下载章节数: {len(completed_chapters)}")
 
         # 如果没有任何已下载章节，无法生成EPUB
         if not completed_chapters:
+            logger.error(f"没有已下载的章节可生成EPUB: {book_id}")
             raise HTTPException(status_code=404, detail="没有已下载的章节可生成EPUB")
 
         # 如果文件不存在，直接排队生成并返回202
         if not epub_path.exists():
+            logger.warning(f"EPUB文件不存在，开始生成: {epub_path}")
             if book_id in _epub_tasks and _epub_tasks[book_id].get("status") in ("running", "queued"):
                 return JSONResponse({"detail": "EPUB正在生成中，请稍后再试"}, status_code=202)
 
@@ -282,6 +290,7 @@ async def download_epub(
             return JSONResponse({"detail": "EPUB重新生成任务已启动，请稍后再试下载"}, status_code=202, background=background_tasks)
 
         # 否则直接返回文件
+        logger.info(f"返回EPUB文件: {epub_path}")
         return FileResponse(
             path=str(epub_path),
             filename=f"{book.title}.epub",

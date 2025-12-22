@@ -5,11 +5,10 @@
 import { ref, computed } from 'vue'
 
 export function useReaderProgress(options = {}) {
-  const { readerStore, isScrollMode, isPageMode, isEpubMode } = options
+  const { readerStore, isScrollMode, isPageMode } = options
 
   // 进度状态
   const scrollPercent = ref(0)
-  const epubPercent = ref(0)
   const currentPageIndex = ref(0)
   const pageChunks = ref([])
 
@@ -29,7 +28,6 @@ export function useReaderProgress(options = {}) {
 
   const displayPercent = computed(() => {
     if (isPageMode?.value) return pageProgress.value
-    if (isEpubMode?.value) return epubPercent.value
     return scrollPercent.value
   })
 
@@ -81,15 +79,6 @@ export function useReaderProgress(options = {}) {
     }
   }
 
-  // 更新 EPUB 进度
-  function updateEpubPercent(value, shouldSave = true) {
-    const safePercent = Math.max(0, Math.min(100, Number(value.toFixed(2)) || 0))
-    epubPercent.value = safePercent
-    if (shouldSave && !suppressSave) {
-      queueSaveProgress(0, safePercent)
-    }
-  }
-
   // 获取当前进度（用于书签等）
   function getCurrentProgress(contentRef, chapterRefs, currentChapterId) {
     const percent = displayPercent.value || 0
@@ -124,7 +113,6 @@ export function useReaderProgress(options = {}) {
   return {
     // 状态
     scrollPercent,
-    epubPercent,
     currentPageIndex,
     pageChunks,
 
@@ -139,7 +127,6 @@ export function useReaderProgress(options = {}) {
     queueSaveProgress,
     updateScrollPercent,
     updatePageProgress,
-    updateEpubPercent,
     getCurrentProgress,
     setSuppressSave,
     cleanup

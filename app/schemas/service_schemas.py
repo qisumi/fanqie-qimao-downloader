@@ -273,7 +273,6 @@ class ReadingHistoryResponse(BaseModel):
 class CacheStatusResponse(BaseModel):
     """缓存状态响应"""
 
-    epub_cached: bool = Field(..., description="EPUB 是否已缓存")
     cached_chapters: List[str] = Field(default=[], description="已缓存章节ID")
     cached_at: datetime = Field(..., description="状态生成时间")
 

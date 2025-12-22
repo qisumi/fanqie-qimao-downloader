@@ -23,15 +23,13 @@ const props = defineProps({
   displayPercent: { type: Number, default: 0 },
   isLoadingChapter: { type: Boolean, default: false },
   ttsState: { type: String, default: 'idle' },
-  caching: { type: Boolean, default: false },
-  epubCached: { type: Boolean, default: false }
+  caching: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
   'prev',
   'next',
   'add-bookmark',
-  'cache-epub',
   'toggle-tts',
   'stop-tts',
   'progress-change'
@@ -57,12 +55,6 @@ import { computed } from 'vue'
           <n-icon><BookmarkOutline /></n-icon>
         </template>
         书签
-      </n-button>
-      <n-button size="small" :loading="caching" ghost @click="$emit('cache-epub')">
-        <template #icon>
-          <n-icon><CloudDownloadOutline /></n-icon>
-        </template>
-        {{ epubCached ? '已缓存 EPUB' : '缓存 EPUB' }}
       </n-button>
       <n-button
         size="small"

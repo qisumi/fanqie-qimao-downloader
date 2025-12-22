@@ -10,8 +10,7 @@ import {
   ReaderSettingsDrawer,
   ReaderFooter,
   ReaderScrollContent,
-  ReaderPageContent,
-  ReaderEpubContent
+  ReaderPageContent
 } from '@/components/reader'
 import { useReaderView } from './reader/useReaderView'
 
@@ -23,7 +22,6 @@ const {
   showChrome,
   isScrollMode,
   isPageMode,
-  isEpubMode,
   isFullscreen,
   caching,
   readerSettings,
@@ -37,13 +35,11 @@ const {
   chapterLabel,
   cacheStatus,
   scrollContentRef,
-  epubContainerRef,
   multiChapterMode,
   readerStore,
   chapterComposable,
   progressComposable,
   pageComposable,
-  epubComposable,
   ttsComposable,
   handleContentTap,
   handleSelectChapter,
@@ -54,7 +50,6 @@ const {
   handleUpdateSetting,
   toggleFullscreen,
   addBookmarkAtCurrent,
-  handleCacheEpub,
   handleToggleTts,
   handleProgressChange,
   handleScroll,
@@ -75,7 +70,6 @@ const {
       :show-chrome="showChrome"
       :is-scroll-mode="isScrollMode"
       :is-page-mode="isPageMode"
-      :is-epub-mode="isEpubMode"
       :is-fullscreen="isFullscreen"
       :is-loading-chapter="chapterComposable.isLoadingChapter.value"
       :current-book-title="currentBookTitle"
@@ -85,7 +79,6 @@ const {
       :has-next="!!chapterComposable.currentChapter.value?.next_id"
       :tts-state="ttsComposable.ttsState.value"
       :caching="caching"
-      :epub-cached="cacheStatus.epub_cached"
       @back="goBack"
       @open-toc="tocVisible = true"
       @open-settings="settingsVisible = true"
@@ -95,7 +88,6 @@ const {
       @change-mode="changeMode"
       @toggle-fullscreen="toggleFullscreen"
       @add-bookmark="addBookmarkAtCurrent"
-      @cache-epub="handleCacheEpub"
       @toggle-tts="handleToggleTts"
       @progress-change="handleProgressChange"
     />
@@ -125,7 +117,6 @@ const {
         :settings="readerSettings"
         :is-scroll-mode="isScrollMode"
         :is-page-mode="isPageMode"
-        :is-epub-mode="isEpubMode"
         :is-fullscreen="isFullscreen"
         :background-color="backgroundColor"
         :text-color="textColor"
@@ -137,17 +128,9 @@ const {
 
       <!-- 内容区域 -->
       <div class="reader-content" :class="{ 'mobile-content': isMobile }" @click="handleContentTap">
-        <n-spin :show="initializing || chapterComposable.isLoadingChapter.value || (isEpubMode && epubComposable.epubLoading.value)">
-          <!-- EPUB模式 -->
-          <template v-if="isEpubMode">
-            <ReaderEpubContent
-              v-model:epub-container-ref="epubContainerRef"
-              :error="epubComposable.epubError.value"
-            />
-          </template>
-
+        <n-spin :show="initializing || chapterComposable.isLoadingChapter.value">
           <!-- 翻页模式 -->
-          <template v-else-if="isPageMode">
+          <template v-if="isPageMode">
             <ReaderPageContent
               :is-mobile="isMobile"
               :page-chunks="pageComposable.pageChunks.value"
@@ -201,11 +184,9 @@ const {
       :is-loading-chapter="chapterComposable.isLoadingChapter.value"
       :tts-state="ttsComposable.ttsState.value"
       :caching="caching"
-      :epub-cached="cacheStatus.epub_cached"
       @prev="handlePrev"
       @next="handleNext"
       @add-bookmark="addBookmarkAtCurrent"
-      @cache-epub="handleCacheEpub"
       @toggle-tts="handleToggleTts"
       @stop-tts="ttsComposable.stopTts"
       @progress-change="handleProgressChange"

@@ -29,7 +29,7 @@ function persistToStorage(key, value) {
 
 function loadReadingModePreference() {
   const saved = loadFromStorage(READING_MODE_KEY, null)
-  return ['scroll', 'page', 'epub'].includes(saved) ? saved : null
+  return ['scroll', 'page'].includes(saved) ? saved : null
 }
 
 function persistReadingMode(mode) {
@@ -55,7 +55,7 @@ const defaultSettings = () => ({
   firstLineIndent: true,
   background: 'paper',
   textColor: '#333333',
-  readingMode: 'scroll', // scroll | page | epub
+  readingMode: 'scroll', // scroll | page
   pageTransition: 'slide',
 })
 
@@ -79,7 +79,7 @@ export const useReaderStore = defineStore('reader', () => {
   const loading = ref(false)
   const bookmarks = ref([])
   const history = ref([])
-  const cacheStatus = ref({ epub_cached: false, cached_chapters: [] })
+  const cacheStatus = ref({ cached_chapters: [] })
   const error = ref(null)
 
   // 先加载默认设置，再用 localStorage 中的值覆盖
@@ -332,14 +332,7 @@ export const useReaderStore = defineStore('reader', () => {
   async function refreshCacheStatus() {
     if (!bookId.value || !currentUserId.value) return
     const response = await readerApi.getCacheStatus(bookId.value, currentUserId.value)
-    cacheStatus.value = response.data || { epub_cached: false, cached_chapters: [] }
-  }
-
-  async function cacheEpub() {
-    if (!bookId.value || !currentUserId.value) return
-    const response = await readerApi.cacheEpub(bookId.value, currentUserId.value)
-    cacheStatus.value = { ...cacheStatus.value, epub_cached: true }
-    return response.data
+    cacheStatus.value = response.data || { cached_chapters: [] }
   }
 
   function updateSetting(key, value) {
@@ -390,7 +383,6 @@ export const useReaderStore = defineStore('reader', () => {
     fetchHistory,
     clearHistory,
     refreshCacheStatus,
-    cacheEpub,
     updateSetting,
     resetSettings,
   }

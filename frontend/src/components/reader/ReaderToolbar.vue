@@ -33,7 +33,6 @@ const props = defineProps({
   showChrome: { type: Boolean, default: true },
   isScrollMode: { type: Boolean, default: true },
   isPageMode: { type: Boolean, default: false },
-  isEpubMode: { type: Boolean, default: false },
   isFullscreen: { type: Boolean, default: false },
   isLoadingChapter: { type: Boolean, default: false },
   currentBookTitle: { type: String, default: '' },
@@ -42,8 +41,7 @@ const props = defineProps({
   hasPrev: { type: Boolean, default: false },
   hasNext: { type: Boolean, default: false },
   ttsState: { type: String, default: 'idle' },
-  caching: { type: Boolean, default: false },
-  epubCached: { type: Boolean, default: false }
+  caching: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
@@ -56,7 +54,6 @@ const emit = defineEmits([
   'change-mode',
   'toggle-fullscreen',
   'add-bookmark',
-  'cache-epub',
   'toggle-tts',
   'progress-change'
 ])
@@ -118,22 +115,6 @@ function handleProgressChange(value) {
           </template>
           翻页模式
         </n-tooltip>
-        <n-tooltip trigger="hover" placement="right">
-          <template #trigger>
-            <n-button
-              quaternary
-              circle
-              size="large"
-              :type="isEpubMode ? 'primary' : 'default'"
-              @click="$emit('change-mode', 'epub')"
-            >
-              <template #icon>
-                <n-icon :size="18"><DocumentTextOutline /></n-icon>
-              </template>
-            </n-button>
-          </template>
-          EPUB 模式
-        </n-tooltip>
       </div>
       <n-tooltip trigger="hover" placement="right">
         <template #trigger>
@@ -187,14 +168,6 @@ function handleProgressChange(value) {
             </n-button>
           </template>
           添加书签
-        </n-tooltip>
-        <n-tooltip trigger="hover" placement="right">
-          <template #trigger>
-            <n-button quaternary circle size="large" :loading="caching" @click="$emit('cache-epub')">
-              <template #icon><n-icon :size="20"><CloudDownloadOutline /></n-icon></template>
-            </n-button>
-          </template>
-          {{ epubCached ? '已缓存 EPUB' : '缓存 EPUB' }}
         </n-tooltip>
         <n-tooltip trigger="hover" placement="right">
           <template #trigger>

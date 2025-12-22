@@ -71,23 +71,6 @@ const CACHE_FILE_TYPES = {
 // 自动注入预缓存列表 (构建时替换)
 precacheAndRoute(self.__WB_MANIFEST);
 
-// 预缓存核心资源和离线回退页面
-precacheAndRoute([
-  // 核心应用文件
-  { url: '/', revision: SW_VERSION },
-  { url: '/manifest.json', revision: SW_VERSION },
-  
-  // 离线页面
-  { url: '/offline.html', revision: SW_VERSION },
-  
-  // 应用图标
-  { url: '/favicon.svg', revision: SW_VERSION },
-  { url: '/static/images/icon-192.png', revision: SW_VERSION },
-  { url: '/static/images/icon-512.png', revision: SW_VERSION },
-  
-  // 字体文件改为运行时缓存，不预缓存（文件过大）
-]);
-
 // 缓存文件类型检测工具函数
 function getFileCategory(url) {
   const pathname = url.pathname;

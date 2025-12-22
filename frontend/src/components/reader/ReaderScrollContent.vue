@@ -2,7 +2,7 @@
 /**
  * 滚动模式内容组件
  */
-import { ref, defineExpose } from 'vue'
+import { ref } from 'vue'
 import { NAlert, NEmpty, NSkeleton, NSpin, NButton } from 'naive-ui'
 
 // 暴露滚动容器 ref

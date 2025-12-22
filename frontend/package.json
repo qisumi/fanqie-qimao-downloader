@@ -16,7 +16,6 @@
     "@egjs/vue3-flicking": "^4.15.0",
     "@vicons/ionicons5": "^0.13.0",
     "axios": "^1.13.2",
-    "epubjs": "^0.3.93",
     "han-css": "^3.2.1",
     "naive-ui": "^2.43.2",
     "pinia": "^2.3.1",

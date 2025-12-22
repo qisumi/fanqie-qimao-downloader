@@ -114,7 +114,10 @@ export function deleteBook(id) {
  * @param {string} id - 书籍UUID
  */
 export function getEpubDownloadUrl(id) {
-  return `/api/books/${id}/epub/download`
+  console.log('获取EPUB下载URL:', id)
+  const url = `/api/books/${id}/epub/download`
+  console.log('EPUB下载URL:', url)
+  return url
 }
 
 /**
