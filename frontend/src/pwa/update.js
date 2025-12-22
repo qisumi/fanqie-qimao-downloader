@@ -4,7 +4,7 @@
  */
 export class PWAUpdate {
     constructor() {
-        this.currentVersion = '1.6.6'; // 当前应用版本
+        this.currentVersion = '1.7.0'; // 当前应用版本
         this.updateAvailable = false;
         this.updateModal = null;
         this.updateBanner = null;
