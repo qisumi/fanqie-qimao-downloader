@@ -69,62 +69,10 @@ class ThemeColorManager {
     const readerMeta = document.createElement('meta');
     readerMeta.name = 'theme-color';
     
-    // 如果是深色背景，使用深色状态栏；浅色背景使用浅色状态栏
-    if (isDark) {
-      // 深色阅读模式状态栏颜色 - 使用稍深的颜色以确保对比度
-      readerMeta.setAttribute('content', this.adjustColorForStatusBar(backgroundColor, -0.1));
-    } else {
-      // 浅色阅读模式状态栏颜色 - 使用稍浅的颜色
-      readerMeta.setAttribute('content', this.adjustColorForStatusBar(backgroundColor, 0.1));
-    }
+    // 直接使用背景色，实现沉浸式体验
+    readerMeta.setAttribute('content', backgroundColor);
     
     document.head.appendChild(readerMeta);
-  }
-
-  /**
-   * 调整颜色以适应状态栏显示
-   * @param {string} color - 原始颜色
-   * @param {number} adjustment - 调整强度 (-1到1)
-   * @returns {string} 调整后的颜色
-   */
-  adjustColorForStatusBar(color, adjustment) {
-    // 将颜色转换为RGB
-    const rgb = this.hexToRgb(color);
-    if (!rgb) return color;
-
-    // 根据调整强度修改亮度
-    const adjusted = {
-      r: Math.max(0, Math.min(255, rgb.r + (255 * adjustment))),
-      g: Math.max(0, Math.min(255, rgb.g + (255 * adjustment))),
-      b: Math.max(0, Math.min(255, rgb.b + (255 * adjustment)))
-    };
-
-    return this.rgbToHex(adjusted.r, adjusted.g, adjusted.b);
-  }
-
-  /**
-   * 将十六进制颜色转换为RGB
-   * @param {string} hex - 十六进制颜色
-   * @returns {Object|null} RGB对象或null
-   */
-  hexToRgb(hex) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
-  }
-
-  /**
-   * 将RGB转换为十六进制颜色
-   * @param {number} r - 红色值
-   * @param {number} g - 绿色值
-   * @param {number} b - 蓝色值
-   * @returns {string} 十六进制颜色
-   */
-  rgbToHex(r, g, b) {
-    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
   }
 
   /**

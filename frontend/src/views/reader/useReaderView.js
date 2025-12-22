@@ -449,9 +449,7 @@ export function useReaderView() {
 
   function updateThemeColorForReading() {
     const isDark = themeStore.isDark || readerSettings.value.background === 'dark'
-    const bg = readerSettings.value.background
-    const map = { paper: '#f7f3e8', green: '#e9f5ec', dark: '#0f0f11' }
-    const backgroundColorValue = map[bg] || (isDark ? '#0f0f11' : '#f7f3e8')
+    const backgroundColorValue = backgroundColor.value
 
     themeColorManager.setReaderThemeColor({
       backgroundColor: backgroundColorValue,

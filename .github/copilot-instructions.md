@@ -38,7 +38,12 @@ app/                    # 后端应用
 │   ├── book.py         # Book
 │   ├── chapter.py      # Chapter
 │   ├── task.py         # DownloadTask
-│   └── quota.py        # DailyQuota
+│   ├── quota.py        # DailyQuota
+│   ├── user.py         # User (用户)
+│   ├── user_book.py    # UserBook (书架关联)
+│   ├── bookmark.py     # Bookmark (书签)
+│   ├── reading_progress.py # ReadingProgress (阅读进度)
+│   └── reading_history.py  # ReadingHistory (阅读历史)
 ├── schemas/            # Pydantic模型
 │   ├── api_responses.py    # API响应模型
 │   └── service_schemas.py  # 服务层模型
@@ -55,7 +60,10 @@ app/                    # 后端应用
 │   ├── download_service_tasks.py   # 任务管理
 │   ├── download_service_operations.py # 并发章节下载/重试
 │   ├── download_service_quota.py   # 配额查询与速率限制
-│   └── epub_service.py             # EPUB生成
+│   ├── epub_service.py             # EPUB生成
+│   ├── txt_service.py              # TXT生成
+│   ├── reader_service.py           # 在线阅读与进度/书签管理
+│   └── user_service.py             # 用户管理
 ├── utils/              # 工具函数
 │   ├── database.py     # 数据库连接
 │   ├── logger.py       # 日志管理
@@ -68,6 +76,8 @@ app/                    # 后端应用
 │   │   ├── books_status.py     # 轻量状态与章节摘要
 │   │   ├── books_maintenance.py # 刷新/增量/删除
 │   │   ├── books_epub.py       # EPUB 生成/下载
+│   │   ├── books_txt.py        # TXT 生成/下载
+│   │   ├── books_reader.py     # 在线阅读 (TOC/内容/进度/书签)
 │   │   ├── tasks.py            # /api/tasks 聚合
 │   │   ├── tasks_list.py       # 列表/详情
 │   │   ├── tasks_quota.py      # 配额查询
@@ -75,6 +85,7 @@ app/                    # 后端应用
 │   │   ├── tasks_control.py    # 取消/重试
 │   │   ├── stats.py            # /api/stats
 │   │   ├── auth.py             # /api/auth
+│   │   ├── users.py            # /api/users
 │   │   └── ws.py               # WebSocket路由
 │   ├── middleware/
 │   │   └── auth.py     # 认证中间件
@@ -90,6 +101,7 @@ frontend/               # Vue 3 前端项目
 │   │   ├── SearchView.vue
 │   │   ├── BooksView.vue
 │   │   ├── BookDetailView.vue
+│   │   ├── ReaderView.vue    # 在线阅读器
 │   │   ├── TasksView.vue
 │   │   └── LoginView.vue
 │   ├── components/     # 通用组件
@@ -132,10 +144,18 @@ from app.services import (
     BookService,         # 书籍管理
     DownloadService,     # 下载管理
     EPUBService,         # EPUB生成
+    TXTService,          # TXT生成
+    ReaderService,       # 在线阅读与进度
+    UserService,         # 用户管理
     DownloadError,
     QuotaReachedError,
     TaskCancelledError,
 )
+
+# ReaderService
+toc = reader_service.get_toc(book_id, page=1)
+content = await reader_service.get_chapter_content(book_id, chapter_id)
+reader_service.upsert_progress(user_id, book_id, chapter_id, device_id, offset_px, percent)
 
 # BookService
 book = await book_service.add_book("fanqie", "7123456789")
@@ -178,9 +198,15 @@ settings.app_password        # 应用密码 (可选)
 | `/api/books/` | GET | 书籍列表 |
 | `/api/books/{id}` | GET/DELETE | 书籍详情/删除 |
 | `/api/books/{id}/epub` | POST/GET | 生成/下载EPUB |
+| `/api/books/{id}/txt` | POST/GET | 生成/下载TXT |
+| `/api/books/{id}/toc` | GET | 获取阅读目录 |
+| `/api/books/{id}/chapters/{chapter_id}/content` | GET | 获取章节内容（缺失自动拉取） |
+| `/api/books/{id}/reader/progress` | GET/POST/DELETE | 阅读进度同步 |
+| `/api/books/{id}/reader/bookmarks` | GET/POST/DELETE | 书签管理 |
 | `/api/tasks/{book_id}/download` | POST | 启动下载 |
 | `/api/tasks/{book_id}/update` | POST | 更新书籍 |
 | `/api/tasks/{id}` | GET | 任务状态 |
+| `/api/users/` | GET/POST | 用户列表/创建 |
 | `/api/stats/` | GET | 系统统计 |
 | `/health` | GET | 健康检查 |
 | `/ws/tasks/{task_id}` | WebSocket | 任务进度实时推送 |
@@ -239,15 +265,17 @@ pytest tests/test_e2e/ -v           # 端到端测试
 - **配额限制**: 每天2000万字，使用 `RateLimiter` 检查
 - **封面URL**: 使用 `FanqieAPI.replace_cover_url()` 获取高质量封面
 - **EPUB编码**: 使用 `set_content(html.encode('utf-8'))`
+- **阅读进度**: 区分 `device_id` 以支持多端独立进度或全局同步
 
 ## 最新修改摘要
 
 下面是对仓库中近期可观察到修改点的简要总结（基于当前工作区文件结构）：
+- **在线阅读与进度管理**: 新增 `ReaderService` 与相关路由，支持在线阅读章节内容（缺失自动拉取）、预取后续章节、跨设备阅读进度同步、书签管理及阅读历史记录。
 - **服务/路由拆分**: 后端服务模块已按功能拆分到 `app/services/` 与 `app/web/routes/`，实现了更清晰的职责划分，便于维护与扩展。
 - **PWA 与前端更新**: 前端包含 PWA 支持（`frontend/public/manifest.json`、`frontend/src/sw.js`）和相关前端组件/组合式 API，用于离线与更新提示。
 - **端到端与单元测试覆盖**: 仓库包含 `tests/test_e2e/` 与 `tests/test_api/` 等测试目录，覆盖 API 路由与 E2E 场景。
 - **构建与部署脚本**: 包含 `Dockerfile`、`docker-compose.yml` 与 `scripts/build_frontend_and_migrate.py`，方便容器化部署与前端构建 + 数据库迁移的自动化流程。
-- **数据库迁移演进**: `alembic/versions/` 中包含多次迁移（例如添加封面 URL、调整配额模型），表明模型在迭代中已做多次架构变更。
+- **数据库迁移演进**: `alembic/versions/` 中包含多次迁移（例如添加阅读器相关表、封面 URL、调整配额模型），表明模型在迭代中已做多次架构变更。
 - **启动与管理**: 项目根目录含 `start.py` （开发/启动入口脚本）以及 `init_db.py`，便于初始化和本地运行。
 
 如果你希望我：
