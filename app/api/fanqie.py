@@ -204,9 +204,9 @@ class FanqieAPI(RainAPIClient):
                 update_time = ""
         
         # 解析连载状态
-        # 注意：部分 API 返回值定义可能不一致。测试中期望 0 表示连载中，1 表示已完结。
-        creation_status_code = self._safe_int(book_data.get("creation_status", 0))
-        creation_status = "连载中" if creation_status_code == 0 else "已完结"
+        # 修正：与 search 接口逻辑保持一致 (根据实际测试：0=完结，1=连载中)
+        creation_status_code = self._safe_int(book_data.get("creation_status", 1))
+        creation_status = "连载中" if creation_status_code == 1 else "已完结"
         
         return {
             "book_id": str(book_data.get("book_id", book_id)),
