@@ -1,5 +1,5 @@
 <script setup>
-import { inject } from 'vue'
+import { inject, computed } from 'vue'
 import { NButton, NIcon, NImage, NTag } from 'naive-ui'
 import { AddOutline, BookOutline } from '@vicons/ionicons5'
 
@@ -26,9 +26,10 @@ function getPlatformTag(value) {
   const map = {
     fanqie: { label: '番茄小说', type: 'warning' },
     qimao: { label: '七猫小说', type: 'info' },
-    biquge: { label: '笔趣阁', type: 'success' }
+    biquge: { label: '笔趣阁', type: 'success' },
+    local: { label: '本地上传', type: 'default' }
   }
-  return map[value] || { label: value, type: 'default' }
+  return map[value] || { label: value === 'local' ? '本地上传' : value, type: 'default' }
 }
 
 function getIntroText() {
@@ -37,6 +38,27 @@ function getIntroText() {
   const maxLen = isMobile.value ? 60 : 100
   return intro.length > maxLen ? intro.substring(0, maxLen) + '...' : intro
 }
+
+const coverBackground = computed(() => {
+  const title = props.book.book_name || props.book.title
+  const colors = [
+    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)',
+    'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)',
+    'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)',
+    'linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%)',
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+  ]
+  if (!title) return colors[0]
+  let hash = 0
+  for (let i = 0; i < title.length; i++) {
+    hash = title.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % colors.length
+  return colors[index]
+})
 </script>
 
 <template>
@@ -52,8 +74,11 @@ function getIntroText() {
         preview-disabled
         lazy
       />
-      <div v-else class="cover-placeholder">
-        <n-icon :size="28" color="#ccc"><BookOutline /></n-icon>
+      <div v-else class="cover-placeholder" :style="{ background: coverBackground }">
+        <div class="placeholder-content">
+          <span class="placeholder-title">{{ book.book_name || book.title }}</span>
+          <span class="placeholder-author">{{ book.author }}</span>
+        </div>
       </div>
     </div>
     
@@ -129,11 +154,47 @@ function getIntroText() {
 .cover-placeholder {
   width: 80px;
   height: 110px;
-  background: #f0f0f0;
   border-radius: var(--border-radius-sm, 4px);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 8px;
+  text-align: center;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.placeholder-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  word-break: break-all;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.placeholder-author {
+  font-size: 9px;
+  color: rgba(255,255,255,0.9);
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .book-info {

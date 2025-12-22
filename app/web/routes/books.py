@@ -22,6 +22,7 @@ from app.web.routes import (
     books_search,
     books_status,
     books_txt,
+    books_upload,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ for sub_router in (
     books_epub.router,
     books_txt.router,
     books_reader.router,
+    books_upload.router,
 ):
     router.include_router(sub_router)
 

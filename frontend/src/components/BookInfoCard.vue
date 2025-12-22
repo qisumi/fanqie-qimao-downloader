@@ -4,7 +4,7 @@ import {
   NButton, NIcon, NTag, NProgress, NImage, NPopconfirm, NDropdown
 } from 'naive-ui'
 import {
-  DownloadOutline, RefreshOutline,
+  DownloadOutline, RefreshOutline, CreateOutline,
   TrashOutline, BookOutline, DocumentOutline, DocumentTextOutline
 } from '@vicons/ionicons5'
 
@@ -35,6 +35,7 @@ const emit = defineEmits([
   'read',
   'download',
   'update',
+  'edit',
   'download-epub',
   'download-txt',
   'delete'
@@ -48,9 +49,10 @@ function getPlatformTag(platform) {
   const map = {
     fanqie: { type: 'warning', label: '番茄小说' },
     qimao: { type: 'info', label: '七猫小说' },
-    biquge: { type: 'success', label: '笔趣阁' }
+    biquge: { type: 'success', label: '笔趣阁' },
+    local: { type: 'default', label: '本地上传' }
   }
-  return map[platform] || { type: 'default', label: platform || '未知平台' }
+  return map[platform] || { type: 'default', label: platform === 'local' ? '本地上传' : (platform || '未知平台') }
 }
 
 function getStatusTag(status) {
@@ -95,6 +97,26 @@ const progressPercent = computed(() => {
   return Math.round((progressDownloaded.value / progressTotal.value) * 100)
 })
 
+const coverBackground = computed(() => {
+  const colors = [
+    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)',
+    'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)',
+    'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)',
+    'linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%)',
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+  ]
+  if (!props.book.title) return colors[0]
+  let hash = 0
+  for (let i = 0; i < props.book.title.length; i++) {
+    hash = props.book.title.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % colors.length
+  return colors[index]
+})
+
 // 生成文件功能已移除，直接使用下载按钮
 
 // 下载文件下拉菜单选项（始终显示，后端负责在需要时异步生成）
@@ -135,8 +157,11 @@ function handleDownloadSelect(key) {
           object-fit="cover"
           class="book-cover"
         />
-        <div v-else class="cover-placeholder" :style="{ width: isMobile ? '120px' : '160px', height: isMobile ? '165px' : '220px' }">
-          <n-icon :size="48" color="#ccc"><BookOutline /></n-icon>
+        <div v-else class="cover-placeholder" :style="{ width: isMobile ? '120px' : '160px', height: isMobile ? '165px' : '220px', background: coverBackground }">
+          <div class="placeholder-content">
+            <span class="placeholder-title">{{ book.title }}</span>
+            <span class="placeholder-author">{{ book.author }}</span>
+          </div>
         </div>
         
         <!-- 平台标签 -->
@@ -150,6 +175,7 @@ function handleDownloadSelect(key) {
         <div class="book-header">
           <h1 class="book-title">{{ book.title }}</h1>
           <n-tag 
+            v-if="book.platform !== 'local'"
             :bordered="false"
             :color="getStatusColor(book.download_status)"
             size="small"
@@ -164,7 +190,14 @@ function handleDownloadSelect(key) {
         <div class="book-stats">
           <div class="stat-item">
             <span class="stat-label">章节</span>
-            <span class="stat-value">{{ progressDownloaded }}<span class="stat-divider">/</span>{{ progressTotal }}</span>
+            <span class="stat-value">
+              <template v-if="book.platform === 'local'">
+                {{ progressTotal }}
+              </template>
+              <template v-else>
+                {{ progressDownloaded }}<span class="stat-divider">/</span>{{ progressTotal }}
+              </template>
+            </span>
           </div>
           <div class="stat-item" v-if="book.word_count">
             <span class="stat-label">字数</span>
@@ -177,7 +210,7 @@ function handleDownloadSelect(key) {
         </div>
         
         <!-- 下载进度 -->
-        <div v-if="(progressTotal || 0) > 0" class="progress-section">
+        <div v-if="(progressTotal || 0) > 0 && book.platform !== 'local'" class="progress-section">
           <n-progress 
             type="line" 
             :percentage="progressPercent"
@@ -206,6 +239,7 @@ function handleDownloadSelect(key) {
         在线阅读
       </n-button>
       <n-button 
+        v-if="book.platform !== 'local'"
         type="primary" 
         :size="isMobile ? 'medium' : 'large'"
         @click="emit('download')"
@@ -219,6 +253,19 @@ function handleDownloadSelect(key) {
       </n-button>
       
       <n-button
+        v-if="book.platform === 'local'"
+        :size="isMobile ? 'medium' : 'large'"
+        @click="emit('edit')"
+        class="action-btn"
+      >
+        <template #icon>
+          <n-icon><CreateOutline /></n-icon>
+        </template>
+        编辑信息
+      </n-button>
+      
+      <n-button
+        v-else
         :size="isMobile ? 'medium' : 'large'"
         @click="emit('update')"
         :loading="updateLoading"
@@ -305,11 +352,56 @@ function handleDownloadSelect(key) {
 }
 
 .cover-placeholder {
-  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
   border-radius: var(--border-radius-lg, 12px);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  text-align: center;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.placeholder-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  word-break: break-all;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.placeholder-author {
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+  .placeholder-title {
+    font-size: 15px;
+  }
+  .placeholder-author {
+    font-size: 12px;
+  }
 }
 
 .platform-badge {
@@ -322,6 +414,9 @@ function handleDownloadSelect(key) {
   color: white;
   border-radius: 6px 6px 12px 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: #909399; /* 默认纯色背景 */
+  opacity: 1 !important; /* 确保不透明 */
+  z-index: 1;
 }
 
 .platform-badge.fanqie {
@@ -334,6 +429,10 @@ function handleDownloadSelect(key) {
 
 .platform-badge.biquge {
   background: linear-gradient(135deg, #0f9d58 0%, #34a853 100%);
+}
+
+.platform-badge.local {
+  background: #909399;
 }
 
 /* 信息区域 */

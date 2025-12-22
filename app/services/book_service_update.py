@@ -46,6 +46,33 @@ class BookServiceUpdateMixin(BookServiceBase):
             
             logger.info(f"Refreshed metadata for book: {book.title}, total_chapters: {book.total_chapters}")
             return book
+
+    def update_book_metadata(
+        self, 
+        book_uuid: str, 
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        creation_status: Optional[str] = None,
+        cover_url: Optional[str] = None
+    ) -> Optional[Book]:
+        """更新书籍元数据（手动）"""
+        book = self.get_book(book_uuid)
+        if not book:
+            return None
+            
+        if title is not None:
+            book.title = title
+        if author is not None:
+            book.author = author
+        if creation_status is not None:
+            book.creation_status = creation_status
+        if cover_url is not None:
+            book.cover_url = cover_url
+            
+        book.updated_at = datetime.now()
+        self.db.commit()
+        self.db.refresh(book)
+        return book
     
     async def check_new_chapters(self, book_uuid: str) -> List[Dict[str, Any]]:
         book = self.get_book(book_uuid)

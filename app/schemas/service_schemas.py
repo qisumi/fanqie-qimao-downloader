@@ -54,6 +54,15 @@ class BookCreate(BaseModel):
         return v
 
 
+class BookMetadataUpdateRequest(BaseModel):
+    """更新书籍元数据请求"""
+    
+    title: Optional[str] = Field(default=None, description="书名")
+    author: Optional[str] = Field(default=None, description="作者")
+    creation_status: Optional[str] = Field(default=None, description="连载状态")
+    cover_url: Optional[str] = Field(default=None, description="封面URL")
+
+
 class BookUpdate(BaseModel):
     """更新书籍请求"""
     

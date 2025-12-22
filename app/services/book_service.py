@@ -18,6 +18,7 @@ from app.services.book_service_base import BookServiceBase
 from app.services.book_service_delete import BookServiceDeleteMixin
 from app.services.book_service_query import BookServiceQueryMixin
 from app.services.book_service_update import BookServiceUpdateMixin
+from app.services.book_service_upload import BookServiceUploadMixin
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class BookService(
     BookServiceQueryMixin,
     BookServiceUpdateMixin,
     BookServiceDeleteMixin,
+    BookServiceUploadMixin,
 ):
     """组合 mixin 的书籍管理服务实现。"""
 

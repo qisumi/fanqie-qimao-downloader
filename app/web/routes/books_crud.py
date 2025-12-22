@@ -8,6 +8,7 @@ from app.api.base import APIError, BookNotFoundError
 from app.schemas.service_schemas import (
     BookDetailResponse,
     BookListResponse,
+    BookMetadataUpdateRequest,
     BookResponse,
     BookStatistics,
 )
@@ -17,6 +18,71 @@ from app.utils.database import get_db
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.put(
+    "/{book_id}",
+    response_model=BookResponse,
+    summary="更新书籍元数据",
+    response_description="返回更新后的书籍信息",
+    responses={
+        200: {"description": "更新成功"},
+        404: {"description": "书籍不存在"},
+        500: {"description": "服务器内部错误"}
+    }
+)
+async def update_book_metadata(
+    book_id: str = Path(..., description="书籍UUID"),
+    payload: BookMetadataUpdateRequest = None,
+    db: Session = Depends(get_db),
+) -> BookResponse:
+    """
+    更新书籍元数据
+    
+    手动更新书籍的书名、作者、连载状态和封面URL。
+    主要用于修正本地上传书籍的信息。
+    
+    - **book_id**: 书籍UUID
+    """
+    try:
+        storage = StorageService()
+        book_service = BookService(db=db, storage=storage)
+        
+        book = book_service.update_book_metadata(
+            book_uuid=book_id,
+            title=payload.title,
+            author=payload.author,
+            creation_status=payload.creation_status,
+            cover_url=payload.cover_url
+        )
+        
+        if not book:
+            raise HTTPException(status_code=404, detail="书籍不存在")
+            
+        return BookResponse(
+            id=book.id,
+            platform=book.platform,
+            book_id=book.book_id,
+            title=book.title,
+            author=book.author or "",
+            cover_url=book.cover_url,
+            cover_path=book.cover_path,
+            total_chapters=book.total_chapters or 0,
+            downloaded_chapters=book.downloaded_chapters or 0,
+            word_count=book.word_count,
+            creation_status=book.creation_status,
+            last_chapter_title=book.last_chapter_title,
+            last_update_time=book.last_update_time,
+            download_status=book.download_status or "pending",
+            created_at=book.created_at,
+            updated_at=book.updated_at,
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update book error: {e}")
+        raise HTTPException(status_code=500, detail=f"更新书籍失败: {str(e)}")
 
 
 @router.post(

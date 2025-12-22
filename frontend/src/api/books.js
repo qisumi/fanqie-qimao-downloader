@@ -22,6 +22,24 @@ export function addBook(platform, bookId) {
 }
 
 /**
+ * 上传书籍
+ * @param {Object} data - { title, author, regex, file }
+ */
+export function uploadBook(data) {
+  const formData = new FormData()
+  formData.append('title', data.title)
+  if (data.author) formData.append('author', data.author)
+  formData.append('regex', data.regex)
+  formData.append('file', data.file)
+  
+  return api.post('/books/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
  * 获取书籍列表
  * @param {Object} params - 查询参数
  */
@@ -51,6 +69,15 @@ export function refreshBook(id) {
  */
 export function refreshBookMetadata(id) {
   return api.post(`/books/${id}/refresh-metadata`)
+}
+
+/**
+ * 更新书籍元数据
+ * @param {string} id - 书籍UUID
+ * @param {Object} data - { title, author, creation_status, cover_url }
+ */
+export function updateBookMetadata(id, data) {
+  return api.put(`/books/${id}`, data)
 }
 
 /**

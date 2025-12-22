@@ -3,6 +3,7 @@ import { ref, computed, onMounted, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   NButton, NIcon, NSpin, NAlert, NSkeleton,
+  NModal, NForm, NFormItem, NInput,
   useMessage
 } from 'naive-ui'
 import { 
@@ -11,7 +12,12 @@ import {
 import { useBookStore } from '@/stores/book'
 import { useTaskStore } from '@/stores/task'
 import { useUserStore } from '@/stores/user'
-import { getEpubDownloadUrl, getTxtDownloadUrl, getChapterSummary, downloadEpub as apiDownloadEpub, getEpubStatus, downloadTxt as apiDownloadTxt, getTxtStatus, refreshBookMetadata } from '@/api/books'
+import { 
+  getEpubDownloadUrl, getTxtDownloadUrl, getChapterSummary, 
+  downloadEpub as apiDownloadEpub, getEpubStatus, 
+  downloadTxt as apiDownloadTxt, getTxtStatus, 
+  refreshBookMetadata, updateBookMetadata 
+} from '@/api/books'
 import { useBookWebSocket } from '@/composables/useBookWebSocket'
 
 // 子组件
@@ -38,6 +44,46 @@ const chapterSummaryLoaded = ref(false)
 const showChapterSummarySkeleton = computed(
   () => chapterSummaryLoading.value && !chapterSummaryLoaded.value
 )
+
+// 编辑相关状态
+const showEditModal = ref(false)
+const editLoading = ref(false)
+const editForm = ref({
+  title: '',
+  author: '',
+  creation_status: '',
+  cover_url: ''
+})
+
+function openEditModal() {
+  if (!book.value) return
+  editForm.value = {
+    title: book.value.title,
+    author: book.value.author,
+    creation_status: book.value.creation_status,
+    cover_url: book.value.cover_url
+  }
+  showEditModal.value = true
+}
+
+async function submitEdit() {
+  if (!book.value) return
+  editLoading.value = true
+  try {
+    const response = await updateBookMetadata(book.value.id, editForm.value)
+    const updatedBook = response.data
+    message.success('书籍信息更新成功')
+    
+    if (bookStore.currentBook) {
+      Object.assign(bookStore.currentBook, updatedBook)
+    }
+    showEditModal.value = false
+  } catch (error) {
+    message.error(error.response?.data?.detail || '更新失败')
+  } finally {
+    editLoading.value = false
+  }
+}
 
 // 章节热力图数据
 const chapterSummary = ref({ segments: [] })
@@ -162,7 +208,8 @@ async function downloadSelectedRange({ startIndex, endIndex }) {
 async function startUpdate() {
   updateLoading.value = true
   try {
-    const result = await refreshBookMetadata(book.value.id)
+    const response = await refreshBookMetadata(book.value.id)
+    const result = response.data
     
     message.success(result.message || '书籍信息已更新')
     // 刷新书籍信息和章节摘要
@@ -353,11 +400,12 @@ function openReader() {
           @download-epub="downloadEpub"
           @download-txt="downloadTxt"
           @delete="deleteBook"
+          @edit="openEditModal"
         />
 
         <!-- 下载状态提示 -->
         <n-alert 
-          v-if="book.download_status === 'downloading'" 
+          v-if="book.download_status === 'downloading' && book.platform !== 'local'" 
           type="info" 
           class="download-alert"
         >
@@ -370,32 +418,34 @@ function openReader() {
         </n-alert>
 
         <!-- 章节下载状态 - 骨架屏 + 懒加载 -->
-        <template v-if="showChapterSummarySkeleton">
-          <div class="section-card">
-            <n-skeleton height="140px" :sharp="false" />
-          </div>
-          <div class="section-card">
-            <n-skeleton text :repeat="3" :sharp="false" />
-          </div>
-        </template>
-        <template v-else>
-          <n-spin :show="chapterSummaryLoading">
-            <ChapterHeatmap
-              :segments="chapterSummary.segments"
-              :start-chapter="rangeSelectorRef?.startChapter || 1"
-              :end-chapter="rangeSelectorRef?.endChapter || book.total_chapters"
-              @select-segment="handleSelectSegment"
-            />
+        <template v-if="book.platform !== 'local'">
+          <template v-if="showChapterSummarySkeleton">
+            <div class="section-card">
+              <n-skeleton height="140px" :sharp="false" />
+            </div>
+            <div class="section-card">
+              <n-skeleton text :repeat="3" :sharp="false" />
+            </div>
+          </template>
+          <template v-else>
+            <n-spin :show="chapterSummaryLoading">
+              <ChapterHeatmap
+                :segments="chapterSummary.segments"
+                :start-chapter="rangeSelectorRef?.startChapter || 1"
+                :end-chapter="rangeSelectorRef?.endChapter || book.total_chapters"
+                @select-segment="handleSelectSegment"
+              />
 
-            <!-- 章节范围选择器 -->
-            <ChapterRangeSelector
-              ref="rangeSelectorRef"
-              :total-chapters="book.total_chapters"
-              :downloading="book.download_status === 'downloading'"
-              :loading="downloadLoading"
-              @download="downloadSelectedRange"
-            />
-          </n-spin>
+              <!-- 章节范围选择器 -->
+              <ChapterRangeSelector
+                ref="rangeSelectorRef"
+                :total-chapters="book.total_chapters"
+                :downloading="book.download_status === 'downloading'"
+                :loading="downloadLoading"
+                @download="downloadSelectedRange"
+              />
+            </n-spin>
+          </template>
         </template>
 
         <!-- 简介 -->
@@ -407,6 +457,42 @@ function openReader() {
         </div>
       </template>
     </n-spin>
+
+    <!-- 编辑书籍信息模态框 -->
+    <n-modal
+      v-model:show="showEditModal"
+      preset="card"
+      title="编辑书籍信息"
+      style="width: 500px; max-width: 90%"
+    >
+      <n-form
+        :model="editForm"
+        label-placement="left"
+        label-width="auto"
+        require-mark-placement="right-hanging"
+      >
+        <n-form-item label="书名" path="title">
+          <n-input v-model:value="editForm.title" placeholder="请输入书名" />
+        </n-form-item>
+        <n-form-item label="作者" path="author">
+          <n-input v-model:value="editForm.author" placeholder="请输入作者" />
+        </n-form-item>
+        <n-form-item label="状态" path="creation_status">
+          <n-input v-model:value="editForm.creation_status" placeholder="例如：连载中、已完结" />
+        </n-form-item>
+        <n-form-item label="封面链接" path="cover_url">
+          <n-input v-model:value="editForm.cover_url" placeholder="请输入图片URL" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <n-button @click="showEditModal = false">取消</n-button>
+          <n-button type="primary" :loading="editLoading" @click="submitEdit">
+            保存
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 

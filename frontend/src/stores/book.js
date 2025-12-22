@@ -126,6 +126,16 @@ export const useBookStore = defineStore('book', () => {
   }
   
   /**
+   * 上传书籍
+   */
+  async function uploadBook(data) {
+    const response = await bookApi.uploadBook(data)
+    const book = response.data
+    books.value.unshift(book)
+    return book
+  }
+  
+  /**
    * 删除书籍
    */
   async function deleteBook(id) {
@@ -265,6 +275,7 @@ export const useBookStore = defineStore('book', () => {
     fetchBook,
     searchBooks,
     addBook,
+    uploadBook,
     deleteBook,
     fetchUserBooks,
     addToUserShelf,

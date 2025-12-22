@@ -9,11 +9,20 @@ import {
 import AppHeader from '@/components/AppHeader.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import PWAManager from '@/components/PWAManager.vue'
+import UploadBookModal from '@/components/UploadBookModal.vue'
 import { useThemeStore } from '@/stores/theme'
 import themeColorManager from '@/utils/themeColorManager'
 
 const route = useRoute()
 const themeStore = useThemeStore()
+
+const showUploadModal = ref(false)
+
+function openUploadModal() {
+  showUploadModal.value = true
+}
+
+provide('openUploadModal', openUploadModal)
 
 // 初始化主题
 onMounted(() => {
@@ -83,6 +92,9 @@ provide('closeDrawer', closeDrawer)
     <n-message-provider>
       <n-dialog-provider>
         <n-notification-provider>
+          <!-- 全局上传书籍弹窗 -->
+          <UploadBookModal v-model:show="showUploadModal" />
+          
           <!-- PWA 管理组件 -->
           <PWAManager />
           

@@ -33,7 +33,6 @@ class TXTService:
     - 自动添加书籍元信息
     - 支持按卷分组
     - 保持章节原始格式
-    - 添加目录索引
     """
     
     def __init__(
@@ -112,14 +111,11 @@ class TXTService:
         lines = []
         
         # 添加文件头信息
-        lines.extend(self._build_header(book))
-        
-        # 添加目录
-        lines.extend(self._build_toc(chapters))
+        # lines.extend(self._build_header(book))
         
         # 添加分隔线
-        lines.append("=" * 80)
-        lines.append("")
+        # lines.append("=" * 80)
+        # lines.append("")
         
         # 添加章节内容
         lines.extend(self._build_chapters_content(book, chapters))
@@ -145,34 +141,6 @@ class TXTService:
         
         lines.append(f"生成时间：{self._get_current_time()}")
         lines.append("=" * 80)
-        lines.append("")
-        
-        return lines
-    
-    def _build_toc(self, chapters: List[Chapter]) -> List[str]:
-        """构建目录"""
-        lines = ["目录", "-" * 40]
-        
-        # 按卷分组
-        current_volume = None
-        volume_chapters = {}
-        
-        for chapter in chapters:
-            volume_name = chapter.volume_name or "正文"
-            
-            if volume_name not in volume_chapters:
-                volume_chapters[volume_name] = []
-            
-            volume_chapters[volume_name].append(chapter)
-        
-        # 生成目录
-        for volume_name, volume_chaps in volume_chapters.items():
-            if volume_name != "正文":
-                lines.append(f"\n【{volume_name}】")
-            
-            for chapter in volume_chaps:
-                lines.append(f"  第{chapter.chapter_index}章 {chapter.title}")
-        
         lines.append("")
         
         return lines
@@ -208,7 +176,7 @@ class TXTService:
     def _build_chapter_content(self, book: Book, chapter: Chapter) -> List[str]:
         """构建单个章节内容"""
         lines = [
-            f"\n第{chapter.chapter_index}章 {chapter.title}",
+            f"\n{chapter.title}",
             "-" * 40,
             ""
         ]

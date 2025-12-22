@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NMenu, NIcon, NDivider } from 'naive-ui'
 import { 
   HomeOutline, SearchOutline, LibraryOutline, 
-  DownloadOutline, SettingsOutline 
+  DownloadOutline, SettingsOutline, CloudUploadOutline
 } from '@vicons/ionicons5'
 import { h } from 'vue'
 
@@ -22,6 +22,8 @@ const router = useRouter()
 
 // 从父组件获取关闭抽屉的方法
 const closeDrawer = inject('closeDrawer', () => {})
+// 从父组件获取打开上传弹窗的方法
+const openUploadModal = inject('openUploadModal', () => {})
 
 function renderIcon(icon) {
   return () => h(NIcon, null, { default: () => h(icon) })
@@ -49,6 +51,11 @@ const menuOptions = [
     icon: renderIcon(DownloadOutline)
   },
   {
+    label: '上传书籍',
+    key: 'upload',
+    icon: renderIcon(CloudUploadOutline)
+  },
+  {
     label: '设置',
     key: 'settings',
     icon: renderIcon(SettingsOutline)
@@ -63,6 +70,12 @@ const activeKey = computed(() => {
 })
 
 function handleMenuSelect(key) {
+  if (key === 'upload') {
+    openUploadModal()
+    closeDrawer()
+    return
+  }
+  
   router.push({ name: key })
   emit('navigate')
   closeDrawer()

@@ -6,11 +6,12 @@ import {
   NSelect, NInput, NIcon, NTabs, NTabPane, NAlert, NTag,
   useMessage
 } from 'naive-ui'
-import { RefreshOutline, FilterOutline, SearchOutline } from '@vicons/ionicons5'
+import { RefreshOutline, FilterOutline, SearchOutline, CloudUploadOutline } from '@vicons/ionicons5'
 import { useBookStore } from '@/stores/book'
 import { useTaskStore } from '@/stores/task'
 import { useUserStore } from '@/stores/user'
 import BookCard from '@/components/BookCard.vue'
+import UploadBookModal from '@/components/UploadBookModal.vue'
 
 const router = useRouter()
 const message = useMessage()
@@ -23,13 +24,15 @@ const filterPlatform = ref(null)
 const filterStatus = ref(null)
 const searchKeyword = ref('')
 const showFilters = ref(false)
+const showUploadModal = ref(false)
 const activeTab = ref('public')
 
 const platformOptions = [
   { label: '全部平台', value: null },
   { label: '番茄小说', value: 'fanqie' },
   { label: '七猫小说', value: 'qimao' },
-  { label: '笔趣阁', value: 'biquge' }
+  { label: '笔趣阁', value: 'biquge' },
+  { label: '本地上传', value: 'local' }
 ]
 
 const statusOptions = [
@@ -182,6 +185,12 @@ async function toggleShelf(book) {
           <template #icon>
             <n-icon><FilterOutline /></n-icon>
           </template>
+        </n-button>
+        <n-button @click="showUploadModal = true">
+          <template #icon>
+            <n-icon><CloudUploadOutline /></n-icon>
+          </template>
+          <span class="hide-mobile">上传</span>
         </n-button>
         <n-button @click="refreshBooks" :loading="loading">
           <template #icon>
@@ -343,6 +352,8 @@ async function toggleShelf(book) {
         </n-alert>
       </n-tab-pane>
     </n-tabs>
+    
+    <UploadBookModal v-model:show="showUploadModal" @success="refreshBooks" />
   </div>
 </template>
 
