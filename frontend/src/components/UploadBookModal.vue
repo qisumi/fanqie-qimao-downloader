@@ -20,6 +20,7 @@ const bookStore = useBookStore()
 const loading = ref(false)
 const formRef = ref(null)
 const fileList = ref([])
+const isEpub = ref(false)
 
 const formValue = ref({
   title: '',
@@ -34,8 +35,12 @@ const rules = {
     trigger: 'blur'
   },
   regex: {
-    required: true,
-    message: '请输入正则表达式',
+    validator(rule, value) {
+      if (!isEpub.value && !value) {
+        return new Error('请输入正则表达式')
+      }
+      return true
+    },
     trigger: 'blur'
   }
 }
@@ -49,15 +54,17 @@ watch(() => props.show, (show) => {
       regex: '第[0-9一二三四五六七八九十百千]+章\\s+.+'
     }
     fileList.value = []
+    isEpub.value = false
   }
 })
 
 function handleFileChange(newFileList) {
   if (newFileList.length > 0) {
     const file = newFileList[0]
+    isEpub.value = file.name.toLowerCase().endsWith('.epub')
     // Auto fill title from filename
     if (file.name) {
-      const name = file.name.replace(/\.txt$/i, '')
+      const name = file.name.replace(/\.(txt|epub)$/i, '')
       if (!formValue.value.title) {
         formValue.value.title = name
       }
@@ -65,6 +72,7 @@ function handleFileChange(newFileList) {
     fileList.value = [file]
   } else {
     fileList.value = []
+    isEpub.value = false
   }
 }
 
@@ -123,7 +131,7 @@ async function handleSubmit() {
           :multiple="false"
           directory-dnd
           :max="1"
-          accept=".txt"
+          accept=".txt,.epub"
           :file-list="fileList"
           @update:file-list="handleFileChange"
           :default-upload="false"
@@ -138,7 +146,7 @@ async function handleSubmit() {
               点击或者拖动文件到该区域来上传
             </n-text>
             <n-p depth="3" style="margin: 8px 0 0 0">
-              请上传 UTF-8 或 GBK 编码的 TXT 文件
+              支持 TXT (UTF-8/GBK) 或 EPUB 格式
             </n-p>
           </n-upload-dragger>
         </n-upload>
@@ -152,7 +160,7 @@ async function handleSubmit() {
         <n-input v-model:value="formValue.author" placeholder="请输入作者（可选）" />
       </n-form-item>
       
-      <n-form-item label="章节正则" path="regex">
+      <n-form-item v-if="!isEpub" label="章节正则" path="regex">
         <n-input v-model:value="formValue.regex" placeholder="用于匹配章节标题的正则表达式" />
         <template #feedback>
           默认规则：第[0-9一二三四五六七八九十百千]+章\s+.+

@@ -1,6 +1,6 @@
 # Qisumi的书库
 
-[![Version](https://img.shields.io/badge/version-1.6.6-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.6.6)
+[![Version](https://img.shields.io/badge/version-1.7.1-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.7.1)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -29,7 +29,7 @@
 - **书籍管理**: 查看详情、下载进度、EPUB导出
 - **任务监控**: 下载任务状态跟踪
 
-**当前版本: v1.6.6** 🎉
+**当前版本: v1.7.1** 🎉
 
 ## 🚀 快速开始
 

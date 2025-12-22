@@ -5,7 +5,7 @@ import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 // Service Worker 版本 (用于更新检测)
-const SW_VERSION = '1.7.0';
+const SW_VERSION = '1.7.1';
 
 // 缓存配置常量
 const CACHE_CONFIG = {
