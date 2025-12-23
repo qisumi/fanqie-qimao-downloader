@@ -181,6 +181,7 @@ const coverBackground = computed(() => {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
   word-break: break-all;
   text-shadow: 0 1px 2px rgba(0,0,0,0.1);
@@ -193,6 +194,7 @@ const coverBackground = computed(() => {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
+  line-clamp: 1;
   overflow: hidden;
   text-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
@@ -248,6 +250,7 @@ const coverBackground = computed(() => {
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
