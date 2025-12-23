@@ -4,7 +4,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.schemas.service_schemas import BookResponse, BookStatistics, BookStatusResponse
+from app.schemas import BookResponse, BookStatistics, BookStatusResponse
 from app.services import BookService, StorageService
 from app.utils.database import get_db
 

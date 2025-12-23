@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Qu
 from sqlalchemy.orm import Session
 
 from app.api.base import APIError, BookNotFoundError
-from app.schemas.service_schemas import (
+from app.schemas import (
     BookDetailResponse,
     BookListResponse,
     BookMetadataUpdateRequest,

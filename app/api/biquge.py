@@ -4,11 +4,10 @@
 参考 reference/BIQUGE_EXAMPLE.md，直接调用站点接口解析搜索、详情、目录和章节内容。
 """
 
-import html
 import logging
-import re
-from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+from app.api.utils import clean_content, parse_datetime, strip_html
 
 import httpx
 
@@ -58,39 +57,6 @@ class BiqugeAPI(RainAPIClient):
         self._current_book_id: Optional[str] = None  # 内容接口需要的book_id
         self._resolved_ids: Dict[str, str] = {}  # 请求ID -> 解析出的真实ID
     
-    # ============ 工具方法 ============
-    
-    @staticmethod
-    def _strip_html(text: str) -> str:
-        """去除简介中的简单 HTML 标记并做反转义。"""
-        if not text:
-            return ""
-        cleaned = re.sub(r"<[^>]+>", "", text)
-        return html.unescape(cleaned).strip()
-
-    @staticmethod
-    def _clean_content(content: str) -> str:
-        """
-        清理章节正文中的占位文本。
-        笔趣阁返回的正文里偶尔会插入“<<---展开全部章节--->>”提示，需要过滤掉。
-        """
-        if not content:
-            return ""
-        cleaned = content.replace("<<---展开全部章节--->>", "")
-        # 合并多余的空行，避免删除占位后出现大片空白
-        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-        return cleaned.strip()
-    
-    @staticmethod
-    def _extract_book_id(url_path: str) -> str:
-        """从 /book/12345/ 这样的路径中提取数字ID。"""
-        if not url_path:
-            return ""
-        match = re.search(r"/book/(\d+)/?", url_path)
-        if match:
-            return match.group(1)
-        return url_path.strip("/").split("/")[-1]
-    
     # ============ 公共接口 ============
     
     async def search(
@@ -127,7 +93,7 @@ class BiqugeAPI(RainAPIClient):
             book_id = str(item.get("id", "")).strip()
             if not book_id:
                 continue
-            abstract = self._strip_html(item.get("intro", ""))
+            abstract = strip_html(item.get("intro", ""))
             # 站点未直接返回封面，按约定路径拼接: /bookimg/{head}/{bookid}.jpg，其中 head 为去掉末 3 位
             head = book_id[:-3] if len(book_id) > 3 else book_id
             cover_url = f"https://www.510f2f.xyz/bookimg/{head}/{book_id}.jpg"
@@ -177,16 +143,9 @@ class BiqugeAPI(RainAPIClient):
         creation_status_code = 1 if "完" in creation_status else 0
         
         last_update_time = data.get("lastupdate") or ""
-        last_update_timestamp = 0
-        if last_update_time:
-            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-                try:
-                    last_update_timestamp = int(datetime.strptime(last_update_time, fmt).timestamp())
-                    break
-                except Exception:
-                    continue
+        last_update_timestamp = parse_datetime(last_update_time)
         
-        abstract = self._strip_html(data.get("intro", ""))
+        abstract = strip_html(data.get("intro", ""))
         
         return {
             "book_id": resolved_id,
@@ -280,7 +239,7 @@ class BiqugeAPI(RainAPIClient):
         if not isinstance(data, dict):
             raise InvalidResponseError("章节内容响应格式错误", response.text)
         
-        content = self._clean_content(data.get("txt", ""))
+        content = clean_content(data.get("txt", ""))
         if not content:
             raise ChapterNotFoundError(chapter_id, self.platform.value)
         

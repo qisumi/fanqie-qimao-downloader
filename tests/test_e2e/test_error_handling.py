@@ -54,7 +54,7 @@ class TestE2EErrorHandling:
                 raise NetworkError("Connection timeout")
             return MOCK_CHAPTER_CONTENT
         
-        with patch('app.services.download_service_base.FanqieAPI') as MockFanqieAPI:
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
             mock_api = AsyncMock()
             mock_api.__aenter__.return_value = mock_api
             mock_api.__aexit__.return_value = None
@@ -99,7 +99,7 @@ class TestE2EErrorHandling:
             db_session.add(chapter)
         db_session.commit()
         
-        with patch('app.services.download_service_base.FanqieAPI') as MockFanqieAPI:
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
             mock_api = AsyncMock()
             mock_api.__aenter__.return_value = mock_api
             mock_api.__aexit__.return_value = None
@@ -148,7 +148,7 @@ class TestE2EErrorHandling:
             db_session.add(chapter)
         db_session.commit()
         
-        with patch('app.services.download_service_base.FanqieAPI') as MockFanqieAPI:
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
             mock_api = AsyncMock()
             mock_api.__aenter__.return_value = mock_api
             mock_api.__aexit__.return_value = None

@@ -5,7 +5,7 @@ from sqlalchemy import func
 
 from app.models.book import Book
 from app.models.chapter import Chapter
-from app.services.download_service_base import DownloadServiceBase
+from app.services.download.download_service_base import DownloadServiceBase
 
 logger = logging.getLogger(__name__)
 

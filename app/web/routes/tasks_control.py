@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.chapter import Chapter
 from app.services import BookService, DownloadService, StorageService
-from app.schemas.service_schemas import SuccessResponse
+from app.schemas import SuccessResponse
 from app.utils.database import get_db
 from app.web.routes.tasks_start import _run_download_task, _running_downloads
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.services.book_service import BookService
 from app.utils.database import get_db
-from app.schemas.service_schemas import BookResponse
+from app.schemas import BookResponse
 
 logger = logging.getLogger(__name__)
 

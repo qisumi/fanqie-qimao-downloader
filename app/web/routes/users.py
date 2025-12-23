@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
-from app.schemas.service_schemas import (
+from app.schemas import (
     BookListResponse,
     BookResponse,
     UserCreateRequest,

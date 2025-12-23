@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.schemas.service_schemas import (
+from app.schemas import (
     BookmarkCreateRequest,
     BookmarkResponse,
     CacheStatusResponse,

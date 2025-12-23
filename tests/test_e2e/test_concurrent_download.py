@@ -62,11 +62,11 @@ class TestE2EConcurrentDownload:
             
             return original_content
         
-        with patch('app.services.download_service_base.FanqieAPI') as MockFanqieAPI:
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
             mock_api = AsyncMock()
             mock_api.__aenter__.return_value = mock_api
             mock_api.__aexit__.return_value = None
-            mock_api.get_chapter_content = mock_get_content
+            mock_api.get_chapter_content.side_effect = mock_get_content
             MockFanqieAPI.return_value = mock_api
             
             download_service = DownloadService(
@@ -81,3 +81,40 @@ class TestE2EConcurrentDownload:
             assert task.status == "completed"
             assert task.downloaded_chapters == 10
             assert max_concurrent <= 3
+
+    @pytest.mark.asyncio
+    async def test_concurrent_download_partial_failure(self, db_session, storage_service):
+        """测试部分章节下载失败的情况"""
+        book = Book(
+            id=str(uuid.uuid4()),
+            platform="fanqie",
+            book_id="9876543210",
+            title="失败测试",
+            total_chapters=5,
+            download_status="pending",
+        )
+        db_session.add(book)
+        for i in range(5):
+            db_session.add(Chapter(
+                id=str(uuid.uuid4()), book_id=book.id, item_id=f"err_{i}",
+                title=f"Chapter {i}", chapter_index=i, download_status="pending"
+            ))
+        db_session.commit()
+
+        async def mock_get_content_with_failure(item_id, **kwargs):
+            if item_id == "err_0":
+                raise Exception("API Error")
+            return MOCK_CHAPTER_CONTENT.copy()
+
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
+            mock_api = AsyncMock()
+            mock_api.__aenter__.return_value = mock_api
+            mock_api.get_chapter_content.side_effect = mock_get_content_with_failure
+            MockFanqieAPI.return_value = mock_api
+
+            download_service = DownloadService(db=db_session, storage=storage_service, concurrent_downloads=2)
+            task = await download_service.download_book(book.id)
+
+            assert task.status == "failed"
+            assert task.failed_chapters == 1
+            assert task.downloaded_chapters == 4

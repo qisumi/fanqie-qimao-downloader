@@ -1,39 +1,44 @@
 """
-阅读相关服务：章节内容读取、进度/书签/历史管理
+阅读器服务协调器
+负责协调各个子服务（目录、章节、进度、书签、历史）提供统一的阅读器功能接口
 """
 
-import asyncio
-import html
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
-from app.models import (
-    Book,
-    Bookmark,
-    Chapter,
-    ReadingHistory,
-    ReadingProgress,
-    User,
-)
+from app.models import Book, Bookmark, Chapter, ReadingHistory, ReadingProgress
 from app.services.book_service import BookService
-from app.services.download_service import DownloadService, QuotaReachedError
-from app.services.txt_service import TXTService
+from app.services.download_service import DownloadService
 from app.services.storage_service import StorageService
-from app.utils.database import SessionLocal
+from app.services.txt_service import TXTService
+from app.services.reader.toc_service import TocService
+from app.services.reader.chapter_service import ChapterService
+from app.services.reader.progress_service import ProgressService
+from app.services.reader.bookmark_service import BookmarkService
+from app.services.reader.history_service import HistoryService
 
 logger = logging.getLogger(__name__)
 
 
 class ReaderService:
-    """阅读器后端服务"""
-
-    # 进程内预取去重：跟踪正在预取的章节，避免重复下载
-    _prefetch_inflight: Set[str] = set()
-    _prefetch_lock: Optional[asyncio.Lock] = None
+    """阅读器服务协调器
+    
+    职责：
+    - 初始化并管理所有阅读器子服务
+    - 提供统一的公共接口
+    - 将请求委托给相应的子服务处理
+    - 保留缓存管理功能
+    
+    子服务：
+    - TocService: 目录查询和管理
+    - ChapterService: 章节内容读取和预取
+    - ProgressService: 阅读进度管理
+    - BookmarkService: 书签管理
+    - HistoryService: 阅读历史管理
+    """
 
     def __init__(
         self,
@@ -42,39 +47,77 @@ class ReaderService:
         book_service: Optional[BookService] = None,
         download_service: Optional[DownloadService] = None,
         txt_service: Optional[TXTService] = None,
+        toc_service: Optional[TocService] = None,
+        chapter_service: Optional[ChapterService] = None,
+        progress_service: Optional[ProgressService] = None,
+        bookmark_service: Optional[BookmarkService] = None,
+        history_service: Optional[HistoryService] = None,
     ):
+        """初始化阅读器服务协调器
+        
+        Args:
+            db: 数据库会话
+            storage: 存储服务实例（可选）
+            book_service: 书籍服务实例（可选）
+            download_service: 下载服务实例（可选）
+            txt_service: TXT服务实例（可选）
+            toc_service: 目录服务实例（可选）
+            chapter_service: 章节服务实例（可选）
+            progress_service: 进度服务实例（可选）
+            bookmark_service: 书签服务实例（可选）
+            history_service: 历史服务实例（可选）
+        """
         self.db = db
+        
+        # 初始化基础服务
         self.storage = storage or StorageService()
         self.book_service = book_service or BookService(db=db, storage=self.storage)
         self.download_service = download_service or DownloadService(db=db, storage=self.storage)
         self.txt_service = txt_service or TXTService(db=db, storage=self.storage)
+        
+        # 初始化子服务
+        self.toc_service = toc_service or TocService(db=db, book_service=self.book_service)
+        self.chapter_service = chapter_service or ChapterService(
+            db=db,
+            storage=self.storage,
+            download_service=self.download_service,
+        )
+        self.progress_service = progress_service or ProgressService(db=db)
+        self.bookmark_service = bookmark_service or BookmarkService(db=db)
+        self.history_service = history_service or HistoryService(db=db)
 
-    # ========= 基础查询 =========
-    def _get_user(self, user_id: str) -> Optional[User]:
-        return self.db.query(User).filter(User.id == user_id).first()
-
+    # ========= 辅助方法（供路由使用） =========
     def _get_book(self, book_id: str) -> Optional[Book]:
+        """获取书籍信息（供路由使用）
+        
+        Args:
+            book_id: 书籍UUID
+            
+        Returns:
+            书籍对象，不存在时返回None
+        """
         return self.book_service.get_book(book_id)
 
     def _get_chapter(self, book_id: str, chapter_id: str) -> Optional[Chapter]:
-        return self.db.query(Chapter).filter(
-            Chapter.id == chapter_id,
-            Chapter.book_id == book_id,
-        ).first()
+        """获取指定章节信息（供路由使用）
+        
+        Args:
+            book_id: 书籍UUID
+            chapter_id: 章节UUID
+            
+        Returns:
+            章节对象，不存在时返回None
+        """
+        try:
+            return self.db.query(Chapter).filter(
+                Chapter.id == chapter_id,
+                Chapter.book_id == book_id,
+            ).first()
+        except Exception as e:
+            logger.error(f"获取章节失败: book_id={book_id}, chapter_id={chapter_id}, error={e}")
+            return None
 
-    def _get_adjacent_chapters(self, book_id: str, chapter_index: int) -> Tuple[Optional[str], Optional[str]]:
-        prev_id = self.db.query(Chapter.id).filter(
-            Chapter.book_id == book_id,
-            Chapter.chapter_index < chapter_index
-        ).order_by(Chapter.chapter_index.desc()).limit(1).scalar()
-
-        next_id = self.db.query(Chapter.id).filter(
-            Chapter.book_id == book_id,
-            Chapter.chapter_index > chapter_index
-        ).order_by(Chapter.chapter_index.asc()).limit(1).scalar()
-
-        return prev_id, next_id
-
+    # ========= 目录相关 =========
     def get_toc(
         self,
         book_id: str,
@@ -82,61 +125,37 @@ class ReaderService:
         limit: int = 50,
         anchor_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """获取书籍目录（轻量字段，支持分页）
-
+        """获取书籍目录（轻量字段，支持分页和锚点定位）
+        
+        委托给 TocService 处理
+        
         Args:
             book_id: 书籍UUID
             page: 页码（1-based）
-            limit: 每页数量
+            limit: 每页数量（最大500）
             anchor_id: 希望包含的章节ID（用于根据章节定位页码）
+            
+        Returns:
+            包含目录信息的字典，结构如下：
+            {
+                "book": Book对象,
+                "chapters": 章节列表,
+                "total": 总章节数,
+                "page": 当前页码,
+                "limit": 每页数量,
+                "pages": 总页数,
+                "has_more": 是否有更多页
+            }
+            书籍不存在时返回None
         """
-        book = self._get_book(book_id)
-        if not book:
-            return None
-
-        page = max(1, page)
-        limit = max(1, min(limit, 500))
-
-        base_query = self.db.query(Chapter).filter(Chapter.book_id == book_id)
-        total = base_query.count()
-
-        # 如果指定了 anchor_id，根据章节位置重算页码，确保返回的数据包含该章节
-        if anchor_id:
-            anchor = self._get_chapter(book_id, anchor_id)
-            if anchor and anchor.chapter_index is not None:
-                page = max(1, (anchor.chapter_index - 1) // limit + 1)
-
-        offset = (page - 1) * limit
-        chapters = (
-            base_query.order_by(Chapter.chapter_index)
-            .offset(offset)
-            .limit(limit)
-            .all()
+        return self.toc_service.get_toc(
+            book_id=book_id,
+            page=page,
+            limit=limit,
+            anchor_id=anchor_id,
         )
 
-        toc_items = [
-            {
-                "id": ch.id,
-                "index": ch.chapter_index,
-                "title": ch.title,
-                "word_count": ch.word_count,
-                "updated_at": ch.created_at,
-                "download_status": ch.download_status,
-            }
-            for ch in chapters
-        ]
-
-        return {
-            "book": book,
-            "chapters": toc_items,
-            "total": total,
-            "page": page,
-            "limit": limit,
-            "pages": (total + limit - 1) // limit if limit else 0,
-            "has_more": offset + len(toc_items) < total,
-        }
-
-    # ========= 章节内容 =========
+    # ========= 章节内容相关 =========
     async def get_chapter_content(
         self,
         book_id: str,
@@ -146,172 +165,80 @@ class ReaderService:
         prefetch: int = 3,
         retries: int = 3,
     ) -> Dict[str, Any]:
-        """读取章节内容，缺失时尝试下载并可选预取"""
-        book = self._get_book(book_id)
-        if not book:
-            raise ValueError("书籍不存在")
-
-        target_chapter = self._get_chapter(book_id, chapter_id)
-        if not target_chapter:
-            raise ValueError("章节不存在")
-
-        if fetch_range == "prev":
-            prev_id, _ = self._get_adjacent_chapters(book_id, target_chapter.chapter_index)
-            if not prev_id:
-                raise ValueError("没有上一章")
-            target_chapter = self._get_chapter(book_id, prev_id) or target_chapter
-        elif fetch_range == "next":
-            _, next_id = self._get_adjacent_chapters(book_id, target_chapter.chapter_index)
-            if not next_id:
-                raise ValueError("没有下一章")
-            target_chapter = self._get_chapter(book_id, next_id) or target_chapter
-
-        prev_id, next_id = self._get_adjacent_chapters(book_id, target_chapter.chapter_index)
-
-        content_text = self._read_chapter_text(target_chapter)
-        status = "ready" if content_text else "fetching"
-        status_message = None
-
-        if not content_text:
-            try:
-                downloaded = await self.download_service.download_chapter_with_retry(
-                    book_id,
-                    target_chapter.id,
-                    retries=retries,
-                )
-                if downloaded:
-                    self.db.refresh(target_chapter)
-                    content_text = self._read_chapter_text(target_chapter)
-                    status = "ready" if content_text else "fetching"
-                    if prefetch > 0 and status == "ready":
-                        self._schedule_prefetch(book_id, target_chapter.chapter_index, prefetch)
-                else:
-                    status = "fetching"
-                    status_message = "章节拉取失败，可能是网络问题或配额限制"
-            except QuotaReachedError as e:
-                status = "fetching"
-                status_message = str(e)
-            except Exception as e:
-                logger.exception("Download chapter failed")
-                status = "fetching"
-                status_message = str(e)
-
-        payload: Dict[str, Any] = {
-            "title": target_chapter.title,
-            "index": target_chapter.chapter_index,
-            "prev_id": prev_id,
-            "next_id": next_id,
-            "word_count": target_chapter.word_count or (len(content_text) if content_text else 0),
-            "updated_at": target_chapter.created_at,
-            "status": status,
-        }
-
-        if status_message:
-            payload["message"] = status_message
-
-        if status == "ready" and content_text:
-            if fmt == "text":
-                payload["content_text"] = content_text
-            else:
-                payload["content_html"] = self._format_content_to_html(content_text)
-
-        return payload
-
-    def _read_chapter_text(self, chapter: Chapter) -> Optional[str]:
-        """读取章节文本，如果文件缺失则返回None"""
-        if not chapter.content_path:
-            return None
-        return self.storage.get_chapter_content(chapter.content_path)
-
-    def _format_content_to_html(self, content: str) -> str:
-        """将纯文本格式化为简单 HTML 段落"""
-        if not content:
-            return ""
-        paragraphs = []
-        for line in content.splitlines():
-            stripped = line.strip()
-            if stripped:
-                paragraphs.append(f"<p>{html.escape(stripped)}</p>")
-            else:
-                paragraphs.append("<p>&nbsp;</p>")
-        return "\n".join(paragraphs)
-
-    def _schedule_prefetch(self, book_id: str, start_index: int, count: int = 3):
-        """后台预取后续章节，使用独立会话避免当前请求会话关闭"""
-        if count <= 0:
-            return
-
-        async def _prefetch():
-            db = SessionLocal()
-            try:
-                storage = StorageService()
-                downloader = DownloadService(db=db, storage=storage)
-                cls = self.__class__
-                if cls._prefetch_lock is None:
-                    cls._prefetch_lock = asyncio.Lock()
-                lock = cls._prefetch_lock
-                inflight = cls._prefetch_inflight
-
-                chapters = db.query(Chapter).filter(
-                    Chapter.book_id == book_id,
-                    Chapter.chapter_index > start_index,
-                ).order_by(Chapter.chapter_index).limit(count).all()
-
-                for ch in chapters:
-                    cache_key = f"{book_id}:{ch.id}"
-                    async with lock:
-                        if cache_key in inflight or ch.download_status in ("completed", "downloading"):
-                            continue
-                        inflight.add(cache_key)
-                        if ch.download_status != "completed":
-                            ch.download_status = "downloading"
-                            db.commit()
-                    try:
-                        success = await downloader.download_chapter_with_retry(
-                            book_id,
-                            ch.id,
-                            retries=1,
-                        )
-                        if not success:
-                            break
-                    except QuotaReachedError:
-                        logger.warning("Prefetch stopped: quota exceeded")
-                        break
-                    except Exception:
-                        logger.exception("Prefetch chapter failed")
-                        break
-                    finally:
-                        async with lock:
-                            inflight.discard(cache_key)
-            finally:
-                db.close()
-
-        try:
-            asyncio.create_task(_prefetch())
-        except RuntimeError:
-            # 在无事件循环环境下跳过预取，避免阻断主流程
-            logger.debug("Event loop unavailable, skip prefetch")
-
-    # ========= 进度 =========
-    def get_progress(self, user_id: str, book_id: str, device_id: Optional[str] = None) -> Optional[ReadingProgress]:
-        """获取阅读进度，device_id为None时获取跨设备同步进度"""
-        query = self.db.query(ReadingProgress).filter(
-            ReadingProgress.user_id == user_id,
-            ReadingProgress.book_id == book_id,
+        """读取章节内容，缺失时尝试下载并可选预取
+        
+        委托给 ChapterService 处理
+        
+        Args:
+            book_id: 书籍UUID
+            chapter_id: 章节UUID
+            fmt: 返回格式，"html" 或 "text"
+            fetch_range: 获取范围，"prev" 或 "next"
+            prefetch: 预取后续章节数量
+            retries: 下载重试次数
+            
+        Returns:
+            包含章节内容和元数据的字典
+            
+        Raises:
+            ValueError: 书籍或章节不存在
+        """
+        return await self.chapter_service.get_chapter_content(
+            book_id=book_id,
+            chapter_id=chapter_id,
+            fmt=fmt,
+            fetch_range=fetch_range,
+            prefetch=prefetch,
+            retries=retries,
         )
-        if device_id:
-            query = query.filter(ReadingProgress.device_id == device_id)
-        else:
-            # 不指定设备ID时，获取最新的跨设备同步进度
-            query = query.order_by(ReadingProgress.updated_at.desc())
-        return query.first()
-    
-    def get_all_device_progress(self, user_id: str, book_id: str) -> List[ReadingProgress]:
-        """获取用户在该书籍的所有设备进度记录"""
-        return self.db.query(ReadingProgress).filter(
-            ReadingProgress.user_id == user_id,
-            ReadingProgress.book_id == book_id,
-        ).order_by(ReadingProgress.updated_at.desc()).all()
+
+    # ========= 进度相关 =========
+    def get_progress(
+        self,
+        user_id: str,
+        book_id: str,
+        device_id: Optional[str] = None,
+    ) -> Optional[ReadingProgress]:
+        """获取阅读进度
+        
+        当 device_id 为 None 时，获取跨设备同步进度（最新的进度记录）
+        
+        委托给 ProgressService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            device_id: 设备ID，可选。为None时获取跨设备同步进度
+            
+        Returns:
+            ReadingProgress 对象，如果不存在则返回 None
+        """
+        return self.progress_service.get_progress(
+            user_id=user_id,
+            book_id=book_id,
+            device_id=device_id,
+        )
+
+    def get_all_device_progress(
+        self,
+        user_id: str,
+        book_id: str,
+    ) -> List[ReadingProgress]:
+        """获取用户在该书籍的所有设备进度记录
+        
+        委托给 ProgressService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            
+        Returns:
+            ReadingProgress 对象列表，按更新时间降序排列
+        """
+        return self.progress_service.get_all_device_progress(
+            user_id=user_id,
+            book_id=book_id,
+        )
 
     def upsert_progress(
         self,
@@ -322,65 +249,75 @@ class ReaderService:
         offset_px: int,
         percent: float,
     ) -> ReadingProgress:
-        """更新跨设备同步阅读进度"""
-        if percent < 0:
-            percent = 0.0
-        if percent > 100:
-            percent = 100.0
-
-        # 跨设备同步：更新统一的进度记录（不区分设备）
-        progress = self.get_progress(user_id, book_id)
-        now = datetime.now(timezone.utc)
-
-        if progress:
-            # 更新现有进度
-            progress.chapter_id = chapter_id
-            progress.offset_px = offset_px
-            progress.percent = percent
-            progress.updated_at = now
-            # 仍然记录当前设备ID，用于统计
-            progress.device_id = device_id
-        else:
-            # 创建新的跨设备同步进度
-            progress = ReadingProgress(
-                user_id=user_id,
-                book_id=book_id,
-                chapter_id=chapter_id,
-                device_id=device_id,
-                offset_px=offset_px,
-                percent=percent,
-                updated_at=now,
-            )
-            self.db.add(progress)
-
-        # 同时记录到历史表（保留设备信息用于分析）
-        history = ReadingHistory(
+        """更新或插入阅读进度（支持跨设备同步）
+        
+        跨设备同步策略：
+        - 更新统一的进度记录（不区分设备）
+        - 同时记录到历史表（保留设备信息用于分析）
+        
+        委托给 ProgressService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            chapter_id: 章节ID
+            device_id: 设备ID
+            offset_px: 像素偏移量
+            percent: 阅读进度百分比（0-100）
+            
+        Returns:
+            更新或创建的 ReadingProgress 对象
+        """
+        return self.progress_service.upsert_progress(
             user_id=user_id,
             book_id=book_id,
             chapter_id=chapter_id,
-            percent=percent,
             device_id=device_id,
-            updated_at=now,
+            offset_px=offset_px,
+            percent=percent,
         )
-        self.db.add(history)
-        self.db.commit()
-        self.db.refresh(progress)
-        return progress
 
-    def clear_progress(self, user_id: str, book_id: str, device_id: str) -> bool:
-        progress = self.get_progress(user_id, book_id, device_id)
-        if not progress:
-            return False
-        self.db.delete(progress)
-        self.db.commit()
-        return True
+    def clear_progress(
+        self,
+        user_id: str,
+        book_id: str,
+        device_id: Optional[str] = None,
+    ) -> bool:
+        """清除阅读进度
+        
+        委托给 ProgressService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            device_id: 设备ID，可选。为None时清除跨设备同步进度
+            
+        Returns:
+            True 表示成功清除，False 表示未找到进度记录
+        """
+        return self.progress_service.clear_progress(
+            user_id=user_id,
+            book_id=book_id,
+            device_id=device_id,
+        )
 
-    # ========= 书签 =========
+    # ========= 书签相关 =========
     def list_bookmarks(self, user_id: str, book_id: str) -> List[Bookmark]:
-        return self.db.query(Bookmark).filter(
-            Bookmark.user_id == user_id,
-            Bookmark.book_id == book_id,
-        ).order_by(Bookmark.created_at.desc()).all()
+        """列出指定用户和书籍的所有书签
+        
+        委托给 BookmarkService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            
+        Returns:
+            书签列表，按创建时间倒序排列
+        """
+        return self.bookmark_service.list_bookmarks(
+            user_id=user_id,
+            book_id=book_id,
+        )
 
     def add_bookmark(
         self,
@@ -391,59 +328,129 @@ class ReaderService:
         percent: float,
         note: Optional[str] = None,
     ) -> Bookmark:
-        bookmark = Bookmark(
+        """添加新书签
+        
+        委托给 BookmarkService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            chapter_id: 章节ID
+            offset_px: 章节内偏移量（像素）
+            percent: 阅读进度百分比（0-100）
+            note: 书签备注（可选）
+            
+        Returns:
+            创建的书签对象
+        """
+        return self.bookmark_service.add_bookmark(
             user_id=user_id,
             book_id=book_id,
             chapter_id=chapter_id,
             offset_px=offset_px,
-            percent=max(0.0, min(percent, 100.0)),
+            percent=percent,
             note=note,
         )
-        self.db.add(bookmark)
-        self.db.commit()
-        self.db.refresh(bookmark)
-        return bookmark
 
     def delete_bookmark(self, user_id: str, book_id: str, bookmark_id: str) -> bool:
-        bookmark = self.db.query(Bookmark).filter(
-            Bookmark.id == bookmark_id,
-            Bookmark.user_id == user_id,
-            Bookmark.book_id == book_id,
-        ).first()
-        if not bookmark:
-            return False
-        self.db.delete(bookmark)
-        self.db.commit()
-        return True
+        """删除指定书签
+        
+        委托给 BookmarkService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            bookmark_id: 书签ID
+            
+        Returns:
+            删除成功返回 True，书签不存在返回 False
+        """
+        return self.bookmark_service.delete_bookmark(
+            user_id=user_id,
+            book_id=book_id,
+            bookmark_id=bookmark_id,
+        )
 
-    # ========= 历史 =========
-    def list_history(self, user_id: str, book_id: str, limit: int = 50) -> List[ReadingHistory]:
-        return self.db.query(ReadingHistory).filter(
-            ReadingHistory.user_id == user_id,
-            ReadingHistory.book_id == book_id,
-        ).order_by(ReadingHistory.updated_at.desc()).limit(limit).all()
+    # ========= 历史相关 =========
+    def list_history(
+        self,
+        user_id: str,
+        book_id: str,
+        limit: int = 50,
+    ) -> List[ReadingHistory]:
+        """列出指定书籍的阅读历史记录
+        
+        委托给 HistoryService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            limit: 返回记录的最大数量，默认50条
+            
+        Returns:
+            阅读历史记录列表，按更新时间倒序排列
+        """
+        return self.history_service.list_history(
+            user_id=user_id,
+            book_id=book_id,
+            limit=limit,
+        )
 
     def clear_history(self, user_id: str, book_id: str) -> int:
-        rows = self.db.query(ReadingHistory).filter(
-            ReadingHistory.user_id == user_id,
-            ReadingHistory.book_id == book_id,
-        ).delete()
-        self.db.commit()
-        return rows
+        """清除指定书籍的阅读历史记录
+        
+        委托给 HistoryService 处理
+        
+        Args:
+            user_id: 用户ID
+            book_id: 书籍ID
+            
+        Returns:
+            删除的记录数量
+        """
+        return self.history_service.clear_history(
+            user_id=user_id,
+            book_id=book_id,
+        )
 
-    # ========= 缓存 =========
+    # ========= 缓存管理 =========
     def get_cache_status(self, book: Book) -> Dict[str, Any]:
+        """获取书籍的缓存状态
+        
+        Args:
+            book: 书籍对象
+            
+        Returns:
+            包含缓存状态的字典：
+            {
+                "cached_chapters": 已缓存章节ID列表,
+                "cached_at": 缓存时间戳
+            }
+        """
         cached_chapters = self.db.query(Chapter.id).filter(
             Chapter.book_id == book.id,
             Chapter.download_status == "completed",
         ).all()
+        
         return {
             "cached_chapters": [cid[0] for cid in cached_chapters],
             "cached_at": datetime.now(timezone.utc),
         }
 
     def ensure_txt_cached(self, book: Book) -> str:
-        """生成或返回已有 TXT 路径"""
+        """生成或返回已有 TXT 路径
+        
+        如果 TXT 文件已存在则直接返回路径，否则根据已下载的章节生成 TXT 文件
+        
+        Args:
+            book: 书籍对象
+            
+        Returns:
+            TXT 文件的绝对路径
+            
+        Raises:
+            ValueError: 没有已下载的章节可生成TXT
+        """
         txt_path = self.storage.get_txt_path(book.title, book.id)
         if txt_path.exists():
             return str(txt_path)
@@ -452,6 +459,7 @@ class ReaderService:
             Chapter.book_id == book.id,
             Chapter.download_status == "completed",
         ).order_by(Chapter.chapter_index).all()
+        
         if not chapters:
             raise ValueError("没有已下载的章节可生成TXT")
 

@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.schemas.service_schemas import TaskListResponse, TaskResponse
+from app.schemas import TaskListResponse, TaskResponse
 from app.services import DownloadService, StorageService
 from app.utils.database import get_db
 

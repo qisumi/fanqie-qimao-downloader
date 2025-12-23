@@ -7,7 +7,6 @@
 import logging
 import re
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
 from app.api.base import (
     RainAPIClient,
@@ -66,32 +65,6 @@ class QimaoAPI(RainAPIClient):
         
         # 存储当前操作的书籍ID (用于章节内容获取)
         self._current_book_id: Optional[str] = None
-    
-    # ============ 辅助方法 ============
-    
-    @staticmethod
-    def _safe_int(value: Any, default: int = 0) -> int:
-        """安全转换为整数"""
-        if value is None:
-            return default
-        if isinstance(value, int):
-            return value
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            return default
-    
-    @staticmethod
-    def _safe_float(value: Any, default: float = 0.0) -> float:
-        """安全转换为浮点数"""
-        if value is None:
-            return default
-        if isinstance(value, (int, float)):
-            return float(value)
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return default
     
     # ============ 公共方法 ============
     
@@ -196,13 +169,8 @@ class QimaoAPI(RainAPIClient):
         cover_url = self.replace_cover_url(book_data.get("image_link", ""))
         
         # 解析更新时间
-        update_timestamp = self._safe_int(book_data.get("update_time", 0))
-        update_time = ""
-        if update_timestamp:
-            try:
-                update_time = datetime.fromtimestamp(update_timestamp).strftime("%Y-%m-%d %H:%M:%S")
-            except (ValueError, OSError, TypeError):
-                update_time = ""
+        update_timestamp = self.safe_int(book_data.get("update_time", 0))
+        update_time = self.format_timestamp(update_timestamp)
         
         # 解析连载状态 (从 category_over_words 提取)
         category_info = book_data.get("category_over_words", "")
@@ -220,10 +188,10 @@ class QimaoAPI(RainAPIClient):
             "author": book_data.get("author", ""),
             "cover_url": cover_url,
             "abstract": book_data.get("intro", ""),
-            "word_count": self._safe_int(book_data.get("words_num", 0)),
+            "word_count": self.safe_int(book_data.get("words_num", 0)),
             "category": category,
             "creation_status": creation_status,
-            "score": self._safe_float(book_data.get("score", 0)),
+            "score": self.safe_float(book_data.get("score", 0)),
             "last_chapter_title": book_data.get("latest_chapter_title", ""),
             "last_update_time": update_time,
             "tags": book_data.get("tags", ""),
@@ -279,7 +247,7 @@ class QimaoAPI(RainAPIClient):
                 "item_id": chapter_id,  # 兼容番茄格式
                 "title": item.get("title", ""),
                 "chapter_index": index,
-                "word_count": self._safe_int(item.get("words", 0)),
+                "word_count": self.safe_int(item.get("words", 0)),
                 # 七猫章节列表不提供卷信息和时间
                 "volume_name": "",
                 "update_time": "",

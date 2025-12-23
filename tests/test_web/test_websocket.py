@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from datetime import datetime
 
 from app.web.websocket import ConnectionManager, get_connection_manager
-from app.schemas.service_schemas import (
+from app.schemas import (
     WebSocketMessageType,
     WSProgressData,
     WSCompletedData,

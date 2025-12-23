@@ -5,7 +5,7 @@ from sqlalchemy import or_, func
 
 from app.models.book import Book
 from app.models.chapter import Chapter
-from app.services.book_service_base import BookServiceBase
+from app.services.book.book_service_base import BookServiceBase
 
 logger = logging.getLogger(__name__)
 

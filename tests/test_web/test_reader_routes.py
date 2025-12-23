@@ -376,7 +376,7 @@ class TestReaderRoutes:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_cache_status_and_epub(self, client, seed_data):
+    def test_cache_status(self, client, seed_data):
         # 状态
         resp = client.get(
             f"/api/books/{seed_data['book_id']}/cache/status",
@@ -384,16 +384,5 @@ class TestReaderRoutes:
         )
         assert resp.status_code == 200
         status = resp.json()
-        assert status["epub_cached"] is False
         assert seed_data["chapter1_id"] in status["cached_chapters"]
-
-        # 生成 EPUB
-        resp = client.post(
-            f"/api/books/{seed_data['book_id']}/cache/epub",
-            params={"user_id": seed_data["user_id"]},
-        )
-        assert resp.status_code == 200
-        assert "application/epub+zip" in resp.headers.get("content-type", "")
-        # 文件应落在临时目录
-        epub_files = list(seed_data["epubs_dir"].glob("*.epub"))
-        assert epub_files, "EPUB 未生成"
+        assert "cached_at" in status

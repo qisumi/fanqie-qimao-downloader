@@ -1,6 +1,6 @@
 import logging
 
-from app.services.book_service_base import BookServiceBase
+from app.services.book.book_service_base import BookServiceBase
 
 logger = logging.getLogger(__name__)
 

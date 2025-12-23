@@ -13,12 +13,12 @@ import logging
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
 from app.api.biquge import BiqugeAPI
-from app.services.book_service_add import BookServiceAddMixin
-from app.services.book_service_base import BookServiceBase
-from app.services.book_service_delete import BookServiceDeleteMixin
-from app.services.book_service_query import BookServiceQueryMixin
-from app.services.book_service_update import BookServiceUpdateMixin
-from app.services.book_service_upload import BookServiceUploadMixin
+from app.services.book.book_service_add import BookServiceAddMixin
+from app.services.book.book_service_base import BookServiceBase
+from app.services.book.book_service_delete import BookServiceDeleteMixin
+from app.services.book.book_service_query import BookServiceQueryMixin
+from app.services.book.book_service_update import BookServiceUpdateMixin
+from app.services.book.book_service_upload import BookServiceUploadMixin
 
 logger = logging.getLogger(__name__)
 

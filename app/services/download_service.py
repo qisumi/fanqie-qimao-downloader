@@ -7,15 +7,15 @@
 
 import logging
 
-from app.services.download_service_base import (
+from app.services.download.download_service_base import (
     DownloadError,
     DownloadServiceBase,
     QuotaReachedError,
     TaskCancelledError,
 )
-from app.services.download_service_operations import DownloadOperationMixin
-from app.services.download_service_quota import DownloadQuotaMixin
-from app.services.download_service_tasks import DownloadTaskMixin
+from app.services.download.download_service_operations import DownloadOperationMixin
+from app.services.download.download_service_quota import DownloadQuotaMixin
+from app.services.download.download_service_tasks import DownloadTaskMixin
 
 logger = logging.getLogger(__name__)
 

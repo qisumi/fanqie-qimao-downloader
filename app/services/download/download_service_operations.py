@@ -12,7 +12,7 @@ from app.api.base import ChapterNotFoundError, NetworkError
 from app.models.book import Book
 from app.models.chapter import Chapter
 from app.models.task import DownloadTask
-from app.services.download_service_base import DownloadServiceBase, QuotaReachedError
+from app.services.download.download_service_base import DownloadServiceBase, QuotaReachedError
 
 logger = logging.getLogger(__name__)
 

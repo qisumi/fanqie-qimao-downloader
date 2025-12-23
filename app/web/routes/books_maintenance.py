@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from app.api.base import APIError
-from app.schemas.service_schemas import BookResponse, SuccessResponse
+from app.schemas import BookResponse, SuccessResponse
 from app.services import BookService, StorageService
 from app.utils.database import get_db
 

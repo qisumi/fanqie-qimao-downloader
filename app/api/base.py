@@ -8,7 +8,7 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, Optional, TypeVar, Generic
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -354,6 +354,67 @@ class RainAPIClient(ABC):
             raise APIError(error_content or "API返回错误", code="API_ERROR")
         
         return data
+    
+    # ============ 公共工具方法 ============
+    
+    @staticmethod
+    def safe_int(value: Any, default: int = 0) -> int:
+        """安全转换为整数
+        
+        Args:
+            value: 要转换的值
+            default: 转换失败时的默认值
+            
+        Returns:
+            转换后的整数
+        """
+        if value is None:
+            return default
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+    
+    @staticmethod
+    def safe_float(value: Any, default: float = 0.0) -> float:
+        """安全转换为浮点数
+        
+        Args:
+            value: 要转换的值
+            default: 转换失败时的默认值
+            
+        Returns:
+            转换后的浮点数
+        """
+        if value is None:
+            return default
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    
+    @staticmethod
+    def format_timestamp(timestamp: int, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
+        """格式化时间戳为字符串
+        
+        Args:
+            timestamp: Unix 时间戳
+            fmt: 目标格式字符串
+            
+        Returns:
+            格式化后的时间字符串，失败返回空字符串
+        """
+        if not timestamp:
+            return ""
+        try:
+            from datetime import datetime
+            return datetime.fromtimestamp(timestamp).strftime(fmt)
+        except (ValueError, OSError, TypeError):
+            return ""
     
     # ============ 抽象方法 (子类实现) ============
     

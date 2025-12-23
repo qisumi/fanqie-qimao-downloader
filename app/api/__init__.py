@@ -20,6 +20,14 @@ from app.api.base import (
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
 from app.api.biquge import BiqugeAPI
+from app.api.utils import (
+    clean_content,
+    format_timestamp,
+    parse_datetime,
+    safe_float,
+    safe_int,
+    strip_html,
+)
 
 __all__ = [
     # 客户端类
@@ -39,4 +47,11 @@ __all__ = [
     "InvalidResponseError",
     "BookNotFoundError",
     "ChapterNotFoundError",
+    # 工具函数
+    "safe_int",
+    "safe_float",
+    "format_timestamp",
+    "parse_datetime",
+    "strip_html",
+    "clean_content",
 ]

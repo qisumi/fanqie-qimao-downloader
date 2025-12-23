@@ -111,6 +111,8 @@ async def websocket_task_progress(
         return
     
     db = SessionLocal()
+    current_task_id = task_id
+    registered_callback = None
     try:
         # 发送当前任务状态
         task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
@@ -189,6 +191,7 @@ async def websocket_task_progress(
         else:
             download_service.register_progress_callback(task_id, sync_callback)
             logger.info(f"Registered progress callback for task {task_id}")
+            registered_callback = sync_callback
         
         # 保持连接，等待客户端消息或断开
         try:
