@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
-from app.services.book_service import BookService
+from app.services import BookUploadService
 from app.utils.database import get_db
 from app.schemas import BookResponse
 
@@ -21,11 +21,11 @@ async def upload_book(
     filename = file.filename.lower()
     if not (filename.endswith('.txt') or filename.endswith('.epub')):
         raise HTTPException(status_code=400, detail="Only .txt and .epub files are supported")
-        
+
     try:
-        service = BookService(db)
+        service = BookUploadService(db)
         content_bytes = await file.read()
-        
+
         if filename.endswith('.txt'):
             # Try decoding with utf-8, fallback to gbk/gb18030
             try:
@@ -48,7 +48,7 @@ async def upload_book(
                 author=author,
                 file_content=content_bytes
             )
-            
+
         return book
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
