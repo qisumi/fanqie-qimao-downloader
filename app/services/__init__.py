@@ -3,6 +3,7 @@
 提供以下服务:
 - StorageService: 文件存储服务
 - BookService: 书籍管理服务
+- BookUploadService: 书籍上传服务 (TXT/EPUB)
 - DownloadService: 下载管理服务
 - EPUBService: EPUB生成服务
 - TXTService: TXT生成服务
@@ -10,6 +11,7 @@
 
 from app.services.storage_service import StorageService
 from app.services.book_service import BookService
+from app.services.book_upload_service import BookUploadService
 from app.services.download_service import (
     DownloadService,
     DownloadError,
@@ -24,6 +26,7 @@ from app.services.reader_service import ReaderService
 __all__ = [
     "StorageService",
     "BookService",
+    "BookUploadService",
     "DownloadService",
     "DownloadError",
     "QuotaReachedError",
