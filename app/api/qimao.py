@@ -18,6 +18,7 @@ from app.api.base import (
     ChapterNotFoundError,
     InvalidResponseError,
 )
+from app.api.utils import safe_int, safe_float, format_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -127,10 +128,10 @@ class QimaoAPI(RainAPIClient):
     async def get_book_detail(self, book_id: str) -> Dict[str, Any]:
         """
         获取书籍详情
-        
+
         Args:
             book_id: 书籍ID
-        
+
         Returns:
             {
                 "book_id": "123456789",
@@ -147,19 +148,19 @@ class QimaoAPI(RainAPIClient):
                 "tags": "玄幻・热血",
                 "source": "七猫小说"
             }
-        
+
         Raises:
             BookNotFoundError: 书籍不存在
             APIError: API相关错误
         """
         params = {"id": book_id}
-        
+
         response = await self._request(APIType.BOOK_DETAIL, params)
-        
+
         # 检查响应数据
         if not response.get("data"):
             raise BookNotFoundError(book_id, self.platform.value)
-        
+
         book_data = response["data"].get("book", response["data"])
         
         # 存储书籍ID (用于后续章节内容获取)
@@ -169,8 +170,8 @@ class QimaoAPI(RainAPIClient):
         cover_url = self.replace_cover_url(book_data.get("image_link", ""))
         
         # 解析更新时间
-        update_timestamp = self.safe_int(book_data.get("update_time", 0))
-        update_time = self.format_timestamp(update_timestamp)
+        update_timestamp = safe_int(book_data.get("update_time", 0))
+        update_time = format_timestamp(update_timestamp)
         
         # 解析连载状态 (从 category_over_words 提取)
         category_info = book_data.get("category_over_words", "")
@@ -188,10 +189,10 @@ class QimaoAPI(RainAPIClient):
             "author": book_data.get("author", ""),
             "cover_url": cover_url,
             "abstract": book_data.get("intro", ""),
-            "word_count": self.safe_int(book_data.get("words_num", 0)),
+            "word_count": safe_int(book_data.get("words_num", 0)),
             "category": category,
             "creation_status": creation_status,
-            "score": self.safe_float(book_data.get("score", 0)),
+            "score": safe_float(book_data.get("score", 0)),
             "last_chapter_title": book_data.get("latest_chapter_title", ""),
             "last_update_time": update_time,
             "tags": book_data.get("tags", ""),
@@ -201,10 +202,10 @@ class QimaoAPI(RainAPIClient):
     async def get_chapter_list(self, book_id: str) -> Dict[str, Any]:
         """
         获取章节列表
-        
+
         Args:
             book_id: 书籍ID
-        
+
         Returns:
             {
                 "book_id": "123456789",
@@ -220,22 +221,22 @@ class QimaoAPI(RainAPIClient):
                     ...
                 ]
             }
-        
+
         Raises:
             BookNotFoundError: 书籍不存在
             APIError: API相关错误
         """
         # 存储书籍ID
         self._current_book_id = book_id
-        
+
         params = {"id": book_id}
-        
+
         response = await self._request(APIType.CHAPTER_LIST, params)
-        
+
         # 检查响应数据
         if not response.get("data"):
             raise BookNotFoundError(book_id, self.platform.value)
-        
+
         chapter_list = response["data"].get("chapter_lists", [])
         
         chapters = []
@@ -247,7 +248,7 @@ class QimaoAPI(RainAPIClient):
                 "item_id": chapter_id,  # 兼容番茄格式
                 "title": item.get("title", ""),
                 "chapter_index": index,
-                "word_count": self.safe_int(item.get("words", 0)),
+                "word_count": safe_int(item.get("words", 0)),
                 # 七猫章节列表不提供卷信息和时间
                 "volume_name": "",
                 "update_time": "",
