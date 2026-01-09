@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__zread__get_repo_structure",
+      "Bash(python -m pytest:*)",
+      "Bash(npm run build)",
+      "Skill(glm-plan-usage:usage-query-skill)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
