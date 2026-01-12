@@ -166,6 +166,8 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.claude/
+.lprof/
 
 # 项目特定缓存
 .cache/
