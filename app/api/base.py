@@ -5,10 +5,12 @@ Rain API V3 客户端基类
 """
 
 import asyncio
+import functools
 import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, TypeVar, Generic
+from typing import Any, Callable, Dict, Optional
 
 import httpx
 
@@ -130,6 +132,79 @@ class AudioMode(str, Enum):
     NONE = ""  # 普通文本模式
     AI = "@"  # AI朗读模式
     REAL_PERSON = "!"  # 真人朗读模式
+
+
+# ============ 平台配置 ============
+
+@dataclass
+class PlatformConfig:
+    """平台特定的配置和字段映射"""
+    # API参数名称
+    search_keyword_param: str = "keywords"  # 搜索关键词参数名
+    search_page_param: str = "page"  # 搜索页码参数名
+    book_id_param: str = "bookid"  # 书籍ID参数名
+    chapter_id_param: str = "itemid"  # 章节ID参数名
+
+    # API响应字段映射
+    field_book_id: str = "book_id"  # 书籍ID字段
+    field_book_name: str = "book_name"  # 书名字段
+    field_author: str = "author"  # 作者字段
+    field_cover_url: str = "thumb_url"  # 封面URL字段
+    field_abstract: str = "abstract"  # 简介字段
+    field_word_count: str = "word_number"  # 字数字段
+    field_score: str = "score"  # 评分字段
+    field_tags: str = "tags"  # 标签字段
+
+    # 搜索响应路径
+    search_data_path: str = "data"  # 搜索结果在响应中的路径
+
+    # 页码转换
+    page_transform: Optional[Callable[[int], Any]] = None  # 页码转换函数
+
+    # 是否需要音频模式前缀
+    audio_mode_prefix: bool = True
+
+
+# ============ 装饰器 ============
+
+def validate_response(response_field: str = "data", error_class: type = BookNotFoundError,
+                      get_id_func: Optional[Callable] = None):
+    """
+    验证API响应的装饰器
+
+    IMPORTANT: This decorator validates the RAW API response (before parsing).
+    Apply it to methods that call self._request() and return the raw response.
+
+    Args:
+        response_field: 要检查的响应字段名
+        error_class: 验证失败时抛出的异常类
+        get_id_func: 从参数中获取ID的函数（用于错误消息）
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            response = await func(self, *args, **kwargs)
+
+            if not response.get(response_field):
+                # 尝试从参数中获取ID
+                id_value = ""
+                if get_id_func:
+                    id_value = get_id_func(args, kwargs)
+                elif args:
+                    id_value = str(args[0]) if args[0] else ""
+
+                raise error_class(id_value, self.platform.value)
+
+            return response
+        return wrapper
+    return decorator
+
+
+def _extract_first_arg(args, kwargs) -> str:
+    """从函数参数中提取第一个位置参数（通常是ID）"""
+    if args:
+        return str(args[0]) if args[0] else ""
+    return ""
 
 
 # ============ 基类 ============
@@ -354,9 +429,9 @@ class RainAPIClient(ABC):
             raise APIError(error_content or "API返回错误", code="API_ERROR")
         
         return data
-    
+
     # ============ 抽象方法 (子类实现) ============
-    
+
     @abstractmethod
     async def search(
         self,
@@ -366,18 +441,23 @@ class RainAPIClient(ABC):
     ) -> Dict[str, Any]:
         """搜索书籍"""
         pass
-    
+
     @abstractmethod
     async def get_book_detail(self, book_id: str) -> Dict[str, Any]:
         """获取书籍详情"""
         pass
-    
+
     @abstractmethod
     async def get_chapter_list(self, book_id: str) -> Dict[str, Any]:
         """获取章节列表"""
         pass
-    
+
     @abstractmethod
     async def get_chapter_content(self, chapter_id: str, **kwargs) -> Dict[str, Any]:
         """获取章节内容"""
         pass
+
+
+# Import utility functions from utils.py to avoid duplication
+# These are used by platform-specific clients
+from app.api.utils import safe_int, safe_float, format_timestamp

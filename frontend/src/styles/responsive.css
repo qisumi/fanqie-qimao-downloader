@@ -29,12 +29,12 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.15));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--scrollbar-thumb-hover, rgba(0, 0, 0, 0.25));
 }
 
 /* ===== 响应式容器 ===== */
@@ -266,10 +266,19 @@ html {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, 
+    var(--skeleton-base, #f0f0f0) 25%, 
+    var(--skeleton-highlight, #e0e0e0) 50%, 
+    var(--skeleton-base, #f0f0f0) 75%);
   background-size: 200px 100%;
   animation: skeleton-loading 1.5s ease-in-out infinite;
   border-radius: var(--border-radius-sm);
+}
+
+.card-glass {
+  background: var(--glass-bg, rgba(255, 255, 255, 0.85));
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
 }
 
 /* ===== 淡入动画 ===== */

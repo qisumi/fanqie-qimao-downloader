@@ -27,7 +27,6 @@ const props = defineProps({
   settings: { type: Object, default: () => ({}) },
   isScrollMode: { type: Boolean, default: true },
   isPageMode: { type: Boolean, default: false },
-  isEpubMode: { type: Boolean, default: false },
   isFullscreen: { type: Boolean, default: false },
   backgroundColor: { type: String, default: '#f7f3e8' },
   textColor: { type: String, default: '#333333' }
@@ -218,7 +217,6 @@ function handleTextColorChange(value) {
           <n-space :wrap="true">
             <n-button size="small" :type="isScrollMode ? 'primary' : 'default'" @click="$emit('change-mode', 'scroll')">滚动</n-button>
             <n-button size="small" :type="isPageMode ? 'primary' : 'default'" :disabled="!isMobile" @click="$emit('change-mode', 'page')">翻页</n-button>
-            <n-button size="small" :type="isEpubMode ? 'primary' : 'default'" @click="$emit('change-mode', 'epub')">EPUB</n-button>
           </n-space>
         </div>
         <div class="setting-row">

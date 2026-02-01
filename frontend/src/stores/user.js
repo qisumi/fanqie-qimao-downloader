@@ -151,7 +151,19 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function initUserContext() {
-    await fetchUsers()
+    const list = await fetchUsers()
+    if (list.length > 0) return list
+
+    try {
+      const created = await userApi.createUser('默认用户')
+      users.value = [created]
+      currentUser.value = created
+      persistCurrentUser()
+      return users.value
+    } catch (error) {
+      console.error('Failed to auto-create default user:', error)
+      return []
+    }
   }
   
   /**

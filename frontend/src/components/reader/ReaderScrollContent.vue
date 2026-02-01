@@ -2,7 +2,7 @@
 /**
  * 滚动模式内容组件
  */
-import { ref, defineExpose } from 'vue'
+import { ref } from 'vue'
 import { NAlert, NEmpty, NSkeleton, NSpin, NButton } from 'naive-ui'
 
 // 暴露滚动容器 ref
@@ -146,7 +146,7 @@ function registerChapterRef(id, el) {
 
 .chapter-heading-sub {
   font-size: 13px;
-  color: #6b6b6b;
+  color: var(--text-color-secondary, #6b6b6b);
   margin-bottom: 6px;
 }
 

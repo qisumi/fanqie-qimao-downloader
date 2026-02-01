@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject } from 'vue'
+import { computed, inject, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   NLayoutHeader, NSpace, NButton, NIcon, NDropdown, NAvatar, NBadge, NTooltip
@@ -48,9 +48,13 @@ const themeIconComponent = computed(() => {
   }
 })
 
+function renderIcon(icon) {
+  return () => h(NIcon, null, { default: () => h(icon) })
+}
+
 const userOptions = [
-  { label: '设置', key: 'settings', icon: SettingsOutline },
-  { label: '退出登录', key: 'logout', icon: LogOutOutline }
+  { label: '设置', key: 'settings', icon: renderIcon(SettingsOutline) },
+  { label: '退出登录', key: 'logout', icon: renderIcon(LogOutOutline) }
 ]
 
 async function handleUserAction(key) {

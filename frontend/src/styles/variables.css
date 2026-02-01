@@ -45,6 +45,7 @@
   /* ===== 边框 ===== */
   --border-color: #e0e0e6;
   --border-color-light: #efeff5;
+  --divider-color: #f0f0f0;
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
   --border-radius-lg: 12px;
@@ -83,6 +84,23 @@
   --gradient-error: linear-gradient(135deg, #d03050 0%, #f56c6c 100%);
   --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-card: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+  
+  /* ===== 骨架屏 ===== */
+  --skeleton-base: #f0f0f0;
+  --skeleton-highlight: #e0e0e0;
+  --skeleton-dark: #d0d0d0;
+  
+  /* ===== 滚动条 ===== */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+  
+  /* ===== 玻璃效果 ===== */
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  
+  /* ===== 图标颜色 ===== */
+  --icon-muted: #999999;
+  --icon-disabled: #cccccc;
   
   /* ===== Z-index ===== */
   --z-dropdown: 1000;
@@ -132,6 +150,7 @@
   /* 边框 */
   --border-color: #ffffff1a;
   --border-color-light: #ffffff0f;
+  --divider-color: #ffffff12;
   
   /* 阴影 - 深色模式下更微妙 */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15), 0 1px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px 0 rgba(0, 0, 0, 0.1);
@@ -147,6 +166,23 @@
   --gradient-error: linear-gradient(135deg, #e05070 0%, #f07080 100%);
   --gradient-hero: linear-gradient(135deg, #8090f0 0%, #9060c0 100%);
   --gradient-card: linear-gradient(145deg, #1e1e22 0%, #18181c 100%);
+  
+  /* 骨架屏 - 深色模式 */
+  --skeleton-base: #1e1e22;
+  --skeleton-highlight: #2a2a2e;
+  --skeleton-dark: #252528;
+  
+  /* 滚动条 - 深色模式 */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+  
+  /* 玻璃效果 - 深色模式 */
+  --glass-bg: rgba(30, 30, 34, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  
+  /* 图标颜色 - 深色模式 */
+  --icon-muted: #666666;
+  --icon-disabled: #444444;
 }
 
 /* 系统偏好深色模式 (作为回退) */

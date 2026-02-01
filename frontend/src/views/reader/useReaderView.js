@@ -2,7 +2,6 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import * as readerApi from '@/api/reader'
-import { getEpubDownloadUrl } from '@/api/books'
 import { useReaderStore } from '@/stores/reader'
 import { useUserStore } from '@/stores/user'
 import { useBookStore } from '@/stores/book'
@@ -13,7 +12,6 @@ import {
   useReaderChapter,
   useReaderScroll,
   useReaderPage,
-  useReaderEpub,
   useReaderTts
 } from '@/composables/reader'
 import { useReaderPageMode } from './useReaderPageMode'
@@ -41,7 +39,6 @@ export function useReaderView() {
   const activeMode = computed(() => readerSettings.value.readingMode || 'scroll')
   const isScrollMode = computed(() => activeMode.value === 'scroll')
   const isPageMode = computed(() => activeMode.value === 'page')
-  const isEpubMode = computed(() => activeMode.value === 'epub')
   const showChrome = computed(() => !isMobile.value || mobileChromeVisible.value)
   const cacheStatus = computed(() => readerStore.cacheStatus || {})
   const cachedChapterSet = computed(() => new Set(cacheStatus.value.cached_chapters || []))
@@ -114,8 +111,7 @@ export function useReaderView() {
   const progressComposable = useReaderProgress({
     readerStore,
     isScrollMode,
-    isPageMode,
-    isEpubMode
+    isPageMode
   })
 
   const chapterComposable = useReaderChapter({
@@ -147,13 +143,7 @@ export function useReaderView() {
     textColor
   })
 
-  const epubComposable = useReaderEpub({
-    getEpubDownloadUrl,
-    bookId: computed(() => route.params.bookId)
-  })
-
   const ttsComposable = useReaderTts({ message })
-  const epubContainerRef = epubComposable.epubContainerRef
 
   const {
     multiChapterMode,
@@ -215,11 +205,6 @@ export function useReaderView() {
     chapterComposable.initCurrentChapter()
     chapterComposable.pruneLoadedAroundCurrent(contentRef)
 
-    if (isEpubMode.value) {
-      await nextTick()
-      await epubComposable.loadEpub(percent, (p) => progressComposable.updateEpubPercent(p))
-      return
-    }
     if (isPageMode.value) {
       await nextTick()
       await paginateMultipleChaptersForPageMode(percent)
@@ -360,9 +345,6 @@ export function useReaderView() {
       }
       return
     }
-    if (isEpubMode.value) {
-      epubComposable.jumpToEpubPercent(value)
-    }
   }
 
   function changeMode(mode) {
@@ -407,20 +389,6 @@ export function useReaderView() {
       message.success('书签已保存')
     } catch (error) {
       message.error(error?.response?.data?.detail || '保存书签失败')
-    }
-  }
-
-  async function handleCacheEpub() {
-    if (caching.value) return
-    caching.value = true
-    try {
-      await readerStore.cacheEpub()
-      await readerStore.refreshCacheStatus()
-      message.success('EPUB 已缓存')
-    } catch (error) {
-      message.error(error?.response?.data?.detail || '缓存失败')
-    } finally {
-      caching.value = false
     }
   }
 
@@ -472,7 +440,6 @@ export function useReaderView() {
     progressComposable.cleanup()
     clearPageResizeTimer()
     clearTimeout(cacheRefreshTimer)
-    epubComposable.disposeEpub()
     ttsComposable.stopTts()
     themeColorManager.restoreDefaultThemeColor()
   })
@@ -540,14 +507,6 @@ export function useReaderView() {
     async (mode, prev) => {
       if (mode === prev) return
       ttsComposable.stopTts()
-      if (mode === 'epub') {
-        await epubComposable.loadEpub(
-          chapterComposable.chapterContent.value.percent || 0,
-          (p) => progressComposable.updateEpubPercent(p)
-        )
-        return
-      }
-      epubComposable.disposeEpub()
       if (mode === 'page') {
         if (!chapterComposable.chapterContent.value?.content_text && readerStore.currentChapterId) {
           await readerStore.loadChapter(readerStore.currentChapterId, { format: 'text' })
@@ -574,7 +533,6 @@ export function useReaderView() {
     showChrome,
     isScrollMode,
     isPageMode,
-    isEpubMode,
     isFullscreen,
     caching,
     readerSettings,
@@ -588,13 +546,11 @@ export function useReaderView() {
     chapterLabel,
     cacheStatus,
     scrollContentRef,
-    epubContainerRef,
     multiChapterMode,
     readerStore,
     chapterComposable,
     progressComposable,
     pageComposable,
-    epubComposable,
     ttsComposable,
     handleContentTap,
     handleSelectChapter,
@@ -605,7 +561,6 @@ export function useReaderView() {
     handleUpdateSetting,
     toggleFullscreen,
     addBookmarkAtCurrent,
-    handleCacheEpub,
     handleToggleTts,
     handleProgressChange,
     handleScroll,

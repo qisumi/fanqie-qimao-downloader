@@ -59,7 +59,10 @@
 
 /* ===== 骨架屏样式 ===== */
 .skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, 
+        var(--skeleton-base, #f0f0f0) 25%, 
+        var(--skeleton-highlight, #e0e0e0) 50%, 
+        var(--skeleton-base, #f0f0f0) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -76,13 +79,19 @@
 /* 书籍列表骨架屏 */
 .book-skeleton {
     border-radius: 0.5rem;
-    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background: linear-gradient(90deg, 
+        var(--skeleton-base, #f8f9fa) 25%, 
+        var(--skeleton-highlight, #e9ecef) 50%, 
+        var(--skeleton-base, #f8f9fa) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
 
 .book-skeleton-cover {
-    background: linear-gradient(90deg, #e9ecef 25%, #dee2e6 50%, #e9ecef 75%);
+    background: linear-gradient(90deg, 
+        var(--skeleton-highlight, #e9ecef) 25%, 
+        var(--skeleton-dark, #dee2e6) 50%, 
+        var(--skeleton-highlight, #e9ecef) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -90,7 +99,10 @@
 /* 搜索结果骨架屏 */
 .search-skeleton {
     border-radius: 0.75rem;
-    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background: linear-gradient(90deg, 
+        var(--skeleton-base, #f8f9fa) 25%, 
+        var(--skeleton-highlight, #e9ecef) 50%, 
+        var(--skeleton-base, #f8f9fa) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -98,7 +110,10 @@
 /* 任务列表骨架屏 */
 .task-skeleton {
     border-radius: 0.5rem;
-    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background: linear-gradient(90deg, 
+        var(--skeleton-base, #f8f9fa) 25%, 
+        var(--skeleton-highlight, #e9ecef) 50%, 
+        var(--skeleton-base, #f8f9fa) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -106,7 +121,10 @@
 /* 统计数据骨架屏 */
 .stats-skeleton {
     border-radius: 0.5rem;
-    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background: linear-gradient(90deg, 
+        var(--skeleton-base, #f8f9fa) 25%, 
+        var(--skeleton-highlight, #e9ecef) 50%, 
+        var(--skeleton-base, #f8f9fa) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -114,7 +132,10 @@
 /* 章节列表骨架屏 */
 .chapter-skeleton {
     border-radius: 0.25rem;
-    background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+    background: linear-gradient(90deg, 
+        var(--skeleton-base, #f8f9fa) 25%, 
+        var(--skeleton-highlight, #e9ecef) 50%, 
+        var(--skeleton-base, #f8f9fa) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -122,4 +143,21 @@
 /* 通用占位符 */
 .skeleton-placeholder {
     width: 100%;
+}
+
+/* ===== 骨架屏深色模式 ===== */
+:root.dark .skeleton,
+:root.dark .book-skeleton,
+:root.dark .search-skeleton,
+:root.dark .task-skeleton,
+:root.dark .stats-skeleton,
+:root.dark .chapter-skeleton {
+    --skeleton-base: #1e1e22;
+    --skeleton-highlight: #2a2a2e;
+    --skeleton-dark: #252528;
+}
+
+:root.dark .book-skeleton-cover {
+    --skeleton-highlight: #252528;
+    --skeleton-dark: #1e1e22;
 }

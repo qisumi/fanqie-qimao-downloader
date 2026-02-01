@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useMessage, useNotification } from 'naive-ui'
 
-const SW_VERSION = '1.7.0'
+const SW_VERSION = '1.7.1'
 
 /**
  * PWA 状态与生命周期管理

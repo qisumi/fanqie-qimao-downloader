@@ -34,9 +34,10 @@ export default defineConfig({
         additionalManifestEntries: [
           // 手动指定的预缓存资源（排除大字体文件）
           { url: '/', revision: null },
-          { url: '/manifest.json', revision: null },
           { url: '/offline.html', revision: null },
           { url: '/favicon.svg', revision: null },
+          { url: '/static/images/icon-192.png', revision: null },
+          { url: '/static/images/icon-512.png', revision: null },
           // 字体文件改为运行时缓存，不预缓存
         ]
       },
@@ -55,15 +56,20 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  // 添加静态文件服务配置
   server: {
     port: 3000,
+    fs: {
+      // 允许访问项目根目录外的文件
+      strict: false,
+    },
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:4568',
+      "/api": {
+        target: "http://127.0.0.1:4568",
         changeOrigin: true,
       },
-      '/ws': {
-        target: 'ws://127.0.0.1:4568',
+      "/ws": {
+        target: "ws://127.0.0.1:4568",
         ws: true,
       },
     },

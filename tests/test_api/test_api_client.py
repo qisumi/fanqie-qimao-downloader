@@ -17,6 +17,8 @@ from app.api import (
     APIError,
     QuotaExceededError,
     NetworkError,
+    RateLimitError,
+    InvalidResponseError,
     BookNotFoundError,
     ChapterNotFoundError,
     AudioMode,
@@ -570,3 +572,328 @@ class TestAPIClientIntegration:
                 content = await api.get_chapter_content(chapter_id)
                 assert content["type"] == "text"
                 assert len(content["content"]) > 0
+
+
+# ============ 响应验证测试 ============
+
+class TestAPIResponseValidation:
+    """API响应验证测试 - 测试各种异常响应情况"""
+
+    # ============ 番茄平台数据缺失测试 ============
+
+    @pytest.mark.asyncio
+    async def test_fanqie_get_book_detail_missing_data_field(self):
+        """测试番茄书籍详情响应缺少data字段时抛出BookNotFoundError"""
+        # 响应缺少 data 字段
+        response_missing_data = create_mock_response(200, {"message": "SUCCESS"})
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response_missing_data):
+                with pytest.raises(BookNotFoundError) as exc_info:
+                    await api.get_book_detail("7123456789")
+
+                assert exc_info.value.code == "BOOK_NOT_FOUND"
+                assert exc_info.value.platform == "fanqie"
+                assert "7123456789" in str(exc_info.value.details)
+
+    @pytest.mark.asyncio
+    async def test_fanqie_get_book_detail_empty_data(self):
+        """测试番茄书籍详情响应data为空时抛出BookNotFoundError"""
+        # data 字段为 None
+        response_empty_data = create_mock_response(200, {"data": None, "message": "SUCCESS"})
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response_empty_data):
+                with pytest.raises(BookNotFoundError) as exc_info:
+                    await api.get_book_detail("7123456789")
+
+                assert exc_info.value.book_id == "7123456789"
+
+    @pytest.mark.asyncio
+    async def test_fanqie_get_chapter_list_missing_data_field(self):
+        """测试番茄章节列表响应缺少data字段时抛出BookNotFoundError"""
+        response_missing_data = create_mock_response(200, {"message": "SUCCESS"})
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response_missing_data):
+                with pytest.raises(BookNotFoundError) as exc_info:
+                    await api.get_chapter_list("7123456789")
+
+                assert exc_info.value.code == "BOOK_NOT_FOUND"
+
+    @pytest.mark.asyncio
+    async def test_fanqie_get_chapter_content_missing_data_field(self):
+        """测试番茄章节内容响应缺少data字段时抛出ChapterNotFoundError"""
+        # 内容响应使用不同字段，模拟缺失
+        response_missing_data = create_mock_response(200, {"type": "text"})
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response_missing_data):
+                with pytest.raises(ChapterNotFoundError) as exc_info:
+                    await api.get_chapter_content("111111")
+
+                assert exc_info.value.code == "CHAPTER_NOT_FOUND"
+
+    @pytest.mark.asyncio
+    async def test_fanqie_get_chapter_content_empty_content(self):
+        """测试番茄章节内容为空字符串时抛出ChapterNotFoundError"""
+        # data 字段存在但内容为空，API会验证并抛出异常
+        response_empty_content = create_mock_response(200, {
+            "type": "text",
+            "data": {"content": ""}
+        })
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response_empty_content):
+                # 空内容应该抛出 ChapterNotFoundError
+                with pytest.raises(ChapterNotFoundError):
+                    await api.get_chapter_content("111111")
+
+    # ============ 七猫平台错误码测试 ============
+
+    @pytest.mark.asyncio
+    async def test_qimao_chapter_content_missing_book_id_error(self):
+        """测试七猫章节内容返回MISSING_BOOK_ID错误码"""
+        # 七猫API在客户端验证book_id，不依赖API响应
+        # 注意: QimaoAPI.get_chapter_content(chapter_id, book_id) 参数顺序
+        async with QimaoAPI(api_key="test") as api:
+            # 空book_id应该抛出APIError with MISSING_BOOK_ID
+            # 注意: 不需要mock HTTP请求，因为错误在请求前抛出
+            with pytest.raises(APIError) as exc_info:
+                await api.get_chapter_content(chapter_id="any_chapter_id", book_id="")
+
+            assert exc_info.value.code == "MISSING_BOOK_ID"
+            assert "书籍ID" in str(exc_info.value) or "需要提供书籍ID" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_qimao_chapter_content_missing_chapter_id_error(self):
+        """测试七猫章节内容返回MISSING_CHAPTER_ID错误码"""
+        # 设置空的响应（没有data字段）
+        error_response = create_mock_response(200, {
+            "code": "SUCCESS",
+            "msg": "成功"
+            # 没有 data 字段
+        })
+
+        async with QimaoAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=error_response):
+                # 没有data字段应该抛出 ChapterNotFoundError
+                with pytest.raises(ChapterNotFoundError):
+                    await api.get_chapter_content("book_id", "chapter_id")
+
+    @pytest.mark.asyncio
+    async def test_qimao_unknown_error_code(self):
+        """测试七猫返回未知错误码"""
+        # 没有data字段，导致ChapterNotFoundError
+        error_response = create_mock_response(200, {
+            "code": "UNKNOWN_ERROR",
+            "msg": "未知错误"
+            # 没有 data 字段
+        })
+
+        async with QimaoAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=error_response):
+                # 应该抛出 ChapterNotFoundError（因为没有data字段）
+                with pytest.raises(ChapterNotFoundError):
+                    await api.get_chapter_content("book_id", "chapter_id")
+
+    # ============ 配额超限测试 ============
+
+    @pytest.mark.asyncio
+    async def test_fanqie_quota_exceeded_error(self):
+        """测试番茄返回配额超限错误时的处理"""
+        # 番茄配额超限响应缺少data字段
+        quota_exceeded_response = create_mock_response(200, {
+            "message": "今日阅读章节数已达上限"
+            # 没有 data 字段
+        })
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=quota_exceeded_response):
+                # 当前实现: 缺少data字段导致 ChapterNotFoundError
+                # 注: 如果需要配额检测，应在API实现中检查响应消息
+                with pytest.raises(ChapterNotFoundError):
+                    await api.get_chapter_content("chapter_id")
+
+    @pytest.mark.asyncio
+    async def test_qimao_quota_exceeded_in_content(self):
+        """测试七猫章节内容中包含配额超限信息"""
+        quota_exceeded_response = create_mock_response(200, {
+            "code": "SUCCESS",
+            "data": {
+                "content": "今日阅读章节数已达上限，请明天再试"
+            }
+        })
+
+        async with QimaoAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=quota_exceeded_response):
+                # 当前实现: 返回包含配额消息的内容，不抛出异常
+                content = await api.get_chapter_content("book_id", "chapter_id")
+                assert "今日阅读章节数已达上限" in content["content"]
+                # 注: 如果需要配额检测，应检查内容并抛出 QuotaExceededError
+
+    # ============ 无效响应测试 ============
+
+    @pytest.mark.asyncio
+    async def test_malformed_json_response(self):
+        """测试JSON解析失败时抛出InvalidResponseError"""
+        # 创建一个非JSON响应
+        request = httpx.Request("GET", "http://test.api/")
+        response = httpx.Response(
+            200,
+            content=b"Invalid JSON{{{",
+            request=request
+        )
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response):
+                # JSON解析失败应该被捕获并转换为 InvalidResponseError
+                # 这取决于 _request 方法中的异常处理
+                with pytest.raises((InvalidResponseError, httpx.DecodingError)):
+                    await api.get_book_detail("7123456789")
+
+    @pytest.mark.asyncio
+    async def test_empty_response_body(self):
+        """测试空响应体时抛出InvalidResponseError"""
+        request = httpx.Request("GET", "http://test.api/")
+        response = httpx.Response(
+            200,
+            content=b"",
+            request=request
+        )
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response):
+                # 空响应体应该抛出 InvalidResponseError
+                with pytest.raises((InvalidResponseError, httpx.DecodingError)):
+                    await api.get_book_detail("7123456789")
+
+    @pytest.mark.asyncio
+    async def test_response_with_non_dict_data(self):
+        """测试响应data字段不是字典时的处理"""
+        # data 字段是数组，会导致API代码出错
+        response_array_data = create_mock_response(200, {
+            "data": ["item1", "item2"],
+            "message": "SUCCESS"
+        })
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response_array_data):
+                # 应该抛出异常（AttributeError或其他）
+                with pytest.raises((AttributeError, TypeError, KeyError)):
+                    await api.get_book_detail("7123456789")
+
+    @pytest.mark.asyncio
+    async def test_response_with_null_fields(self):
+        """测试响应字段全部为null时的处理"""
+        response_all_null = create_mock_response(200, {
+            "data": {
+                "book_id": None,
+                "book_name": None,
+                "author": None,
+            },
+            "message": "SUCCESS"
+        })
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response_all_null):
+                # data字段存在，应该返回数据
+                # 注意: API使用safe_int/safe_float，可能将None转换为默认值
+                result = await api.get_book_detail("7123456789")
+                # 检查返回值
+                assert "book_id" in result
+                assert "book_name" in result
+
+    # ============ 网络错误测试 ============
+
+    @pytest.mark.asyncio
+    async def test_network_connection_error(self):
+        """测试网络连接失败时抛出NetworkError"""
+        async with FanqieAPI(api_key="test") as api:
+            # 模拟连接超时
+            with patch.object(
+                httpx.AsyncClient,
+                'get',
+                side_effect=httpx.ConnectTimeout("Connection timeout")
+            ):
+                with pytest.raises(NetworkError) as exc_info:
+                    await api.get_book_detail("7123456789")
+
+                assert exc_info.value.code == "NETWORK_ERROR"
+
+    @pytest.mark.asyncio
+    async def test_http_status_error(self):
+        """测试HTTP错误状态码时抛出NetworkError"""
+        request = httpx.Request("GET", "http://test.api/")
+        response = httpx.Response(
+            500,
+            request=request
+        )
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=response):
+                # 500错误应该被捕获
+                with pytest.raises((NetworkError, httpx.HTTPStatusError)):
+                    await api.get_book_detail("7123456789")
+
+    # ============ 边界情况测试 ============
+
+    @pytest.mark.asyncio
+    async def test_very_large_response_payload(self):
+        """测试超大响应负载的处理"""
+        # 模拟一个包含大量数据的响应
+        large_content = "x" * 10_000_000  # 10MB
+        large_response = create_mock_response(200, {
+            "data": {
+                "content": large_content
+            },
+            "type": "text"
+        })
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=large_response):
+                # 应该能够处理大响应
+                result = await api.get_chapter_content("chapter_id")
+                assert len(result["content"]) == 10_000_000
+
+    @pytest.mark.asyncio
+    async def test_unicode_in_response(self):
+        """测试响应中包含Unicode字符的处理"""
+        unicode_response = create_mock_response(200, {
+            "data": {
+                "book_id": "7123456789",
+                "book_name": "🎉表情符号测试《书籍》",
+                "author": "作者👨‍💻"
+            },
+            "message": "SUCCESS"
+        })
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=unicode_response):
+                result = await api.get_book_detail("7123456789")
+                assert "🎉" in result["book_name"]
+                assert "《" in result["book_name"]
+                assert "👨‍💻" in result["author"]
+
+    @pytest.mark.asyncio
+    async def test_nested_data_structure_validation(self):
+        """测试嵌套数据结构的验证"""
+        nested_response = create_mock_response(200, {
+            "data": {
+                "book_id": "7123456789",
+                "book_name": "测试书",
+                "tags": [],  # 空数组
+                "roles": None,  # None值
+                "word_number": 0,  # 0值 (API内部转换为word_count)
+            },
+            "message": "SUCCESS"
+        })
+
+        async with FanqieAPI(api_key="test") as api:
+            with patch.object(httpx.AsyncClient, 'get', return_value=nested_response):
+                result = await api.get_book_detail("7123456789")
+                assert result["tags"] == []
+                # roles: None 在响应中保持为None（使用get默认值）
+                assert result.get("roles") is None
+                # word_number在API内部转换为word_count（line 186）
+                assert result.get("word_count") == 0

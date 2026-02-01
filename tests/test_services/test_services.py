@@ -187,33 +187,161 @@ class TestStorageService:
 # ============ BookService Tests ============
 
 class TestBookService:
-    """BookService 测试类"""
-    
+    """BookService 测试类 - 测试重构后的整合服务"""
+
     def test_init(self, mock_db_session, storage_service):
         """测试初始化"""
         service = BookService(db=mock_db_session, storage=storage_service)
         assert service.db is mock_db_session
         assert service.storage is storage_service
-    
+
     def test_get_book_not_found(self, mock_db_session, storage_service):
         """测试获取不存在的书籍"""
         service = BookService(db=mock_db_session, storage=storage_service)
         book = service.get_book("nonexistent-uuid")
         assert book is None
-    
+
     def test_list_books_empty(self, mock_db_session, storage_service):
         """测试空书籍列表"""
-        mock_db_session.query.return_value.filter.return_value = mock_db_session.query.return_value
-        mock_db_session.query.return_value.order_by.return_value = mock_db_session.query.return_value
-        mock_db_session.query.return_value.offset.return_value = mock_db_session.query.return_value
-        mock_db_session.query.return_value.limit.return_value = mock_db_session.query.return_value
-        mock_db_session.query.return_value.all.return_value = []
-        
+        mock_query = MagicMock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+        mock_query.count.return_value = 0
+        mock_db_session.query.return_value = mock_query
+
         service = BookService(db=mock_db_session, storage=storage_service)
         result = service.list_books()
-        
+
         assert result["books"] == []
         assert result["total"] == 0
+
+    def test_get_book_by_platform_id_found(self, mock_db_session, storage_service, sample_book):
+        """测试通过平台ID获取书籍（找到）"""
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = sample_book
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        book = service.get_book_by_platform_id("fanqie", "7123456789")
+
+        assert book is not None
+        assert book.id == sample_book.id
+        assert book.platform == "fanqie"
+
+    def test_get_book_by_platform_id_not_found(self, mock_db_session, storage_service):
+        """测试通过平台ID获取书籍（未找到）"""
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = None
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        book = service.get_book_by_platform_id("fanqie", "nonexistent")
+
+        assert book is None
+
+    def test_list_books_with_platform_filter(self, mock_db_session, storage_service, sample_book):
+        """测试带平台筛选的书籍列表"""
+        mock_query = MagicMock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = [sample_book]
+        mock_query.count.return_value = 1
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        result = service.list_books(platform="fanqie")
+
+        assert result["total"] == 1
+        assert len(result["books"]) == 1
+
+    def test_list_books_with_pagination(self, mock_db_session, storage_service, sample_book):
+        """测试书籍列表分页"""
+        mock_query = MagicMock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = [sample_book]
+        mock_query.count.return_value = 10
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        result = service.list_books(page=1, limit=10)
+
+        assert result["total"] == 10
+        assert len(result["books"]) == 1
+
+    def test_update_book_status(self, mock_db_session, storage_service, sample_book):
+        """测试更新书籍状态"""
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = sample_book
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        service.update_book_status(sample_book.id, "completed")
+
+        assert sample_book.download_status == "completed"
+        assert mock_db_session.commit.called
+
+    def test_update_download_progress(self, mock_db_session, storage_service, sample_book):
+        """测试更新下载进度"""
+        sample_book.total_chapters = 100
+        sample_book.download_status = "pending"  # Start with pending
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = sample_book
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        service.update_download_progress(sample_book.id, 50)
+
+        assert sample_book.downloaded_chapters == 50
+        # Status stays pending until completion
+        assert sample_book.download_status == "pending"
+
+    def test_update_download_progress_complete(self, mock_db_session, storage_service, sample_book):
+        """测试下载进度完成时自动更新状态"""
+        sample_book.total_chapters = 100
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = sample_book
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        service.update_download_progress(sample_book.id, 100)
+
+        assert sample_book.downloaded_chapters == 100
+        assert sample_book.download_status == "completed"
+
+    def test_delete_book_with_files(self, mock_db_session, storage_service, sample_book):
+        """测试删除书籍及文件"""
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = sample_book
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        service.delete_book(sample_book.id, delete_files=True)
+
+        # Verify book was deleted from database
+        assert mock_db_session.delete.called
+        assert mock_db_session.commit.called
+
+    def test_delete_book_keep_files(self, mock_db_session, storage_service, sample_book):
+        """测试删除书籍但保留文件"""
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = sample_book
+        mock_db_session.query.return_value = mock_query
+
+        service = BookService(db=mock_db_session, storage=storage_service)
+        service.delete_book(sample_book.id, delete_files=False)
+
+        # Verify book was deleted from database
+        assert mock_db_session.delete.called
+        # Files should still exist (we're not verifying this in unit tests)
+
 
 
 # ============ DownloadService Tests ============

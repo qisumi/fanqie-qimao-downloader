@@ -23,15 +23,13 @@ const props = defineProps({
   displayPercent: { type: Number, default: 0 },
   isLoadingChapter: { type: Boolean, default: false },
   ttsState: { type: String, default: 'idle' },
-  caching: { type: Boolean, default: false },
-  epubCached: { type: Boolean, default: false }
+  caching: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
   'prev',
   'next',
   'add-bookmark',
-  'cache-epub',
   'toggle-tts',
   'stop-tts',
   'progress-change'
@@ -57,12 +55,6 @@ import { computed } from 'vue'
           <n-icon><BookmarkOutline /></n-icon>
         </template>
         书签
-      </n-button>
-      <n-button size="small" :loading="caching" ghost @click="$emit('cache-epub')">
-        <template #icon>
-          <n-icon><CloudDownloadOutline /></n-icon>
-        </template>
-        {{ epubCached ? '已缓存 EPUB' : '缓存 EPUB' }}
       </n-button>
       <n-button
         size="small"
@@ -102,10 +94,10 @@ import { computed } from 'vue'
   max-width: 960px;
   margin-left: auto;
   margin-right: auto;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.94));
   border-radius: 14px;
   padding: 12px 16px 16px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card, 0 12px 28px rgba(0, 0, 0, 0.08));
 }
 
 .reader-footer.mobile-footer {
@@ -114,7 +106,7 @@ import { computed } from 'vue'
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.95));
   padding: 10px 12px 24px; /* 增加底部 padding 适配全面屏手势 */
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(10px);
@@ -145,7 +137,7 @@ import { computed } from 'vue'
 
 .chapter-name {
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--text-color-primary, #1f1f1f);
   max-width: 70vw;
   white-space: nowrap;
   overflow: hidden;
@@ -154,7 +146,7 @@ import { computed } from 'vue'
 
 .progress-percent {
   font-weight: 700;
-  color: #18a058;
+  color: var(--primary-color, #18a058);
 }
 .reader-footer.mobile-footer .progress-head {
   align-items: flex-start;

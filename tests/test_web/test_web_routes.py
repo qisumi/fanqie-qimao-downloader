@@ -5,6 +5,7 @@ Web层API路由测试
 """
 
 import pytest
+from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,6 +15,7 @@ from app.main import app
 from app.utils.database import Base, get_db
 from app.web.middleware.auth import AuthMiddleware
 from app.config import get_settings
+from tests.test_e2e.test_data import MOCK_SEARCH_RESULT
 
 
 # 创建测试数据库
@@ -93,6 +95,21 @@ class TestHealthCheck:
 class TestBooksAPI:
     """书籍API测试"""
     
+    def test_search_books(self, client):
+        """测试通过API搜索书籍"""
+        with patch('app.web.routes.books_search.BookService') as MockBookService:
+            mock_service = AsyncMock()
+            mock_service.search_books.return_value = MOCK_SEARCH_RESULT
+            MockBookService.return_value = mock_service
+            
+            response = client.get(
+                "/api/books/search",
+                params={"platform": "fanqie", "q": "测试小说"}
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["books"]) > 0
+
     def test_list_books_empty(self, client):
         """测试空书籍列表"""
         response = client.get("/api/books/")
@@ -259,14 +276,13 @@ class TestAuthMiddleware:
     """认证中间件测试"""
     
     def test_unauthenticated_api_redirect(self, unauthenticated_client):
-        """测试未认证访问 API 会重定向到登录页"""
+        """测试未认证访问 API 返回 401"""
         settings = get_settings()
         if not settings.app_password:
             pytest.skip("密码保护未启用，跳过测试")
-        
+    
         response = unauthenticated_client.get("/api/books/", follow_redirects=False)
-        assert response.status_code == 302
-        assert response.headers["location"].startswith("/login")
+        assert response.status_code == 401
     
     def test_authenticated_api_access(self, client):
         """测试已认证访问 API 成功"""

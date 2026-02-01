@@ -18,7 +18,7 @@ from app.utils.database import get_db
 from app.services import StorageService, DownloadService
 from app.models.book import Book
 from app.models.chapter import Chapter
-from app.schemas.service_schemas import (
+from app.schemas import (
     SystemStats,
     StorageStats,
     AllQuotaResponse,

@@ -33,7 +33,6 @@ const props = defineProps({
   showChrome: { type: Boolean, default: true },
   isScrollMode: { type: Boolean, default: true },
   isPageMode: { type: Boolean, default: false },
-  isEpubMode: { type: Boolean, default: false },
   isFullscreen: { type: Boolean, default: false },
   isLoadingChapter: { type: Boolean, default: false },
   currentBookTitle: { type: String, default: '' },
@@ -42,8 +41,7 @@ const props = defineProps({
   hasPrev: { type: Boolean, default: false },
   hasNext: { type: Boolean, default: false },
   ttsState: { type: String, default: 'idle' },
-  caching: { type: Boolean, default: false },
-  epubCached: { type: Boolean, default: false }
+  caching: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
@@ -56,7 +54,6 @@ const emit = defineEmits([
   'change-mode',
   'toggle-fullscreen',
   'add-bookmark',
-  'cache-epub',
   'toggle-tts',
   'progress-change'
 ])
@@ -118,22 +115,6 @@ function handleProgressChange(value) {
           </template>
           翻页模式
         </n-tooltip>
-        <n-tooltip trigger="hover" placement="right">
-          <template #trigger>
-            <n-button
-              quaternary
-              circle
-              size="large"
-              :type="isEpubMode ? 'primary' : 'default'"
-              @click="$emit('change-mode', 'epub')"
-            >
-              <template #icon>
-                <n-icon :size="18"><DocumentTextOutline /></n-icon>
-              </template>
-            </n-button>
-          </template>
-          EPUB 模式
-        </n-tooltip>
       </div>
       <n-tooltip trigger="hover" placement="right">
         <template #trigger>
@@ -187,14 +168,6 @@ function handleProgressChange(value) {
             </n-button>
           </template>
           添加书签
-        </n-tooltip>
-        <n-tooltip trigger="hover" placement="right">
-          <template #trigger>
-            <n-button quaternary circle size="large" :loading="caching" @click="$emit('cache-epub')">
-              <template #icon><n-icon :size="20"><CloudDownloadOutline /></n-icon></template>
-            </n-button>
-          </template>
-          {{ epubCached ? '已缓存 EPUB' : '缓存 EPUB' }}
         </n-tooltip>
         <n-tooltip trigger="hover" placement="right">
           <template #trigger>
@@ -255,9 +228,9 @@ function handleProgressChange(value) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.85));
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card, 0 10px 30px rgba(0, 0, 0, 0.08));
   backdrop-filter: blur(8px);
   position: sticky;
   top: 12px;
@@ -282,7 +255,7 @@ function handleProgressChange(value) {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #5c5c5c;
+  color: var(--text-color-secondary, #5c5c5c);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -294,7 +267,7 @@ function handleProgressChange(value) {
 .chapter-title {
   font-size: 16px;
   font-weight: 700;
-  color: #161616;
+  color: var(--text-color-primary, #161616);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -318,7 +291,7 @@ function handleProgressChange(value) {
 .toolbar-divider {
   width: 24px;
   height: 1px;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--border-color, rgba(0, 0, 0, 0.1));
   margin: 4px 0;
 }
 </style>

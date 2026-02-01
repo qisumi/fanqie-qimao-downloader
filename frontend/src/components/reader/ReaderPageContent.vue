@@ -544,9 +544,9 @@ onBeforeUnmount(() => {
   height: 100%;
   max-width: 820px;
   margin: 0 16px;
-  background: #fff;
+  background: var(--reader-panel-bg, #fff);
   border-radius: 14px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card, 0 10px 24px rgba(0, 0, 0, 0.08));
   display: flex;
   align-items: stretch;
   position: relative;
@@ -614,7 +614,6 @@ onBeforeUnmount(() => {
   padding: 20px;
 }
 
-/* 底部固定信息栏 */
 .page-footer-info {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
@@ -625,7 +624,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 6px 16px;
   font-size: 11px;
-  color: #999;
+  color: var(--text-color-tertiary, #999);
   background: transparent;
   pointer-events: none;
 }
@@ -639,6 +638,6 @@ onBeforeUnmount(() => {
 
 .footer-page {
   font-weight: 500;
-  color: #18a058;
+  color: var(--primary-color, #18a058);
 }
 </style>

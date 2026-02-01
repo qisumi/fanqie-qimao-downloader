@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.schemas.service_schemas import (
+from app.schemas import (
     BookmarkCreateRequest,
     BookmarkResponse,
     CacheStatusResponse,
@@ -374,37 +374,6 @@ async def get_cache_status(
 
     status = reader_service.get_cache_status(book)
     return CacheStatusResponse(**status)
-
-
-@router.post(
-    "/{book_id}/cache/epub",
-    summary="生成并下载EPUB以缓存",
-)
-async def cache_epub(
-    book_id: str = Path(..., description="书籍UUID"),
-    user_id: str = Query(..., description="用户ID"),
-    db: Session = Depends(get_db),
-):
-    user_service = UserService(db=db)
-    _ensure_user(user_service, user_id)
-    storage = StorageService()
-    reader_service = ReaderService(db=db, storage=storage)
-    book = _ensure_book(reader_service, book_id)
-
-    try:
-        epub_path = reader_service.ensure_epub_cached(book)
-        return FileResponse(
-            path=epub_path,
-            filename=f"{book.title}.epub",
-            media_type="application/epub+zip",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Cache EPUB failed")
-        raise HTTPException(status_code=500, detail=f"生成EPUB失败: {str(e)}")
 
 
 @router.post(

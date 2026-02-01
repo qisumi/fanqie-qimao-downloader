@@ -98,18 +98,10 @@ export function clearHistory(bookId, userId) {
 }
 
 /**
- * 缓存与 EPUB
+ * 缓存
  */
 export function getCacheStatus(bookId, userId) {
   return api.get(`/books/${bookId}/cache/status`, {
     params: { user_id: userId }
-  })
-}
-
-export function cacheEpub(bookId, userId, config = {}) {
-  return api.post(`/books/${bookId}/cache/epub`, null, {
-    params: { user_id: userId },
-    responseType: 'blob',
-    ...config
   })
 }

@@ -7,7 +7,6 @@
 import logging
 import re
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
 from app.api.base import (
     RainAPIClient,
@@ -19,6 +18,7 @@ from app.api.base import (
     ChapterNotFoundError,
     InvalidResponseError,
 )
+from app.api.utils import safe_int, safe_float, format_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -62,32 +62,6 @@ class FanqieAPI(RainAPIClient):
             timeout=timeout,
             max_retries=max_retries,
         )
-    
-    # ============ 辅助方法 ============
-    
-    @staticmethod
-    def _safe_int(value: Any, default: int = 0) -> int:
-        """安全转换为整数"""
-        if value is None:
-            return default
-        if isinstance(value, int):
-            return value
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            return default
-    
-    @staticmethod
-    def _safe_float(value: Any, default: float = 0.0) -> float:
-        """安全转换为浮点数"""
-        if value is None:
-            return default
-        if isinstance(value, (int, float)):
-            return float(value)
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return default
     
     # ============ 公共方法 ============
     
@@ -155,10 +129,10 @@ class FanqieAPI(RainAPIClient):
     async def get_book_detail(self, book_id: str) -> Dict[str, Any]:
         """
         获取书籍详情
-        
+
         Args:
             book_id: 书籍ID
-        
+
         Returns:
             {
                 "book_id": "123456789",
@@ -176,36 +150,31 @@ class FanqieAPI(RainAPIClient):
                 "tags": ["玄幻", "热血"],
                 "roles": ["主角1", "主角2"]
             }
-        
+
         Raises:
             BookNotFoundError: 书籍不存在
             APIError: API相关错误
         """
         params = {"bookid": book_id}
-        
+
         response = await self._request(APIType.BOOK_DETAIL, params)
-        
+
         # 检查响应数据
         if not response.get("data"):
             raise BookNotFoundError(book_id, self.platform.value)
-        
+
         book_data = response["data"]
         
         # 转换封面URL
         cover_url = self.replace_cover_url(book_data.get("thumb_url", ""))
         
         # 解析更新时间
-        update_timestamp = self._safe_int(book_data.get("last_chapter_update_time", 0))
-        update_time = ""
-        if update_timestamp:
-            try:
-                update_time = datetime.fromtimestamp(update_timestamp).strftime("%Y-%m-%d %H:%M:%S")
-            except (ValueError, OSError, TypeError):
-                update_time = ""
+        update_timestamp = safe_int(book_data.get("last_chapter_update_time", 0))
+        update_time = format_timestamp(update_timestamp)
         
         # 解析连载状态
         # 注意：部分 API 返回值定义可能不一致。测试中期望 0 表示连载中，1 表示已完结。
-        creation_status_code = self._safe_int(book_data.get("creation_status", 0))
+        creation_status_code = safe_int(book_data.get("creation_status", 0))
         creation_status = "连载中" if creation_status_code == 0 else "已完结"
         
         return {
@@ -214,26 +183,26 @@ class FanqieAPI(RainAPIClient):
             "author": book_data.get("author", ""),
             "cover_url": cover_url,
             "abstract": book_data.get("abstract", ""),
-            "word_count": self._safe_int(book_data.get("word_number", 0)),
+            "word_count": safe_int(book_data.get("word_number", 0)),
             "category": book_data.get("category", ""),
             "creation_status": creation_status,
             "creation_status_code": creation_status_code,
-            "score": self._safe_float(book_data.get("score", 0)),
+            "score": safe_float(book_data.get("score", 0)),
             "last_chapter_title": book_data.get("last_chapter_title", ""),
             "last_update_time": update_time,
             "last_update_timestamp": update_timestamp,
             "tags": book_data.get("tags", []),
             "roles": book_data.get("roles", []),
-            "gender": self._safe_int(book_data.get("gender", 0)),  # 1=男频, 2=女频
+            "gender": safe_int(book_data.get("gender", 0)),  # 1=男频, 2=女频
         }
     
     async def get_chapter_list(self, book_id: str) -> Dict[str, Any]:
         """
         获取章节列表
-        
+
         Args:
             book_id: 书籍ID
-        
+
         Returns:
             {
                 "book_id": "123456789",
@@ -258,19 +227,19 @@ class FanqieAPI(RainAPIClient):
                     ...
                 ]
             }
-        
+
         Raises:
             BookNotFoundError: 书籍不存在
             APIError: API相关错误
         """
         params = {"bookid": book_id}
-        
+
         response = await self._request(APIType.CHAPTER_LIST, params)
-        
+
         # 检查响应数据
         if not response.get("data"):
             raise BookNotFoundError(book_id, self.platform.value)
-        
+
         toc_data = response["data"]
         item_list = toc_data.get("item_data_list", [])
         
@@ -279,13 +248,8 @@ class FanqieAPI(RainAPIClient):
         
         for index, item in enumerate(item_list):
             # 解析时间戳
-            update_timestamp = self._safe_int(item.get("first_pass_time", 0))
-            update_time = ""
-            if update_timestamp:
-                try:
-                    update_time = datetime.fromtimestamp(update_timestamp).strftime("%Y-%m-%d %H:%M:%S")
-                except (ValueError, OSError, TypeError):
-                    update_time = ""
+            update_timestamp = safe_int(item.get("first_pass_time", 0))
+            update_time = format_timestamp(update_timestamp)
             
             volume_name = item.get("volume_name", "") or ""
             
@@ -294,7 +258,7 @@ class FanqieAPI(RainAPIClient):
                 "title": item.get("title", ""),
                 "volume_name": volume_name,
                 "chapter_index": index,
-                "word_count": self._safe_int(item.get("chapter_word_number", 0)),
+                "word_count": safe_int(item.get("chapter_word_number", 0)),
                 "update_time": update_time,
                 "update_timestamp": update_timestamp,
             }
@@ -519,7 +483,7 @@ class FanqieAPI(RainAPIClient):
             
             # 解析连载状态
             # 符合 reference 规则：0 = 连载中，1 = 完结
-            creation_status_code = self._safe_int(book_data.get("creation_status", 0))
+            creation_status_code = safe_int(book_data.get("creation_status", 0))
             creation_status = "连载中" if creation_status_code == 0 else "已完结"
             
             book = {
@@ -528,13 +492,13 @@ class FanqieAPI(RainAPIClient):
                 "author": book_data.get("author", ""),
                 "cover_url": cover_url,
                 "abstract": book_data.get("abstract", ""),
-                "word_count": self._safe_int(book_data.get("word_number", 0)),
+                "word_count": safe_int(book_data.get("word_number", 0)),
                 "creation_status": creation_status,
                 "creation_status_code": creation_status_code,
-                "score": self._safe_float(book_data.get("score", 0)),
+                "score": safe_float(book_data.get("score", 0)),
                 "tags": book_data.get("tags", []),
                 "sub_info": book_data.get("sub_info", ""),
-                "gender": self._safe_int(book_data.get("gender", 0)),
+                "gender": safe_int(book_data.get("gender", 0)),
             }
             
             # 只添加有效的书籍

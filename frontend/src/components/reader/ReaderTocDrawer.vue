@@ -166,7 +166,7 @@ watch(
 .toc-header {
   padding: 16px 18px 12px;
   border-bottom: 1px solid var(--border-color-light, #efeff5);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.9));
 }
 
 .toc-title {
@@ -212,7 +212,7 @@ watch(
 
 .toc-item.active {
   background: rgba(24, 160, 88, 0.12);
-  border-left: 4px solid #18a058;
+  border-left: 4px solid var(--primary-color, #18a058);
 }
 
 .toc-row {

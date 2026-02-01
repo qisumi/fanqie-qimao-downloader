@@ -53,7 +53,7 @@ class TestE2ECompleteWorkflow:
             chapters = db_session.query(Chapter).filter(Chapter.book_id == book.id).all()
             assert len(chapters) == 5
         
-        with patch('app.services.download_service_base.FanqieAPI') as MockFanqieAPI:
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
             mock_api = AsyncMock()
             mock_api.__aenter__.return_value = mock_api
             mock_api.__aexit__.return_value = None
@@ -126,7 +126,7 @@ class TestE2ECompleteWorkflow:
             
             assert book.total_chapters == 3
         
-        with patch('app.services.download_service_base.FanqieAPI') as MockFanqieAPI:
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
             mock_api = AsyncMock()
             mock_api.__aenter__.return_value = mock_api
             mock_api.__aexit__.return_value = None
@@ -160,7 +160,7 @@ class TestE2ECompleteWorkflow:
             count = await book_service.add_new_chapters(book.id)
             assert count == 2
         
-        with patch('app.services.download_service_base.FanqieAPI') as MockFanqieAPI:
+        with patch('app.services.download.download_service_base.FanqieAPI') as MockFanqieAPI:
             mock_api = AsyncMock()
             mock_api.__aenter__.return_value = mock_api
             mock_api.__aexit__.return_value = None
