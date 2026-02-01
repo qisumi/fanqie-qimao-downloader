@@ -5,6 +5,7 @@ FastAPI Web应用入口
 
 from contextlib import asynccontextmanager
 
+import mimetypes
 import os
 
 from fastapi import FastAPI
@@ -113,6 +114,12 @@ app = FastAPI(
 
 # 前端静态文件目录
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "../frontend/dist")
+
+# Ensure correct MIME types for static assets on Windows (registry can be incomplete).
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("application/json", ".json")
+mimetypes.add_type("image/svg+xml", ".svg")
 
 # 挂载旧静态文件目录（保留图标等资源）
 if os.path.exists("app/web/static"):
