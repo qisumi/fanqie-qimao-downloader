@@ -8,6 +8,7 @@ from app.models.bookmark import Bookmark
 from app.models.reading_history import ReadingHistory
 from app.models.user import User
 from app.models.user_book import UserBook
+from app.models.export_task import ExportTask
 
 __all__ = [
     "Book",
@@ -19,4 +20,5 @@ __all__ = [
     "ReadingHistory",
     "User",
     "UserBook",
+    "ExportTask",
 ]

@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from app.api.base import APIError, BookNotFoundError
@@ -10,10 +10,10 @@ from app.schemas import (
     BookListResponse,
     BookMetadataUpdateRequest,
     BookResponse,
-    BookStatistics,
 )
-from app.services import BookService, StorageService
+from app.usecases import BookUseCase
 from app.utils.database import get_db
+from app.web.mappers import to_book_detail_response, to_book_response
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ router = APIRouter()
 )
 async def update_book_metadata(
     book_id: str = Path(..., description="书籍UUID"),
-    payload: BookMetadataUpdateRequest = None,
+    payload: BookMetadataUpdateRequest = ...,
     db: Session = Depends(get_db),
 ) -> BookResponse:
     """
@@ -45,38 +45,14 @@ async def update_book_metadata(
     - **book_id**: 书籍UUID
     """
     try:
-        storage = StorageService()
-        book_service = BookService(db=db, storage=storage)
+        usecase = BookUseCase(db=db)
         
-        book = book_service.update_book_metadata(
-            book_uuid=book_id,
-            title=payload.title,
-            author=payload.author,
-            creation_status=payload.creation_status,
-            cover_url=payload.cover_url
-        )
+        book = usecase.update_book_metadata(book_id=book_id, payload=payload)
         
         if not book:
             raise HTTPException(status_code=404, detail="书籍不存在")
             
-        return BookResponse(
-            id=book.id,
-            platform=book.platform,
-            book_id=book.book_id,
-            title=book.title,
-            author=book.author or "",
-            cover_url=book.cover_url,
-            cover_path=book.cover_path,
-            total_chapters=book.total_chapters or 0,
-            downloaded_chapters=book.downloaded_chapters or 0,
-            word_count=book.word_count,
-            creation_status=book.creation_status,
-            last_chapter_title=book.last_chapter_title,
-            last_update_time=book.last_update_time,
-            download_status=book.download_status or "pending",
-            created_at=book.created_at,
-            updated_at=book.updated_at,
-        )
+        return to_book_response(book)
         
     except HTTPException:
         raise
@@ -122,7 +98,6 @@ async def update_book_metadata(
 async def add_book(
     platform: str = Path(..., description="平台名称"),
     book_id: str = Path(..., description="平台上的书籍ID"),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -138,36 +113,11 @@ async def add_book(
         raise HTTPException(status_code=400, detail="平台必须是 fanqie、qimao 或 biquge")
     
     try:
-        storage = StorageService()
-        book_service = BookService(db=db, storage=storage)
+        usecase = BookUseCase(db=db)
         
-        book = await book_service.add_book(
-            platform=platform,
-            book_id=book_id,
-            download_cover=True,
-            fetch_chapters=True,
-        )
+        book = await usecase.add_book(platform=platform, book_id=book_id)
         
-        book_response = BookResponse(
-            id=book.id,
-            platform=book.platform,
-            book_id=book.book_id,
-            title=book.title,
-            author=book.author or "",
-            cover_url=book.cover_url,
-            cover_path=book.cover_path,
-            epub_path=None,
-            txt_path=None,
-            total_chapters=book.total_chapters or 0,
-            downloaded_chapters=book.downloaded_chapters or 0,
-            word_count=book.word_count,
-            creation_status=book.creation_status,
-            last_chapter_title=book.last_chapter_title,
-            last_update_time=book.last_update_time,
-            download_status=book.download_status or "pending",
-            created_at=book.created_at,
-            updated_at=book.updated_at,
-        )
+        book_response = to_book_response(book)
         
         return {
             "success": True,
@@ -217,10 +167,9 @@ async def list_books(
     - **limit**: 每页数量，最大100
     """
     try:
-        storage = StorageService()
-        book_service = BookService(db=db, storage=storage)
+        usecase = BookUseCase(db=db)
         
-        result = book_service.list_books(
+        result = usecase.list_books(
             platform=platform,
             status=status,
             search=search,
@@ -228,26 +177,7 @@ async def list_books(
             limit=limit,
         )
         
-        books = []
-        for book in result["books"]:
-            books.append(BookResponse(
-                id=book.id,
-                platform=book.platform,
-                book_id=book.book_id,
-                title=book.title,
-                author=book.author or "",
-                cover_url=book.cover_url,
-                cover_path=book.cover_path,
-                total_chapters=book.total_chapters or 0,
-                downloaded_chapters=book.downloaded_chapters or 0,
-                word_count=book.word_count,
-                creation_status=book.creation_status,
-                last_chapter_title=book.last_chapter_title,
-                last_update_time=book.last_update_time,
-                download_status=book.download_status or "pending",
-                created_at=book.created_at,
-                updated_at=book.updated_at,
-            ))
+        books = [to_book_response(book) for book in result["books"]]
         
         return BookListResponse(
             books=books,
@@ -285,55 +215,20 @@ async def get_book(
     - **book_id**: 书籍UUID
     """
     try:
-        storage = StorageService()
-        book_service = BookService(db=db, storage=storage)
+        usecase = BookUseCase(db=db)
         
-        result = book_service.get_book_overview(book_id)
+        result = usecase.get_book_overview(book_id)
         
         if not result:
             raise HTTPException(status_code=404, detail="书籍不存在")
         
         book = result["book"]
         stats = result["statistics"]
-        
-        book_response = BookResponse(
-            id=book.id,
-            platform=book.platform,
-            book_id=book.book_id,
-            title=book.title,
-            author=book.author or "",
-            cover_url=book.cover_url,
-            cover_path=book.cover_path,
-            epub_path=str(storage.get_epub_path(book.title, book.id)) if storage.get_epub_path(book.title, book.id).exists() else None,
-            txt_path=str(storage.get_txt_path(book.title, book.id)) if storage.get_txt_path(book.title, book.id).exists() else None,
-            total_chapters=book.total_chapters or 0,
-            downloaded_chapters=book.downloaded_chapters or 0,
-            word_count=book.word_count,
-            creation_status=book.creation_status,
-            last_chapter_title=book.last_chapter_title,
-            last_update_time=book.last_update_time,
-            download_status=book.download_status or "pending",
-            created_at=book.created_at,
-            updated_at=book.updated_at,
-        )
-        
-        statistics = BookStatistics(
-            total_chapters=stats.get("total_chapters", 0),
-            completed_chapters=stats.get("completed_chapters", 0),
-            failed_chapters=stats.get("failed_chapters", 0),
-            pending_chapters=stats.get("pending_chapters", 0),
-            progress=stats.get("progress", 0.0),
-            exists=stats.get("exists", False),
-            has_cover=stats.get("has_cover", False),
-            chapter_count=stats.get("chapter_count", 0),
-            size_bytes=stats.get("size_bytes", 0),
-            size_mb=stats.get("size_mb", 0.0),
-        )
-        
-        return BookDetailResponse(
-            book=book_response,
-            chapters=[],
-            statistics=statistics,
+
+        return to_book_detail_response(
+            book=book,
+            statistics=stats,
+            storage=usecase.storage,
         )
         
     except HTTPException:

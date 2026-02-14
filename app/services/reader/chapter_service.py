@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Set
 from sqlalchemy.orm import Session
 
 from app.models import Book, Chapter
+from app.repositories import BookRepository, ChapterRepository
 from app.services.download_service import DownloadService, QuotaReachedError
 from app.services.storage_service import StorageService
 from app.utils.database import SessionLocal
@@ -66,6 +67,8 @@ class ChapterService:
         self.storage = storage or StorageService()
         self.download_service = download_service or DownloadService(db=db, storage=self.storage)
         self.prefetch_manager = prefetch_manager or ChapterPrefetchManager()
+        self.book_repo = BookRepository(db)
+        self.chapter_repo = ChapterRepository(db)
 
     # ========= 基础查询 =========
     def _get_book(self, book_id: str) -> Optional[Book]:
@@ -77,7 +80,7 @@ class ChapterService:
         Returns:
             书籍对象或None
         """
-        return self.db.query(Book).filter(Book.id == book_id).first()
+        return self.book_repo.get_by_id(book_id)
 
     def _get_chapter(self, book_id: str, chapter_id: str) -> Optional[Chapter]:
         """获取章节
@@ -89,10 +92,7 @@ class ChapterService:
         Returns:
             章节对象或None
         """
-        return self.db.query(Chapter).filter(
-            Chapter.id == chapter_id,
-            Chapter.book_id == book_id,
-        ).first()
+        return self.chapter_repo.get_by_id_and_book(chapter_id, book_id)
 
     def _get_adjacent_chapters(self, book_id: str, chapter_index: int) -> tuple[Optional[str], Optional[str]]:
         """获取相邻章节ID
@@ -104,17 +104,7 @@ class ChapterService:
         Returns:
             (上一章ID, 下一章ID) 元组
         """
-        prev_id = self.db.query(Chapter.id).filter(
-            Chapter.book_id == book_id,
-            Chapter.chapter_index < chapter_index
-        ).order_by(Chapter.chapter_index.desc()).limit(1).scalar()
-
-        next_id = self.db.query(Chapter.id).filter(
-            Chapter.book_id == book_id,
-            Chapter.chapter_index > chapter_index
-        ).order_by(Chapter.chapter_index.asc()).limit(1).scalar()
-
-        return prev_id, next_id
+        return self.chapter_repo.get_adjacent_chapter_ids(book_id, chapter_index)
 
     # ========= 章节内容读取 =========
     def _read_chapter_text(self, chapter: Chapter) -> Optional[str]:
@@ -389,10 +379,8 @@ class ChapterService:
             start_index: 起始章节索引
             count: 预取章节数量
         """
-        chapters = db.query(Chapter).filter(
-            Chapter.book_id == book_id,
-            Chapter.chapter_index > start_index,
-        ).order_by(Chapter.chapter_index).limit(count).all()
+        chapter_repo = ChapterRepository(db)
+        chapters = chapter_repo.list_after_index(book_id, start_index, count)
 
         for ch in chapters:
             cache_key = f"{book_id}:{ch.id}"

@@ -7,6 +7,27 @@
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-02-14
+
+### ♻️ 重构
+
+- **架构分层收敛（Route -> UseCase -> Repository）**
+  - 路由层业务编排进一步下沉到 `usecases`，统一响应映射到 `app/web/mappers`
+  - 新增并扩展 `app/repositories/`，将服务层和路由层的 ORM 直查统一收敛到 repository
+  - `tasks_start` / `tasks_control` / `tasks_list` / `ws` 统一接入 `TaskOrchestrator`
+  - 导出任务状态持久化，新增 `export_tasks` 表与迁移脚本
+
+### 🛠 改进
+
+- **可维护性提升**
+  - 明确 session 策略与 repository 边界（ADR-0001）
+  - 统计、配额、阅读器、用户书架等模块统一到一致的数据访问模式
+
+### 🧪 测试
+
+- 完成全量测试回归，当前结果为 `153 passed, 5 failed, 1 skipped`
+- 已定位失败集中于页面路由（静态资源/SPA 页面测试环境相关），不影响本次架构收敛主链路
+
 ## [1.7.1] - 2025-12-23
 
 ### ✨ 新增

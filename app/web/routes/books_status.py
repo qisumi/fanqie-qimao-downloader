@@ -4,8 +4,10 @@ from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.schemas import BookResponse, BookStatistics, BookStatusResponse
+from app.schemas import BookStatusResponse
+from app.repositories import ChapterRepository
 from app.services import BookService, StorageService
+from app.web.mappers.book_mapper import to_book_response, to_book_statistics
 from app.utils.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -37,37 +39,8 @@ async def get_book_status(
         
         stats = book_service.get_book_statistics(book_id)
         
-        book_response = BookResponse(
-            id=book.id,
-            platform=book.platform,
-            book_id=book.book_id,
-            title=book.title,
-            author=book.author or "",
-            cover_url=book.cover_url,
-            cover_path=book.cover_path,
-            total_chapters=book.total_chapters or 0,
-            downloaded_chapters=book.downloaded_chapters or 0,
-            word_count=book.word_count,
-            creation_status=book.creation_status,
-            last_chapter_title=book.last_chapter_title,
-            last_update_time=book.last_update_time,
-            download_status=book.download_status or "pending",
-            created_at=book.created_at,
-            updated_at=book.updated_at,
-        )
-        
-        statistics = BookStatistics(
-            total_chapters=stats.get("total_chapters", 0),
-            completed_chapters=stats.get("completed_chapters", 0),
-            failed_chapters=stats.get("failed_chapters", 0),
-            pending_chapters=stats.get("pending_chapters", 0),
-            progress=stats.get("progress", 0.0),
-            exists=stats.get("exists", False),
-            has_cover=stats.get("has_cover", False),
-            chapter_count=stats.get("chapter_count", 0),
-            size_bytes=stats.get("size_bytes", 0),
-            size_mb=stats.get("size_mb", 0.0),
-        )
+        book_response = to_book_response(book)
+        statistics = to_book_statistics(stats)
         
         return BookStatusResponse(
             book=book_response,
@@ -96,20 +69,16 @@ async def get_chapter_status_summary(
     - **book_id**: 书籍UUID
     - **segment_size**: 每段章节数，默认50
     """
-    from app.models.chapter import Chapter
-    from sqlalchemy import func
-    
     try:
         storage = StorageService()
         book_service = BookService(db=db, storage=storage)
+        chapter_repo = ChapterRepository(db)
         
         book = book_service.get_book(book_id)
         if not book:
             raise HTTPException(status_code=404, detail="书籍不存在")
         
-        chapters = db.query(Chapter).filter(
-            Chapter.book_id == book_id
-        ).order_by(Chapter.chapter_index).all()
+        chapters = chapter_repo.list_by_book(book_id)
         
         if not chapters:
             return {

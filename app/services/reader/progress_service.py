@@ -10,6 +10,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models import ReadingHistory, ReadingProgress
+from app.repositories import ReadingProgressRepository
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class ProgressService:
             db: 数据库会话
         """
         self.db = db
+        self.progress_repo = ReadingProgressRepository(db)
 
     def get_progress(
         self,
@@ -51,19 +53,7 @@ class ProgressService:
             ReadingProgress 对象，如果不存在则返回 None
         """
         try:
-            query = self.db.query(ReadingProgress).filter(
-                ReadingProgress.user_id == user_id,
-                ReadingProgress.book_id == book_id,
-            )
-            
-            if device_id:
-                # 获取指定设备的进度
-                query = query.filter(ReadingProgress.device_id == device_id)
-            else:
-                # 不指定设备ID时，获取最新的跨设备同步进度
-                query = query.order_by(ReadingProgress.updated_at.desc())
-            
-            progress = query.first()
+            progress = self.progress_repo.get_progress(user_id, book_id, device_id)
             
             if progress:
                 logger.debug(
@@ -100,10 +90,7 @@ class ProgressService:
             ReadingProgress 对象列表，按更新时间降序排列
         """
         try:
-            progress_list = self.db.query(ReadingProgress).filter(
-                ReadingProgress.user_id == user_id,
-                ReadingProgress.book_id == book_id,
-            ).order_by(ReadingProgress.updated_at.desc()).all()
+            progress_list = self.progress_repo.list_by_user_book(user_id, book_id)
             
             logger.debug(
                 f"获取所有设备进度成功: user_id={user_id}, book_id={book_id}, "

@@ -5,80 +5,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
-from app.services import BookService, TXTService, StorageService
+from app.usecases import ExportUseCase
 from app.utils.database import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# 存储TXT生成任务状态
-_txt_tasks: Dict[str, Dict[str, Any]] = {}
-
-
-async def _generate_txt_async(
-    book_id: str,
-    db_session_maker,
-):
-    """后台TXT生成任务"""
-    _txt_tasks[book_id] = {
-        "status": "running",
-        "progress": 0,
-        "message": "正在生成TXT...",
-        "file_path": None,
-        "error": None,
-    }
-    
-    try:
-        from app.utils.database import SessionLocal
-        db = SessionLocal()
-        
-        try:
-            storage = StorageService()
-            book_service = BookService(db=db, storage=storage)
-            txt_service = TXTService(db=db, storage=storage)
-            
-            result = book_service.get_book_with_chapters(book_id)
-            if not result:
-                raise ValueError("书籍不存在")
-            
-            book = result["book"]
-            chapters = result["chapters"]
-            
-            completed_chapters = [
-                ch for ch in chapters 
-                if ch.download_status == "completed"
-            ]
-            
-            if not completed_chapters:
-                raise ValueError("没有已下载的章节可生成TXT")
-            
-            _txt_tasks[book_id]["progress"] = 30
-            _txt_tasks[book_id]["message"] = f"准备生成TXT，共{len(completed_chapters)}章"
-            
-            txt_path = txt_service.generate_txt(book, completed_chapters)
-            
-            _txt_tasks[book_id] = {
-                "status": "completed",
-                "progress": 100,
-                "message": "TXT生成成功",
-                "file_path": txt_path,
-                "error": None,
-            }
-            
-        finally:
-            db.close()
-            
-    except Exception as e:
-        logger.error(f"TXT generation error: {e}")
-        _txt_tasks[book_id] = {
-            "status": "failed",
-            "progress": 0,
-            "message": str(e),
-            "file_path": None,
-            "error": str(e),
-        }
-
 
 @router.post(
     "/{book_id}/txt",
@@ -102,8 +34,8 @@ async def _generate_txt_async(
     }
 )
 async def generate_txt(
+    background_tasks: BackgroundTasks,
     book_id: str = Path(..., description="书籍UUID"),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
@@ -115,29 +47,12 @@ async def generate_txt(
     - **book_id**: 书籍UUID
     """
     try:
-        storage = StorageService()
-        book_service = BookService(db=db, storage=storage)
-        
-        book = book_service.get_book(book_id)
-        if not book:
+        usecase = ExportUseCase(db=db)
+        return usecase.start_txt_generation(book_id=book_id, background_tasks=background_tasks)
+    except ValueError as exc:
+        if str(exc) == "书籍不存在":
             raise HTTPException(status_code=404, detail="书籍不存在")
-        
-        if book_id in _txt_tasks and _txt_tasks[book_id].get("status") == "running":
-            return {
-                "success": True,
-                "message": "TXT生成任务已在进行中",
-                "status": _txt_tasks[book_id],
-            }
-        
-        from app.utils.database import SessionLocal
-        background_tasks.add_task(_generate_txt_async, book_id, SessionLocal)
-        
-        return {
-            "success": True,
-            "message": "TXT生成任务已启动",
-            "book_id": book_id,
-        }
-        
+        raise
     except HTTPException:
         raise
     except Exception as e:
@@ -187,6 +102,7 @@ async def generate_txt(
 )
 async def get_txt_status(
     book_id: str = Path(..., description="书籍UUID"),
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     获取TXT生成状态
@@ -195,19 +111,13 @@ async def get_txt_status(
     
     - **book_id**: 书籍UUID
     """
-    if book_id not in _txt_tasks:
-        return {
-            "status": "not_started",
-            "message": "没有正在进行的TXT生成任务",
-        }
-    
-    return _txt_tasks[book_id]
+    return ExportUseCase(db=db).get_txt_status(book_id)
 
 
 @router.get("/{book_id}/txt/download")
 async def download_txt(
+    background_tasks: BackgroundTasks,
     book_id: str,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ):
     """
@@ -219,42 +129,28 @@ async def download_txt(
     - **book_id**: 书籍UUID
     """
     try:
-        storage = StorageService()
-        book_service = BookService(db=db, storage=storage)
-        
-        book = book_service.get_book(book_id)
-        if not book:
-            raise HTTPException(status_code=404, detail="书籍不存在")
-        
-        txt_path = storage.get_txt_path(book.title, book.id)
+        usecase = ExportUseCase(db=db)
+        action = usecase.ensure_txt_download_ready(
+            book_id=book_id,
+            background_tasks=background_tasks,
+        )
 
-        # 如果文件不存在，启动后台生成任务并返回 202
-        if not txt_path.exists():
-            # 如果已有后台任务在运行或排队，告知客户端稍后重试
-            if book_id in _txt_tasks and _txt_tasks[book_id].get("status") in ("running", "queued"):
-                return JSONResponse({"detail": "TXT正在生成中，请稍后再试"}, status_code=202)
+        if action["type"] == "queued":
+            return JSONResponse(
+                {"detail": action["detail"]},
+                status_code=action["status_code"],
+                background=background_tasks,
+            )
 
-            # 标记为排队中并启动后台任务
-            _txt_tasks[book_id] = {
-                "status": "queued",
-                "progress": 0,
-                "message": "TXT生成任务已排队",
-                "file_path": None,
-                "error": None,
-            }
-
-            from app.utils.database import SessionLocal
-            background_tasks.add_task(_generate_txt_async, book_id, SessionLocal)
-
-            return JSONResponse({"detail": "TXT生成任务已启动，请稍后再试下载"}, status_code=202, background=background_tasks)
-
-        # 文件存在，直接返回
         return FileResponse(
-            path=str(txt_path),
-            filename=f"{book.title}.txt",
+            path=action["path"],
+            filename=action["filename"],
             media_type="text/plain",
         )
-        
+    except ValueError as exc:
+        if str(exc) == "书籍不存在":
+            raise HTTPException(status_code=404, detail="书籍不存在")
+        raise
     except HTTPException:
         raise
     except Exception as e:

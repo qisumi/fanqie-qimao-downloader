@@ -12,12 +12,10 @@ from typing import Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
+from app.repositories import BookRepository, ChapterRepository
 from app.utils.database import get_db
 from app.services import StorageService, DownloadService
-from app.models.book import Book
-from app.models.chapter import Chapter
 from app.schemas import (
     SystemStats,
     StorageStats,
@@ -57,29 +55,22 @@ async def get_stats(
     try:
         storage = StorageService()
         download_service = DownloadService(db=db, storage=storage)
+        book_repo = BookRepository(db)
+        chapter_repo = ChapterRepository(db)
         
         # 统计书籍数量
-        total_books = db.query(func.count(Book.id)).scalar() or 0
+        total_books = book_repo.get_total_books()
         
         # 按平台统计
-        platform_stats = db.query(
-            Book.platform,
-            func.count(Book.id)
-        ).group_by(Book.platform).all()
-        books_by_platform = {p: c for p, c in platform_stats}
+        books_by_platform = book_repo.get_books_by_platform()
         
         # 按状态统计
-        status_stats = db.query(
-            Book.download_status,
-            func.count(Book.id)
-        ).group_by(Book.download_status).all()
-        books_by_status = {s or "unknown": c for s, c in status_stats}
+        status_stats = book_repo.get_books_by_status()
+        books_by_status = {s or "unknown": c for s, c in status_stats.items()}
         
         # 统计章节数量
-        total_chapters = db.query(func.count(Chapter.id)).scalar() or 0
-        downloaded_chapters = db.query(func.count(Chapter.id)).filter(
-            Chapter.download_status == "completed"
-        ).scalar() or 0
+        total_chapters = chapter_repo.get_total_count()
+        downloaded_chapters = chapter_repo.get_downloaded_count()
         
         # 获取存储统计
         storage_stats_dict = storage.get_storage_stats()
@@ -285,26 +276,19 @@ async def get_books_summary(
     - 最近添加的书籍
     """
     try:
+        book_repo = BookRepository(db)
         # 按平台统计
-        platform_stats = db.query(
-            Book.platform,
-            func.count(Book.id)
-        ).group_by(Book.platform).all()
+        platform_stats = book_repo.get_books_by_platform()
         
         # 按状态统计
-        status_stats = db.query(
-            Book.download_status,
-            func.count(Book.id)
-        ).group_by(Book.download_status).all()
+        status_stats = book_repo.get_books_by_status()
         
         # 最近添加的书籍
-        recent_books = db.query(Book).order_by(
-            Book.created_at.desc()
-        ).limit(5).all()
+        recent_books = book_repo.list_recent(limit=5)
         
         return {
-            "by_platform": {p: c for p, c in platform_stats},
-            "by_status": {s or "unknown": c for s, c in status_stats},
+            "by_platform": platform_stats,
+            "by_status": {s or "unknown": c for s, c in status_stats.items()},
             "recent_books": [
                 {
                     "id": book.id,

@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models import ReadingHistory
+from app.repositories import ReadingHistoryRepository
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class HistoryService:
             db: 数据库会话
         """
         self.db = db
+        self.history_repo = ReadingHistoryRepository(db)
 
     def list_history(
         self,
@@ -60,16 +62,7 @@ class HistoryService:
                 limit = 1000
 
             # 查询历史记录
-            history_records = (
-                self.db.query(ReadingHistory)
-                .filter(
-                    ReadingHistory.user_id == user_id,
-                    ReadingHistory.book_id == book_id,
-                )
-                .order_by(ReadingHistory.updated_at.desc())
-                .limit(limit)
-                .all()
-            )
+            history_records = self.history_repo.list_history(user_id, book_id, limit)
 
             logger.debug(
                 f"Retrieved {len(history_records)} history records "
@@ -101,14 +94,7 @@ class HistoryService:
         """
         try:
             # 执行删除操作
-            rows_deleted = (
-                self.db.query(ReadingHistory)
-                .filter(
-                    ReadingHistory.user_id == user_id,
-                    ReadingHistory.book_id == book_id,
-                )
-                .delete()
-            )
+            rows_deleted = self.history_repo.clear_history(user_id, book_id)
 
             # 提交事务
             self.db.commit()
@@ -143,15 +129,7 @@ class HistoryService:
             最新的阅读历史记录，如果不存在则返回 None
         """
         try:
-            latest_record = (
-                self.db.query(ReadingHistory)
-                .filter(
-                    ReadingHistory.user_id == user_id,
-                    ReadingHistory.book_id == book_id,
-                )
-                .order_by(ReadingHistory.updated_at.desc())
-                .first()
-            )
+            latest_record = self.history_repo.get_latest(user_id, book_id)
 
             return latest_record
 

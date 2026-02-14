@@ -3,8 +3,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
-from sqlalchemy import func
-
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
 from app.api.biquge import BiqugeAPI
@@ -12,6 +10,7 @@ from app.api.base import ChapterNotFoundError, NetworkError
 from app.models.book import Book
 from app.models.chapter import Chapter
 from app.models.task import DownloadTask
+from app.repositories import BookRepository, ChapterRepository
 from app.services.download.download_service_base import DownloadServiceBase, QuotaReachedError
 
 logger = logging.getLogger(__name__)
@@ -19,6 +18,14 @@ logger = logging.getLogger(__name__)
 
 class DownloadOperationMixin(DownloadServiceBase):
     """章节下载、更新和重试相关的逻辑。"""
+
+    @property
+    def _book_repo(self) -> BookRepository:
+        return BookRepository(self.db)
+
+    @property
+    def _chapter_repo(self) -> ChapterRepository:
+        return ChapterRepository(self.db)
     
     async def download_book(
         self,
@@ -40,7 +47,7 @@ class DownloadOperationMixin(DownloadServiceBase):
             task_id: 已有的任务ID，如果提供则复用该任务
             skip_completed: 是否跳过已完成章节
         """
-        book = self.db.query(Book).filter(Book.id == book_uuid).first()
+        book = self._book_repo.get_by_id(book_uuid)
         if not book:
             raise ValueError(f"Book not found: {book_uuid}")
         
@@ -97,10 +104,7 @@ class DownloadOperationMixin(DownloadServiceBase):
             
             task.completed_at = datetime.now(timezone.utc)
             
-            completed_count = self.db.query(func.count(Chapter.id)).filter(
-                Chapter.book_id == book_uuid,
-                Chapter.download_status == "completed"
-            ).scalar() or 0
+            completed_count = self._chapter_repo.count_completed_by_book(book_uuid)
             book.downloaded_chapters = completed_count
             
             self.db.commit()
@@ -149,21 +153,13 @@ class DownloadOperationMixin(DownloadServiceBase):
         skip_completed: bool = True,
     ) -> List[Chapter]:
         """获取待下载的章节列表"""
-        query = self.db.query(Chapter).filter(
-            Chapter.book_id == book_uuid,
-            Chapter.chapter_index >= start_chapter
+        return self._chapter_repo.list_pending_for_download(
+            book_id=book_uuid,
+            task_type=task_type,
+            start_chapter=start_chapter,
+            end_chapter=end_chapter,
+            skip_completed=skip_completed,
         )
-        
-        if end_chapter is not None:
-            query = query.filter(Chapter.chapter_index <= end_chapter)
-        
-        if task_type == "full_download":
-            if skip_completed:
-                query = query.filter(Chapter.download_status != "completed")
-        else:
-            query = query.filter(Chapter.download_status == "pending")
-        
-        return query.order_by(Chapter.chapter_index).all()
     
     def _reset_chapters_for_full_download(
         self,
@@ -172,15 +168,11 @@ class DownloadOperationMixin(DownloadServiceBase):
         end_chapter: Optional[int] = None,
     ):
         """重置章节状态为pending，用于完整下载重新开始"""
-        query = self.db.query(Chapter).filter(
-            Chapter.book_id == book_uuid,
-            Chapter.chapter_index >= start_chapter
+        chapters = self._chapter_repo.list_in_range(
+            book_id=book_uuid,
+            start_chapter=start_chapter,
+            end_chapter=end_chapter,
         )
-        
-        if end_chapter is not None:
-            query = query.filter(Chapter.chapter_index <= end_chapter)
-        
-        chapters = query.all()
         
         for chapter in chapters:
             if chapter.download_status in ("failed", "pending"):
@@ -308,10 +300,7 @@ class DownloadOperationMixin(DownloadServiceBase):
     
     async def retry_failed_chapters(self, book_uuid: str) -> int:
         """重试失败的章节"""
-        failed_chapters = self.db.query(Chapter).filter(
-            Chapter.book_id == book_uuid,
-            Chapter.download_status == "failed"
-        ).all()
+        failed_chapters = self._chapter_repo.list_failed_by_book(book_uuid)
         
         if not failed_chapters:
             return 0
@@ -343,14 +332,14 @@ class DownloadOperationMixin(DownloadServiceBase):
         Returns:
             bool: 是否成功下载
         """
-        book = self.db.query(Book).filter(Book.id == book_uuid).first()
+        book = self._book_repo.get_by_id(book_uuid)
         if not book:
             raise ValueError("书籍不存在")
 
-        chapter = self.db.query(Chapter).filter(
-            Chapter.id == chapter_uuid,
-            Chapter.book_id == book_uuid,
-        ).first()
+        chapter = self._chapter_repo.get_by_id_and_book(
+            chapter_id=chapter_uuid,
+            book_id=book_uuid,
+        )
         if not chapter:
             raise ValueError("章节不存在")
 
@@ -384,10 +373,7 @@ class DownloadOperationMixin(DownloadServiceBase):
                 except Exception:
                     logger.exception("Record download words failed")
 
-                completed_count = self.db.query(func.count(Chapter.id)).filter(
-                    Chapter.book_id == book_uuid,
-                    Chapter.download_status == "completed",
-                ).scalar() or 0
+                completed_count = self._chapter_repo.count_completed_by_book(book_uuid)
                 book.downloaded_chapters = completed_count
                 self.db.commit()
                 return True

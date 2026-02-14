@@ -3,11 +3,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
-from sqlalchemy import func
-
-from app.models.book import Book
-from app.models.chapter import Chapter
 from app.models.task import DownloadTask
+from app.repositories import BookRepository, ChapterRepository, DownloadTaskRepository
 from app.services.download.download_service_base import DownloadServiceBase
 
 logger = logging.getLogger(__name__)
@@ -15,6 +12,18 @@ logger = logging.getLogger(__name__)
 
 class DownloadTaskMixin(DownloadServiceBase):
     """任务管理相关的逻辑拆分到独立 mixin 中。"""
+
+    @property
+    def _book_repo(self) -> BookRepository:
+        return BookRepository(self.db)
+
+    @property
+    def _chapter_repo(self) -> ChapterRepository:
+        return ChapterRepository(self.db)
+
+    @property
+    def _task_repo(self) -> DownloadTaskRepository:
+        return DownloadTaskRepository(self.db)
     
     def _calculate_task_total(
         self,
@@ -27,21 +36,18 @@ class DownloadTaskMixin(DownloadServiceBase):
         """
         计算任务实际需要处理的章节数，保证任务进度的分母准确。
         """
-        query = self.db.query(func.count(Chapter.id)).filter(
-            Chapter.book_id == book_uuid,
-            Chapter.chapter_index >= start_chapter,
-        )
-        
-        if end_chapter is not None:
-            query = query.filter(Chapter.chapter_index <= end_chapter)
-        
         if task_type == "full_download":
-            if skip_completed:
-                query = query.filter(Chapter.download_status != "completed")
-        else:
-            query = query.filter(Chapter.download_status == "pending")
-        
-        return query.scalar() or 0
+            return self._chapter_repo.count_for_full_download(
+                book_id=book_uuid,
+                start_chapter=start_chapter,
+                end_chapter=end_chapter,
+                skip_completed=skip_completed,
+            )
+        return self._chapter_repo.count_for_update(
+            book_id=book_uuid,
+            start_chapter=start_chapter,
+            end_chapter=end_chapter,
+        )
     
     def create_task(
         self,
@@ -61,7 +67,7 @@ class DownloadTaskMixin(DownloadServiceBase):
             end_chapter: 结束章节索引（包含）
             skip_completed: 是否跳过已完成章节（仅 full_download 有效）
         """
-        book = self.db.query(Book).filter(Book.id == book_uuid).first()
+        book = self._book_repo.get_by_id(book_uuid)
         if not book:
             raise ValueError(f"Book not found: {book_uuid}")
         
@@ -93,7 +99,7 @@ class DownloadTaskMixin(DownloadServiceBase):
     
     def get_task(self, task_id: str) -> Optional[DownloadTask]:
         """获取任务详情"""
-        return self.db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+        return self._task_repo.get_by_id(task_id)
     
     def list_tasks(
         self,
@@ -103,19 +109,12 @@ class DownloadTaskMixin(DownloadServiceBase):
         limit: int = 20,
     ) -> Dict[str, Any]:
         """获取任务列表"""
-        query = self.db.query(DownloadTask)
-        
-        if book_uuid:
-            query = query.filter(DownloadTask.book_id == book_uuid)
-        
-        if status:
-            query = query.filter(DownloadTask.status == status)
-        
-        total = query.count()
-        query = query.order_by(DownloadTask.created_at.desc())
-        query = query.offset(page * limit).limit(limit)
-        
-        tasks = query.all()
+        tasks, total = self._task_repo.list_tasks(
+            book_id=book_uuid,
+            status=status,
+            page=page,
+            limit=limit,
+        )
         
         return {
             "tasks": tasks,
@@ -137,7 +136,7 @@ class DownloadTaskMixin(DownloadServiceBase):
         task.status = "cancelled"
         task.completed_at = datetime.now(timezone.utc)
         
-        book = self.db.query(Book).filter(Book.id == task.book_id).first()
+        book = self._book_repo.get_by_id(task.book_id)
         if book and book.download_status == "downloading":
             if book.downloaded_chapters > 0:
                 book.download_status = "partial"
@@ -165,12 +164,9 @@ class DownloadTaskMixin(DownloadServiceBase):
             task.progress = round(completed / total * 100, 2)
         
         if downloaded > 0:
-            book = self.db.query(Book).filter(Book.id == task.book_id).first()
+            book = self._book_repo.get_by_id(task.book_id)
             if book:
-                completed_count = self.db.query(func.count(Chapter.id)).filter(
-                    Chapter.book_id == task.book_id,
-                    Chapter.download_status == "completed"
-                ).scalar() or 0
+                completed_count = self._chapter_repo.count_completed_by_book(task.book_id)
                 book.downloaded_chapters = completed_count
         
         self.db.commit()

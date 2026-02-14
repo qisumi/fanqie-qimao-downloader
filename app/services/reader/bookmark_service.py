@@ -7,7 +7,8 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import Bookmark, Book, Chapter
+from app.models import Bookmark
+from app.repositories import BookRepository, BookmarkRepository, ChapterRepository
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,9 @@ class BookmarkService:
             db: 数据库会话
         """
         self.db = db
+        self.book_repo = BookRepository(db)
+        self.chapter_repo = ChapterRepository(db)
+        self.bookmark_repo = BookmarkRepository(db)
 
     def list_bookmarks(self, user_id: str, book_id: str) -> List[Bookmark]:
         """列出指定用户和书籍的所有书签
@@ -42,15 +46,7 @@ class BookmarkService:
             raise ValueError("book_id 不能为空")
 
         try:
-            bookmarks = (
-                self.db.query(Bookmark)
-                .filter(
-                    Bookmark.user_id == user_id,
-                    Bookmark.book_id == book_id,
-                )
-                .order_by(Bookmark.created_at.desc())
-                .all()
-            )
+            bookmarks = self.bookmark_repo.list_by_user_book(user_id, book_id)
             logger.debug(f"用户 {user_id} 在书籍 {book_id} 中有 {len(bookmarks)} 个书签")
             return bookmarks
         except Exception as e:
@@ -91,14 +87,11 @@ class BookmarkService:
             raise ValueError("chapter_id 不能为空")
 
         # 验证书籍和章节是否存在
-        book = self.db.query(Book).filter(Book.id == book_id).first()
+        book = self.book_repo.get_by_id(book_id)
         if not book:
             raise ValueError(f"书籍不存在: book_id={book_id}")
 
-        chapter = self.db.query(Chapter).filter(
-            Chapter.id == chapter_id,
-            Chapter.book_id == book_id,
-        ).first()
+        chapter = self.chapter_repo.get_by_id_and_book(chapter_id, book_id)
         if not chapter:
             raise ValueError(f"章节不存在: chapter_id={chapter_id}, book_id={book_id}")
 
@@ -153,15 +146,7 @@ class BookmarkService:
             raise ValueError("bookmark_id 不能为空")
 
         try:
-            bookmark = (
-                self.db.query(Bookmark)
-                .filter(
-                    Bookmark.id == bookmark_id,
-                    Bookmark.user_id == user_id,
-                    Bookmark.book_id == book_id,
-                )
-                .first()
-            )
+            bookmark = self.bookmark_repo.get_by_scope(user_id, book_id, bookmark_id)
 
             if not bookmark:
                 logger.debug(
@@ -202,11 +187,7 @@ class BookmarkService:
             raise ValueError("bookmark_id 不能为空")
 
         try:
-            bookmark = (
-                self.db.query(Bookmark)
-                .filter(Bookmark.id == bookmark_id)
-                .first()
-            )
+            bookmark = self.bookmark_repo.get_by_id(bookmark_id)
             return bookmark
         except Exception as e:
             logger.error(f"查询书签失败: bookmark_id={bookmark_id}, error={e}")
@@ -237,11 +218,7 @@ class BookmarkService:
             raise ValueError("bookmark_id 不能为空")
 
         try:
-            bookmark = (
-                self.db.query(Bookmark)
-                .filter(Bookmark.id == bookmark_id)
-                .first()
-            )
+            bookmark = self.bookmark_repo.get_by_id(bookmark_id)
 
             if not bookmark:
                 logger.debug(f"书签不存在: bookmark_id={bookmark_id}")

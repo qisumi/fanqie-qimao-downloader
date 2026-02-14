@@ -1,10 +1,10 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import Book, User, UserBook
+from app.models import User, UserBook
+from app.repositories import BookRepository, UserBookRepository, UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -14,20 +14,19 @@ class UserService:
 
     def __init__(self, db: Session):
         self.db = db
+        self.user_repo = UserRepository(db)
+        self.book_repo = BookRepository(db)
+        self.user_book_repo = UserBookRepository(db)
 
     # ========== 用户管理 ==========
     def list_users(self) -> List[User]:
-        return self.db.query(User).order_by(User.created_at.asc()).all()
+        return self.user_repo.list_users()
 
     def get_user_by_id(self, user_id: str) -> Optional[User]:
-        return self.db.query(User).filter(User.id == user_id).first()
+        return self.user_repo.get_by_id(user_id)
 
     def get_user_by_name(self, username: str) -> Optional[User]:
-        return (
-            self.db.query(User)
-            .filter(User.username == username.strip())
-            .first()
-        )
+        return self.user_repo.get_by_name(username.strip())
 
     def create_user(self, username: str) -> User:
         clean_name = (username or "").strip()
@@ -54,11 +53,7 @@ class UserService:
         if not clean_name:
             raise ValueError("新用户名不能为空")
 
-        existing = (
-            self.db.query(User)
-            .filter(User.username == clean_name, User.id != user_id)
-            .first()
-        )
+        existing = self.user_repo.get_by_name_excluding_id(clean_name, user_id)
         if existing:
             raise ValueError("用户名已存在")
 
@@ -88,32 +83,14 @@ class UserService:
         page: int = 0,
         limit: int = 20,
     ) -> Dict[str, Any]:
-        query = (
-            self.db.query(Book)
-            .join(UserBook, UserBook.book_id == Book.id)
-            .filter(UserBook.user_id == user_id)
+        books, total = self.book_repo.list_by_user(
+            user_id=user_id,
+            platform=platform,
+            status=status,
+            search=search,
+            page=page,
+            limit=limit,
         )
-
-        if platform:
-            query = query.filter(Book.platform == platform)
-
-        if status:
-            query = query.filter(Book.download_status == status)
-
-        if search:
-            search_pattern = f"%{search}%"
-            query = query.filter(
-                or_(
-                    Book.title.ilike(search_pattern),
-                    Book.author.ilike(search_pattern),
-                )
-            )
-
-        total = query.count()
-        query = query.order_by(Book.updated_at.desc())
-        query = query.offset(page * limit).limit(limit)
-
-        books = query.all()
         pages = (total + limit - 1) // limit
 
         return {
@@ -130,15 +107,11 @@ class UserService:
         if not user:
             raise ValueError("用户不存在")
 
-        book = self.db.query(Book).filter(Book.id == book_id).first()
+        book = self.book_repo.get_by_id(book_id)
         if not book:
             raise ValueError("书籍不存在")
 
-        existing = (
-            self.db.query(UserBook)
-            .filter(UserBook.user_id == user_id, UserBook.book_id == book_id)
-            .first()
-        )
+        existing = self.user_book_repo.get_link(user_id, book_id)
         if existing:
             return existing
 
@@ -150,11 +123,7 @@ class UserService:
         return link
 
     def remove_book_from_user(self, user_id: str, book_id: str) -> bool:
-        link = (
-            self.db.query(UserBook)
-            .filter(UserBook.user_id == user_id, UserBook.book_id == book_id)
-            .first()
-        )
+        link = self.user_book_repo.get_link(user_id, book_id)
         if not link:
             return False
 
@@ -164,12 +133,7 @@ class UserService:
         return True
 
     def get_user_book_ids(self, user_id: str) -> List[str]:
-        return [
-            row.book_id
-            for row in self.db.query(UserBook.book_id)
-            .filter(UserBook.user_id == user_id)
-            .all()
-        ]
+        return self.user_book_repo.list_book_ids(user_id)
 
 
 __all__ = ["UserService"]

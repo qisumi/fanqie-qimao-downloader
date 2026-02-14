@@ -1,12 +1,13 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.schemas import TaskListResponse, TaskResponse
-from app.services import DownloadService, StorageService
+from app.usecases import TaskReadUseCase
 from app.utils.database import get_db
+from app.web.mappers import to_task_response
 
 logger = logging.getLogger(__name__)
 
@@ -39,32 +40,14 @@ async def list_tasks(
     - **limit**: 每页数量
     """
     try:
-        storage = StorageService()
-        download_service = DownloadService(db=db, storage=storage)
-        
-        result = download_service.list_tasks(
-            book_uuid=book_id,
+        usecase = TaskReadUseCase(db=db)
+        result = usecase.list_tasks(
+            book_id=book_id,
             status=status,
             page=page,
             limit=limit,
         )
-        
-        tasks = []
-        for task in result["tasks"]:
-            tasks.append(TaskResponse(
-                id=task.id,
-                book_id=task.book_id,
-                task_type=task.task_type,
-                status=task.status or "pending",
-                total_chapters=task.total_chapters or 0,
-                downloaded_chapters=task.downloaded_chapters or 0,
-                failed_chapters=task.failed_chapters or 0,
-                progress=task.progress or 0.0,
-                error_message=task.error_message,
-                started_at=task.started_at,
-                completed_at=task.completed_at,
-                created_at=task.created_at,
-            ))
+        tasks = [to_task_response(task) for task in result["tasks"]]
         
         return TaskListResponse(
             tasks=tasks,
@@ -89,28 +72,13 @@ async def get_task(
     - **task_id**: 任务UUID
     """
     try:
-        storage = StorageService()
-        download_service = DownloadService(db=db, storage=storage)
-        
-        task = download_service.get_task(task_id)
+        usecase = TaskReadUseCase(db=db)
+        task = usecase.get_task(task_id)
         
         if not task:
             raise HTTPException(status_code=404, detail="任务不存在")
         
-        return TaskResponse(
-            id=task.id,
-            book_id=task.book_id,
-            task_type=task.task_type,
-            status=task.status or "pending",
-            total_chapters=task.total_chapters or 0,
-            downloaded_chapters=task.downloaded_chapters or 0,
-            failed_chapters=task.failed_chapters or 0,
-            progress=task.progress or 0.0,
-            error_message=task.error_message,
-            started_at=task.started_at,
-            completed_at=task.completed_at,
-            created_at=task.created_at,
-        )
+        return to_task_response(task)
         
     except HTTPException:
         raise

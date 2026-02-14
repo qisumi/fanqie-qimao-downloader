@@ -1,6 +1,6 @@
 # Qisumi的书库
 
-[![Version](https://img.shields.io/badge/version-1.7.1-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.7.1)
+[![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.7.2)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -146,7 +146,9 @@ FanqieQimaoDownloader/
 │   │   ├── bookmark.py           # 书签模型
 │   │   ├── reading_progress.py   # 阅读进度
 │   │   └── reading_history.py    # 阅读历史
-│   ├── services/                 # 业务逻辑层
+│   ├── repositories/             # 数据访问层 (Repository)
+│   ├── usecases/                 # 应用编排层 (UseCase)
+│   ├── services/                 # 领域服务层
 │   │   ├── book/                 # 书籍管理 (mixin 模块)
 │   │   ├── download/             # 下载管理 (mixin 模块)
 │   │   ├── reader/               # 阅读器服务
@@ -154,12 +156,13 @@ FanqieQimaoDownloader/
 │   │   ├── epub_service.py       # EPUB 生成
 │   │   ├── txt_service.py        # TXT 生成
 │   │   └── user_service.py       # 用户管理
-│   ├── web/                      # Web 层
+│   ├── web/                      # API 层
 │   │   ├── routes/               # API 路由
 │   │   │   ├── books_*.py        # 书籍相关 API
 │   │   │   ├── tasks_*.py        # 任务相关 API
 │   │   │   ├── users.py          # 用户管理 API
 │   │   │   └── ws.py             # WebSocket 路由
+│   │   ├── mappers/              # 响应映射器
 │   │   └── static/               # 静态资源
 │   ├── main.py                   # FastAPI 入口
 │   └── config.py                 # 配置管理
@@ -380,7 +383,7 @@ SESSION_EXPIRE_HOURS=168     # 登录有效期: 7天
 
 ## 📊 开发状态
 
-**当前版本: v1.7.1** 🎉
+**当前版本: v1.7.2** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|

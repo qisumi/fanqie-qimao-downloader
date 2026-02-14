@@ -10,14 +10,13 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import func, or_
-
 from app.api.base import Platform
 from app.api.fanqie import FanqieAPI
 from app.api.qimao import QimaoAPI
 from app.api.biquge import BiqugeAPI
 from app.models.book import Book
 from app.models.chapter import Chapter
+from app.repositories import BookRepository, ChapterRepository
 from app.services.storage_service import StorageService
 from sqlalchemy.orm import Session
 
@@ -42,6 +41,8 @@ class BookService:
     ):
         self.db = db
         self.storage = storage or StorageService()
+        self.book_repo = BookRepository(db)
+        self.chapter_repo = ChapterRepository(db)
 
     def _get_api_client(self, platform: str) -> FanqieAPI | QimaoAPI | BiqugeAPI:
         """根据平台获取API客户端"""
@@ -145,7 +146,7 @@ class BookService:
 
     def get_book(self, book_uuid: str) -> Optional[Book]:
         """根据UUID获取书籍"""
-        return self.db.query(Book).filter(Book.id == book_uuid).first()
+        return self.book_repo.get_by_id(book_uuid)
 
     def get_book_by_platform_id(
         self,
@@ -153,10 +154,7 @@ class BookService:
         book_id: str,
     ) -> Optional[Book]:
         """根据平台ID获取书籍"""
-        return self.db.query(Book).filter(
-            Book.platform == platform,
-            Book.book_id == book_id
-        ).first()
+        return self.book_repo.get_by_platform_id(platform=platform, platform_book_id=book_id)
 
     def list_books(
         self,
@@ -167,28 +165,13 @@ class BookService:
         limit: int = 20,
     ) -> Dict[str, Any]:
         """列出书籍"""
-        query = self.db.query(Book)
-
-        if platform:
-            query = query.filter(Book.platform == platform)
-
-        if status:
-            query = query.filter(Book.download_status == status)
-
-        if search:
-            search_pattern = f"%{search}%"
-            query = query.filter(
-                or_(
-                    Book.title.ilike(search_pattern),
-                    Book.author.ilike(search_pattern)
-                )
-            )
-
-        total = query.count()
-        query = query.order_by(Book.updated_at.desc())
-        query = query.offset(page * limit).limit(limit)
-
-        books = query.all()
+        books, total = self.book_repo.list_books(
+            platform=platform,
+            status=status,
+            search=search,
+            page=page,
+            limit=limit,
+        )
         pages = (total + limit - 1) // limit
 
         return {
@@ -217,9 +200,7 @@ class BookService:
         if not book:
             return None
 
-        chapters = self.db.query(Chapter).filter(
-            Chapter.book_id == book_uuid
-        ).order_by(Chapter.chapter_index).all()
+        chapters = self.chapter_repo.list_by_book(book_uuid)
 
         completed_count = sum(1 for c in chapters if c.download_status == "completed")
         failed_count = sum(1 for c in chapters if c.download_status == "failed")
@@ -244,12 +225,7 @@ class BookService:
 
     def get_book_statistics(self, book_uuid: str) -> Dict[str, Any]:
         """获取书籍统计信息"""
-        status_counts = self.db.query(
-            Chapter.download_status,
-            func.count(Chapter.id).label('count')
-        ).filter(
-            Chapter.book_id == book_uuid
-        ).group_by(Chapter.download_status).all()
+        status_counts = self.chapter_repo.get_status_counts(book_uuid)
 
         completed_count = 0
         failed_count = 0
@@ -280,23 +256,14 @@ class BookService:
 
     def get_statistics(self) -> Dict[str, Any]:
         """获取全局统计信息"""
-        total_books = self.db.query(func.count(Book.id)).scalar()
-
-        platform_counts = self.db.query(
-            Book.platform, func.count(Book.id)
-        ).group_by(Book.platform).all()
-        books_by_platform = {p: c for p, c in platform_counts}
-
-        status_counts = self.db.query(
-            Book.download_status, func.count(Book.id)
-        ).group_by(Book.download_status).all()
-        books_by_status = {s: c for s, c in status_counts}
-
-        total_chapters = self.db.query(func.sum(Book.total_chapters)).scalar() or 0
-        downloaded_chapters = self.db.query(func.sum(Book.downloaded_chapters)).scalar() or 0
+        total_books = self.book_repo.get_total_books()
+        books_by_platform = self.book_repo.get_books_by_platform()
+        books_by_status = self.book_repo.get_books_by_status()
+        total_chapters = self.book_repo.get_total_chapters_sum()
+        downloaded_chapters = self.book_repo.get_downloaded_chapters_sum()
 
         return {
-            "total_books": total_books or 0,
+            "total_books": total_books,
             "books_by_platform": books_by_platform,
             "books_by_status": books_by_status,
             "total_chapters": total_chapters,
@@ -371,9 +338,7 @@ class BookService:
         if not book:
             return []
 
-        max_index = self.db.query(func.max(Chapter.chapter_index)).filter(
-            Chapter.book_id == book_uuid
-        ).scalar() or -1
+        max_index = self.chapter_repo.get_max_chapter_index(book_uuid)
 
         async with self._get_api_client(book.platform) as api:
             chapter_list = await api.get_chapter_list(book.book_id)

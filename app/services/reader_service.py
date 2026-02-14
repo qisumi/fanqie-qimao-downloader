@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models import Book, Bookmark, Chapter, ReadingHistory, ReadingProgress
+from app.repositories import ChapterRepository
 from app.services.book_service import BookService
 from app.services.download_service import DownloadService
 from app.services.storage_service import StorageService
@@ -74,6 +75,7 @@ class ReaderService:
         self.book_service = book_service or BookService(db=db, storage=self.storage)
         self.download_service = download_service or DownloadService(db=db, storage=self.storage)
         self.txt_service = txt_service or TXTService(db=db, storage=self.storage)
+        self.chapter_repo = ChapterRepository(db)
         
         # 初始化子服务
         self.toc_service = toc_service or TocService(db=db, book_service=self.book_service)
@@ -109,10 +111,7 @@ class ReaderService:
             章节对象，不存在时返回None
         """
         try:
-            return self.db.query(Chapter).filter(
-                Chapter.id == chapter_id,
-                Chapter.book_id == book_id,
-            ).first()
+            return self.chapter_repo.get_by_id_and_book(chapter_id, book_id)
         except Exception as e:
             logger.error(f"获取章节失败: book_id={book_id}, chapter_id={chapter_id}, error={e}")
             return None
@@ -427,13 +426,8 @@ class ReaderService:
                 "cached_at": 缓存时间戳
             }
         """
-        cached_chapters = self.db.query(Chapter.id).filter(
-            Chapter.book_id == book.id,
-            Chapter.download_status == "completed",
-        ).all()
-        
         return {
-            "cached_chapters": [cid[0] for cid in cached_chapters],
+            "cached_chapters": self.chapter_repo.list_completed_ids_by_book(book.id),
             "cached_at": datetime.now(timezone.utc),
         }
 
@@ -455,10 +449,7 @@ class ReaderService:
         if txt_path.exists():
             return str(txt_path)
 
-        chapters = self.db.query(Chapter).filter(
-            Chapter.book_id == book.id,
-            Chapter.download_status == "completed",
-        ).order_by(Chapter.chapter_index).all()
+        chapters = self.chapter_repo.list_completed_by_book(book.id)
         
         if not chapters:
             raise ValueError("没有已下载的章节可生成TXT")

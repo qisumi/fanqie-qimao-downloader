@@ -5,11 +5,10 @@ WebSocket 连接管理器
 """
 
 import asyncio
-import json
-from typing import Dict, Set, Optional, Any
+from typing import Dict, Set, Optional
 from datetime import datetime
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from starlette.websockets import WebSocketState
 
 from app.utils.logger import get_logger
@@ -62,6 +61,23 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"WebSocket connection failed: {e}")
             return False
+
+    async def attach_existing_connection(self, websocket: WebSocket, task_id: str):
+        """
+        将已 accept 的 WebSocket 绑定到任务（不重复 accept）。
+
+        适用于先接受连接、后动态决定订阅 task_id 的场景。
+        """
+        async with self._lock:
+            if task_id not in self._connections:
+                self._connections[task_id] = set()
+            self._connections[task_id].add(websocket)
+            self._websocket_to_task[websocket] = task_id
+
+        logger.info(
+            f"WebSocket attached: task_id={task_id}, "
+            f"total_connections={len(self._connections.get(task_id, []))}"
+        )
     
     async def disconnect(self, websocket: WebSocket):
         """

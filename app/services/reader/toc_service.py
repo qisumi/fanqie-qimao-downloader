@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.models import Book, Chapter
+from app.repositories import ChapterRepository
 from app.services.book_service import BookService
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class TocService:
         """
         self.db = db
         self.book_service = book_service or BookService(db=db)
+        self.chapter_repo = ChapterRepository(db)
 
     def _get_book(self, book_id: str) -> Optional[Book]:
         """获取书籍信息
@@ -52,10 +54,7 @@ class TocService:
             章节对象，不存在时返回None
         """
         try:
-            return self.db.query(Chapter).filter(
-                Chapter.id == chapter_id,
-                Chapter.book_id == book_id,
-            ).first()
+            return self.chapter_repo.get_by_id_and_book(chapter_id, book_id)
         except Exception as e:
             logger.error(f"获取章节失败: book_id={book_id}, chapter_id={chapter_id}, error={e}")
             return None
@@ -75,19 +74,7 @@ class TocService:
             (上一章ID, 下一章ID) 元组，不存在时对应位置为None
         """
         try:
-            # 查询上一章
-            prev_id = self.db.query(Chapter.id).filter(
-                Chapter.book_id == book_id,
-                Chapter.chapter_index < chapter_index
-            ).order_by(Chapter.chapter_index.desc()).limit(1).scalar()
-
-            # 查询下一章
-            next_id = self.db.query(Chapter.id).filter(
-                Chapter.book_id == book_id,
-                Chapter.chapter_index > chapter_index
-            ).order_by(Chapter.chapter_index.asc()).limit(1).scalar()
-
-            return prev_id, next_id
+            return self.chapter_repo.get_adjacent_chapter_ids(book_id, chapter_index)
         except Exception as e:
             logger.error(f"获取相邻章节失败: book_id={book_id}, chapter_index={chapter_index}, error={e}")
             return None, None
@@ -131,9 +118,7 @@ class TocService:
             page = max(1, page)
             limit = max(1, min(limit, 500))
 
-            # 构建基础查询
-            base_query = self.db.query(Chapter).filter(Chapter.book_id == book_id)
-            total = base_query.count()
+            total = self.chapter_repo.count_by_book(book_id)
 
             # 如果指定了 anchor_id，根据章节位置重算页码
             # 确保返回的数据包含该章节
@@ -144,12 +129,10 @@ class TocService:
                     logger.debug(f"锚点定位: anchor_id={anchor_id}, chapter_index={anchor.chapter_index}, page={page}")
 
             # 计算偏移量并查询章节
-            offset = (page - 1) * limit
-            chapters = (
-                base_query.order_by(Chapter.chapter_index)
-                .offset(offset)
-                .limit(limit)
-                .all()
+            chapters, _ = self.chapter_repo.list_by_book_paginated(
+                book_id=book_id,
+                page=page,
+                limit=limit,
             )
 
             # 构建目录项列表（只包含轻量字段）
@@ -175,7 +158,7 @@ class TocService:
                 "page": page,
                 "limit": limit,
                 "pages": pages,
-                "has_more": offset + len(toc_items) < total,
+                "has_more": (page - 1) * limit + len(toc_items) < total,
             }
         except Exception as e:
             logger.exception(f"获取目录失败: book_id={book_id}, error={e}")

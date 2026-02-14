@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.models.book import Book
 from app.models.chapter import Chapter
+from app.repositories import ChapterRepository
 from app.services.storage_service import StorageService
 from app.config import settings
 
@@ -49,6 +50,12 @@ class TXTService:
         """
         self.db = db
         self.storage = storage or StorageService()
+
+    @property
+    def _chapter_repo(self) -> ChapterRepository:
+        if self.db is None:
+            raise ValueError("Database session is required for chapter queries")
+        return ChapterRepository(self.db)
     
     def generate_txt(
         self,
@@ -69,10 +76,7 @@ class TXTService:
         """
         # 获取章节列表
         if chapters is None and self.db:
-            chapters = self.db.query(Chapter).filter(
-                Chapter.book_id == book.id,
-                Chapter.download_status == "completed"
-            ).order_by(Chapter.chapter_index).all()
+            chapters = self._chapter_repo.list_completed_by_book(book.id)
         
         if not chapters:
             raise ValueError("No chapters available for TXT generation")
