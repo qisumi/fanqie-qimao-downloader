@@ -18,7 +18,7 @@ from app.api.base import (
     ChapterNotFoundError,
     InvalidResponseError,
 )
-from app.api.utils import safe_int, safe_float, format_timestamp
+from app.api.utils import safe_int, safe_float, format_timestamp, clean_content
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +304,7 @@ class QimaoAPI(RainAPIClient):
         # 解析内容
         content = ""
         if response.get("data"):
-            content = response["data"].get("content", "")
+            content = clean_content(response["data"].get("content", ""))
         
         if not content:
             raise ChapterNotFoundError(chapter_id, self.platform.value)
