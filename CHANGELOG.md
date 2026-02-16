@@ -7,6 +7,25 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-02-16
+
+### ✨ 新增
+
+- **PM2 部署支持**
+  - 新增 `ecosystem.config.js`，提供 FastAPI 进程托管、日志与重启策略
+  - 新增 `deploy-pm2.sh`，支持 Linux/macOS 一键部署
+
+### 🛠 改进
+
+- **工程化与运维**
+  - 根目录 `package.json` 补充 PM2 管理脚本（start/stop/restart/logs 等）
+  - `.gitignore` 新增 PM2 运行日志和 PID 忽略规则
+  - README 增加 PM2 部署流程与命令说明
+
+### 📝 文档
+
+- 移除 `TEST_COVERAGE_GUIDE.md`（过时测试覆盖率指南）
+
 ## [1.7.2] - 2026-02-14
 
 ### ♻️ 重构

@@ -1,6 +1,6 @@
 # Qisumi的书库
 
-[![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.7.2)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com/qisumi/fanqie-qimao-downloader/releases/tag/v1.8.0)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -68,7 +68,47 @@ docker-compose up -d
 
 访问 http://localhost:4568 开始使用。
 
-### 方式二：手动部署
+### 方式二：PM2 部署（推荐生产环境）
+
+```bash
+# 克隆项目
+git clone https://github.com/qisumi/fanqie-qimao-downloader.git
+cd fanqie-qimao-downloader
+
+# 配置环境变量
+cp .env.example .env
+# 编辑 .env，填入 RAIN_API_KEY
+
+# 一键部署
+# Windows
+deploy-pm2.bat
+
+# Linux/Mac
+chmod +x deploy-pm2.sh
+./deploy-pm2.sh
+```
+
+或手动部署：
+
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 初始化数据库
+python init_db.py
+
+# 构建前端（可选）
+cd frontend && npm install && npm run build && cd ..
+
+# 启动应用
+npm run pm2:start
+```
+
+访问 http://localhost:4568 开始使用。
+
+详细文档：[PM2 部署指南](PM2_DEPLOYMENT.md) | [快速开始](PM2_QUICK_START.md)
+
+### 方式三：手动部署
 
 #### 1. 环境要求
 
@@ -383,7 +423,7 @@ SESSION_EXPIRE_HOURS=168     # 登录有效期: 7天
 
 ## 📊 开发状态
 
-**当前版本: v1.7.2** 🎉
+**当前版本: v1.8.0** 🎉
 
 | 阶段 | 状态 | 描述 |
 |------|------|------|

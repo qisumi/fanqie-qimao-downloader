@@ -186,3 +186,8 @@ data/epubs/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+
+# PM2
+.pm2/
+logs/pm2-*.log
+logs/pm2.pid

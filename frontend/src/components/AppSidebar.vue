@@ -109,7 +109,7 @@ function handleMenuSelect(key) {
     <!-- 底部信息 -->
     <div v-if="!collapsed" class="sidebar-footer">
 <div class="version-info">
-        <span class="version-label">v1.7.2</span>
+        <span class="version-label">v1.8.0</span>
       </div>
     </div>
   </div>
