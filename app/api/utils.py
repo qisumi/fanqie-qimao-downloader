@@ -105,7 +105,7 @@ def strip_html(text: str) -> str:
 
 
 def clean_content(content: str) -> str:
-    """清理章节正文中的占位文本
+    """清理章节正文中的占位文本和HTML标签
     
     Args:
         content: 原始内容
@@ -115,8 +115,12 @@ def clean_content(content: str) -> str:
     """
     if not content:
         return ""
+    # 先移除HTML标签
+    cleaned = re.sub(r"<[^>]+>", "", content)
+    # 反转义HTML实体
+    cleaned = html.unescape(cleaned)
     # 移除常见的占位文本
-    cleaned = content.replace("<<---展开全部章节--->>", "")
+    cleaned = cleaned.replace("<<---展开全部章节--->>", "")
     # 合并多余的空行
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
